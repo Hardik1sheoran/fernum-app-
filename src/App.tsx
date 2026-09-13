@@ -1,0 +1,416 @@
+import React, { useEffect, useState, useCallback } from 'react'
+import { Header } from './components/shared/Header'
+import { TabNavigation, type TabKey } from './components/shared/TabNavigation'
+import { DrivePicker } from './components/DrivePicker/DrivePicker'
+import { TreemapCanvas } from './components/Treemap/TreemapCanvas'
+import { JunkCleaner } from './components/Cleaner/JunkCleaner'
+import { AppsList } from './components/AppsList/AppsList'
+import { SearchPanel } from './components/Search/SearchPanel'
+import { MonitorDashboard } from './components/Monitor/MonitorDashboard'
+import { ExclusionsModal } from './components/shared/ExclusionsModal'
+import { PrivacyModal } from './components/shared/PrivacyModal'
+import { useScanStore } from './stores/scanStore'
+import { useSettingsStore } from './stores/settingsStore'
+import { useTheme } from './hooks/useTheme'
+import type { DriveInfo, QuickFolderInfo, ScanProgress, FileNode } from '@shared/types'
+
+export const App: React.FC = () => {
+  useTheme() // Initialize theme class on documentElement
+  const [activeTab, setActiveTab] = useState<TabKey>('storage')
+  const [isExclusionsOpen, setIsExclusionsOpen] = useState(false)
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(false)
+  const [driveError, setDriveError] = useState<string | null>(null)
+
+  const {
+    drives,
+    quickFolders,
+    selectedDrive,
+    scanProgress,
+    rootNode,
+    setRootNode,
+    currentViewNode,
+    breadcrumbs,
+    setDrives,
+    setQuickFolders,
+    setSelectedDrive,
+    setScanProgress,
+    drillDown,
+    drillUp,
+    resetView,
+    setIsLoadingDrives,
+  } = useScanStore()
+
+  const loadDrives = useCallback(async () => {
+    setIsLoadingDrives(true)
+    setDriveError(null)
+    try {
+      if (window.electronAPI) {
+        const [detectedDrives, detectedQuickFolders] = await Promise.all([
+          window.electronAPI.getDrives(),
+          window.electronAPI.getQuickAccessFolders ? window.electronAPI.getQuickAccessFolders() : Promise.resolve([]),
+        ])
+        setDrives(detectedDrives)
+        if (detectedQuickFolders && detectedQuickFolders.length > 0) {
+          setQuickFolders(detectedQuickFolders)
+        }
+
+        // Warm startup: auto-load cached tree for user home or primary drive
+        const userFolder = detectedQuickFolders?.find((f) => f.category === 'user') || detectedQuickFolders?.[0]
+        const targetForInitial = userFolder?.path || detectedDrives[0]?.path
+        if (targetForInitial && !useScanStore.getState().rootNode && window.electronAPI.getCachedScan) {
+          try {
+            const cached = await window.electronAPI.getCachedScan(targetForInitial)
+            if (cached && !useScanStore.getState().rootNode) {
+              const primaryDrive = detectedDrives[0]
+              const initialDrive: DriveInfo = {
+                id: primaryDrive ? primaryDrive.id : 'C:',
+                name: userFolder?.name || 'User Home',
+                path: targetForInitial,
+                totalBytes: primaryDrive?.totalBytes || 0,
+                freeBytes: primaryDrive?.freeBytes || 0,
+                usedBytes: primaryDrive?.usedBytes || 0,
+                isSystem: false,
+              }
+              setSelectedDrive(initialDrive)
+              setRootNode(cached)
+              setScanProgress({
+                status: 'completed',
+                currentPath: targetForInitial,
+                scannedFiles: cached.children?.length || 0,
+                scannedBytes: cached.size,
+                percentage: 100,
+              })
+            }
+          } catch {
+            // Ignored on initial warm load
+          }
+        }
+      } else {
+        setDriveError('Desktop integration bridge (electronAPI) is disconnected. Unable to query system drives.')
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err)
+      console.error('Failed to enumerate drives:', err)
+      setDriveError(`Could not read drive information: ${msg}`)
+    } finally {
+      setIsLoadingDrives(false)
+    }
+  }, [setDrives, setQuickFolders, setIsLoadingDrives, setRootNode, setScanProgress])
+
+  useEffect(() => {
+    loadDrives()
+
+    let unsubscribeProgress: (() => void) | undefined
+    let unsubscribeComplete: (() => void) | undefined
+    let unsubscribePartial: (() => void) | undefined
+    let unsubscribeError: (() => void) | undefined
+
+    if (window.electronAPI) {
+      unsubscribeProgress = window.electronAPI.onScanProgress((progress: ScanProgress) => {
+        setScanProgress(progress)
+      })
+
+      unsubscribeComplete = window.electronAPI.onScanComplete((root: FileNode) => {
+        setRootNode(root)
+        setScanProgress({
+          status: 'completed',
+          currentPath: root.path,
+          scannedFiles: root.children?.length || 0,
+          scannedBytes: root.size,
+          percentage: 100,
+        })
+      })
+
+      if (window.electronAPI.onScanPartial) {
+        unsubscribePartial = window.electronAPI.onScanPartial((partialRoot: FileNode) => {
+          // Stream progressive tree live to canvas
+          setRootNode(partialRoot)
+        })
+      }
+
+      unsubscribeError = window.electronAPI.onScanError((err: string) => {
+        setScanProgress({
+          status: 'error',
+          currentPath: '',
+          scannedFiles: 0,
+          scannedBytes: 0,
+          percentage: 0,
+          error: err,
+        })
+      })
+    }
+
+    return () => {
+      if (unsubscribeProgress) unsubscribeProgress()
+      if (unsubscribeComplete) unsubscribeComplete()
+      if (unsubscribePartial) unsubscribePartial()
+      if (unsubscribeError) unsubscribeError()
+    }
+  }, [loadDrives, setScanProgress, setRootNode])
+
+  const getHostDrive = async (targetPath: string): Promise<DriveInfo | undefined> => {
+    let currentDrives = drives
+    if (currentDrives.length === 0 && window.electronAPI?.getDrives) {
+      try {
+        const fetched = await window.electronAPI.getDrives()
+        if (fetched && fetched.length > 0) {
+          currentDrives = fetched
+          setDrives(fetched)
+        }
+      } catch {}
+    }
+    const targetLower = targetPath.toLowerCase()
+    return currentDrives.find((d) => targetLower.startsWith(d.path.toLowerCase())) || currentDrives[0]
+  }
+
+  const handleScanHome = async () => {
+    let targetPath = ''
+    if (quickFolders.length > 0) {
+      const userFolder = quickFolders.find((f) => f.category === 'user') || quickFolders[0]
+      targetPath = userFolder.path
+    } else if (window.electronAPI?.getQuickAccessFolders) {
+      const detected = await window.electronAPI.getQuickAccessFolders()
+      const userFolder = detected.find((f) => f.category === 'user') || detected[0]
+      if (userFolder) targetPath = userFolder.path
+    }
+    if (!targetPath) {
+      targetPath = 'C:\\Users\\hardi'
+    }
+
+    const hostDrive = await getHostDrive(targetPath)
+    const homeDrive: DriveInfo = {
+      id: hostDrive ? `${hostDrive.id}` : 'C:',
+      name: 'User Home',
+      path: targetPath,
+      totalBytes: hostDrive?.totalBytes || 0,
+      freeBytes: hostDrive?.freeBytes || 0,
+      usedBytes: hostDrive?.usedBytes || 0,
+      isSystem: false,
+    }
+
+    if (!drives.some((d) => d.path === targetPath)) {
+      setDrives([homeDrive, ...drives])
+    }
+    setSelectedDrive(homeDrive)
+    handleStartScan(homeDrive)
+  }
+
+  const handleRevealInExplorer = (targetPath: string) => {
+    if (window.electronAPI?.revealInExplorer) {
+      window.electronAPI.revealInExplorer(targetPath)
+    }
+  }
+
+  const handleStartScan = async (drive: DriveInfo, forceRescan = false) => {
+    if (window.electronAPI) {
+      let hasWarmCached = false
+
+      if (!forceRescan && window.electronAPI.getCachedScan) {
+        try {
+          const cached = await window.electronAPI.getCachedScan(drive.path)
+          if (cached) {
+            hasWarmCached = true
+            setRootNode(cached)
+            setScanProgress({
+              status: 'completed',
+              currentPath: drive.path,
+              scannedFiles: cached.children?.length || 0,
+              scannedBytes: cached.size,
+              percentage: 100,
+            })
+          }
+        } catch {
+          // Fall back to standard scan UI
+        }
+      }
+
+      if (!hasWarmCached) {
+        // Initialize rootNode with empty directory so canvas is mounted and renders progressive partial updates
+        setRootNode({
+          id: drive.path,
+          name: drive.name || drive.path,
+          path: drive.path,
+          size: 0,
+          type: 'directory',
+          category: 'other',
+          children: [],
+        })
+        setScanProgress({
+          status: 'scanning',
+          currentPath: drive.path,
+          scannedFiles: 0,
+          scannedBytes: 0,
+          percentage: 0,
+        })
+      }
+
+      const { excludedPaths } = useSettingsStore.getState()
+      try {
+        const started = await window.electronAPI.startScan({
+          targetPath: drive.path,
+          excludePaths: excludedPaths,
+          forceRescan,
+        })
+        if (!started) throw new Error('The scanner could not start.')
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        setScanProgress({
+          status: 'error', currentPath: drive.path, scannedFiles: 0, scannedBytes: 0, percentage: 0, error: message,
+        })
+      }
+    }
+  }
+
+  const handleSelectCustomFolder = async () => {
+    if (window.electronAPI?.selectFolder) {
+      try {
+        const selectedPath = await window.electronAPI.selectFolder()
+        if (!selectedPath) return
+        const folderName = selectedPath.split(/[\\/]/).filter(Boolean).pop() || selectedPath
+        const hostDrive = await getHostDrive(selectedPath)
+        const customFolderDrive: DriveInfo = {
+          id: hostDrive ? hostDrive.id : selectedPath,
+          name: `Folder: ${folderName}`,
+          path: selectedPath,
+          totalBytes: hostDrive?.totalBytes || 0,
+          freeBytes: hostDrive?.freeBytes || 0,
+          usedBytes: hostDrive?.usedBytes || 0,
+          isSystem: false,
+        }
+
+        // Add to drives list if not present
+        if (!drives.some((d) => d.path === selectedPath)) {
+          setDrives([customFolderDrive, ...drives])
+        }
+        setSelectedDrive(customFolderDrive)
+        handleStartScan(customFolderDrive)
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        setDriveError(message)
+      }
+    }
+  }
+
+  const handleSelectQuickFolder = async (folder: QuickFolderInfo) => {
+    const hostDrive = await getHostDrive(folder.path)
+    const folderDrive: DriveInfo = {
+      id: hostDrive ? hostDrive.id : folder.id,
+      name: folder.name,
+      path: folder.path,
+      totalBytes: hostDrive?.totalBytes || 0,
+      freeBytes: hostDrive?.freeBytes || 0,
+      usedBytes: hostDrive?.usedBytes || 0,
+      isSystem: false,
+    }
+
+    if (!drives.some((d) => d.path === folder.path)) {
+      setDrives([folderDrive, ...drives])
+    }
+    setSelectedDrive(folderDrive)
+    handleStartScan(folderDrive)
+  }
+
+  const handleCancelScan = async () => {
+    if (window.electronAPI?.cancelScan) {
+      await window.electronAPI.cancelScan()
+      setScanProgress({
+        status: 'cancelled',
+        currentPath: '',
+        scannedFiles: scanProgress.scannedFiles,
+        scannedBytes: scanProgress.scannedBytes,
+        percentage: 0,
+      })
+    }
+  }
+
+  return (
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#111] text-slate-100 font-sans">
+      {/* Top Title Bar */}
+      <Header
+        onRefreshDrives={loadDrives}
+        onOpenExclusions={() => setIsExclusionsOpen(true)}
+        onOpenPrivacy={() => setIsPrivacyOpen(true)}
+      />
+
+      {/* Scan Exclusions Modal */}
+      <ExclusionsModal
+        isOpen={isExclusionsOpen}
+        onClose={() => setIsExclusionsOpen(false)}
+      />
+
+      {/* 100% Local Privacy Modal */}
+      <PrivacyModal
+        isOpen={isPrivacyOpen}
+        onClose={() => setIsPrivacyOpen(false)}
+      />
+
+      <div className="flex min-h-0 flex-1">
+        <aside className="flex w-64 shrink-0 flex-col border-r border-white/10 bg-[#171717]">
+          <TabNavigation activeTab={activeTab} onSelectTab={setActiveTab} />
+          <DrivePicker
+            drives={drives}
+            quickFolders={quickFolders}
+            selectedDrive={selectedDrive}
+            currentViewNode={currentViewNode}
+            errorMessage={driveError}
+            onSelectDrive={setSelectedDrive}
+            onStartScan={handleStartScan}
+            onScanHome={handleScanHome}
+            onSelectQuickFolder={handleSelectQuickFolder}
+            onSelectCustomFolder={handleSelectCustomFolder}
+            onRevealInExplorer={handleRevealInExplorer}
+            isScanning={scanProgress.status === 'scanning'}
+          />
+        </aside>
+
+      {/* Main Content Area */}
+      <main className="min-w-0 flex-1 overflow-hidden bg-[#101010] p-2">
+        {activeTab === 'storage' && (
+          <div className="h-full">
+            <div className="h-full min-h-[420px]">
+              <TreemapCanvas
+                rootNode={rootNode}
+                currentViewNode={currentViewNode}
+                breadcrumbs={breadcrumbs}
+                isScanning={scanProgress.status === 'scanning'}
+                scanProgressPercentage={scanProgress.percentage}
+                currentScanPath={scanProgress.currentPath}
+                scannedFiles={scanProgress.scannedFiles}
+                scannedBytes={scanProgress.scannedBytes}
+                onCancelScan={handleCancelScan}
+                onDrillDown={drillDown}
+                onDrillUp={drillUp}
+                onResetView={resetView}
+              />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'cleaner' && (
+          <div className="h-full overflow-y-auto p-4">
+            <JunkCleaner />
+          </div>
+        )}
+
+        {activeTab === 'apps' && (
+          <div className="h-full overflow-y-auto p-4">
+            <AppsList />
+          </div>
+        )}
+
+        {activeTab === 'search' && (
+          <div className="h-full overflow-y-auto p-4">
+            <SearchPanel />
+          </div>
+        )}
+
+        {activeTab === 'monitor' && (
+          <div className="h-full overflow-y-auto p-4">
+            <MonitorDashboard />
+          </div>
+        )}
+      </main>
+      </div>
+    </div>
+  )
+}

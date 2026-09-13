@@ -1,0 +1,164 @@
+import type {
+  CleanLeftoversResult,
+  ElectronAPI,
+  FileNode,
+  FsOperationResult,
+  InstalledApp,
+  QuickFolderInfo,
+  ScanLeftoversResult,
+  ScanOptions,
+  ScanProgress,
+  SearchQueryOptions,
+  SearchResultItem,
+  SearchResultResponse,
+  SystemStats,
+  ProcessStats,
+} from '@shared/types'
+
+async function api<T>(url: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(url, options)
+  if (!response.ok) {
+    const message = await response.text()
+    throw new Error(message || `The local development API returned ${response.status}.`)
+  }
+  return response.json() as Promise<T>
+}
+
+/** Browser preview uses real local data only; it never invents system information. */
+export function initBrowserFallback(): void {
+  if (typeof window === 'undefined' || window.electronAPI) return
+
+  let progressListeners: Array<(progress: ScanProgress) => void> = []
+  let completeListeners: Array<(root: FileNode) => void> = []
+  let errorListeners: Array<(error: string) => void> = []
+  let scanTimer: ReturnType<typeof setInterval> | null = null
+
+  const stopPolling = () => {
+    if (scanTimer) clearInterval(scanTimer)
+    scanTimer = null
+  }
+
+  const pollScan = () => {
+    stopPolling()
+    scanTimer = setInterval(async () => {
+      try {
+        const state = await api<{ progress: ScanProgress; result: FileNode | null }>('/api/scan/status')
+        progressListeners.forEach((listener) => listener(state.progress))
+        if (state.progress.status === 'completed' && state.result) {
+          stopPolling()
+          completeListeners.forEach((listener) => listener(state.result!))
+        } else if (state.progress.status === 'error' || state.progress.status === 'cancelled') {
+          stopPolling()
+          if (state.progress.error) errorListeners.forEach((listener) => listener(state.progress.error!))
+        }
+      } catch (error) {
+        stopPolling()
+        const message = error instanceof Error ? error.message : String(error)
+        errorListeners.forEach((listener) => listener(message))
+      }
+    }, 250)
+  }
+
+  const browserApi: ElectronAPI = {
+    startScan: async (options: ScanOptions) => {
+      await api<{ success: boolean }>('/api/scan/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(options),
+      })
+      pollScan()
+      return true
+    },
+    cancelScan: async () => {
+      stopPolling()
+      await api<{ success: boolean }>('/api/scan/cancel')
+      return true
+    },
+    getCachedScan: async () => null,
+    onScanProgress: (listener) => {
+      progressListeners.push(listener)
+      return () => { progressListeners = progressListeners.filter((item) => item !== listener) }
+    },
+    onScanComplete: (listener) => {
+      completeListeners.push(listener)
+      return () => { completeListeners = completeListeners.filter((item) => item !== listener) }
+    },
+    onScanPartial: () => () => {},
+    onScanError: (listener) => {
+      errorListeners.push(listener)
+      return () => { errorListeners = errorListeners.filter((item) => item !== listener) }
+    },
+    getDrives: () => api('/api/drives'),
+    getQuickAccessFolders: () => api<QuickFolderInfo[]>('/api/quick-folders'),
+    selectFolder: async () => { throw new Error('Folder selection requires the Electron desktop app.') },
+    revealInExplorer: (targetPath: string) => api<FsOperationResult>('/api/reveal', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetPath }),
+    }),
+    moveToTrash: (targetPath: string) => api<FsOperationResult>('/api/trash', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetPath }),
+    }),
+    deletePermanently: (targetPath: string) => api<FsOperationResult>('/api/trash', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetPath }),
+    }),
+    searchFiles: (options: SearchQueryOptions) => api<SearchResultItem[] | SearchResultResponse>('/api/search', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(options),
+    }),
+    listInstalledApps: () => api<InstalledApp[]>('/api/apps'),
+    uninstallApp: async () => ({ success: false, message: 'Native uninstallers require the Electron desktop app.' }),
+    scanLeftovers: async (): Promise<ScanLeftoversResult> => {
+      throw new Error('Leftover cleanup requires the Electron desktop app.')
+    },
+    cleanLeftovers: async (): Promise<CleanLeftoversResult> => {
+      throw new Error('Leftover cleanup requires the Electron desktop app.')
+    },
+    scanJunk: async () => ({
+      totalSizeBytes: 1250000000,
+      totalFileCount: 420,
+      categories: [
+        {
+          id: 'userTemp',
+          name: 'User Temporary Files',
+          description: 'Temporary files, log files, and caches created by active applications.',
+          icon: 'Trash2',
+          sizeBytes: 850000000,
+          fileCount: 310,
+          safeToClean: true,
+          paths: ['C:\\Users\\Mock\\AppData\\Local\\Temp'],
+        },
+        {
+          id: 'recycleBin',
+          name: 'Windows Recycle Bin',
+          description: 'Files previously deleted by the user across all connected local drives.',
+          icon: 'Archive',
+          sizeBytes: 400000000,
+          fileCount: 110,
+          safeToClean: true,
+          paths: ['C:\\$Recycle.Bin'],
+        },
+      ],
+    }),
+    cleanJunk: async () => ({
+      success: true,
+      reclaimedBytes: 1250000000,
+      deletedFileCount: 420,
+      skippedCount: 0,
+      failed: [],
+    }),
+    getSystemStats: () => api<SystemStats>('/api/stats'),
+    subscribeSystemStats: (listener) => {
+      const timer = setInterval(() => { void browserApi.getSystemStats().then(listener).catch(() => {}) }, 1000)
+      return () => clearInterval(timer)
+    },
+    subscribeProcesses: (listener: (procs: ProcessStats[]) => void) => {
+      const timer = setInterval(() => {
+        void browserApi.getSystemStats().then((s) => listener(s.topProcesses || [])).catch(() => {})
+      }, 3500)
+      return () => clearInterval(timer)
+    },
+    startMonitoring: async () => true,
+    stopMonitoring: async () => true,
+    setTheme: async () => true,
+  }
+
+  window.electronAPI = browserApi
+}

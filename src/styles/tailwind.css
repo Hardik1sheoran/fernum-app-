@@ -1,0 +1,127 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --app-bg: #f8fafc;
+  --panel-bg: #ffffff;
+  --border-color: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent-color: #2563eb;
+}
+
+.dark {
+  --app-bg: #0f1115;
+  --panel-bg: #181b20;
+  --border-color: #2d333f;
+  --text-primary: #f8fafc;
+  --text-secondary: #94a3b8;
+  --accent-color: #3b82f6;
+}
+
+/* Forest Theme: Lush Deep Emerald & Mint */
+.theme-forest {
+  --app-bg: #0b1411;
+  --panel-bg: #12211c;
+  --border-color: #1e3a31;
+  --text-primary: #ecfdf5;
+  --text-secondary: #6ee7b7;
+  --accent-color: #10b981;
+}
+
+.theme-forest body,
+.theme-forest main {
+  background-color: #0b1411 !important;
+}
+
+.theme-forest .bg-fluent-darker {
+  background-color: #0b1411 !important;
+}
+
+.theme-forest .dark\:bg-\[\#181b21\],
+.theme-forest .dark\:bg-\[\#191d24\],
+.theme-forest .dark\:bg-\[\#15181e\],
+.theme-forest .dark\:bg-\[\#14171d\] {
+  background-color: #12211c !important;
+}
+
+/* Ocean Theme: Deep Marine Cobalt & Cyan */
+.theme-ocean {
+  --app-bg: #09131f;
+  --panel-bg: #0f1e30;
+  --border-color: #193352;
+  --text-primary: #f0f9ff;
+  --text-secondary: #7dd3fc;
+  --accent-color: #0284c7;
+}
+
+.theme-ocean body,
+.theme-ocean main {
+  background-color: #09131f !important;
+}
+
+.theme-ocean .bg-fluent-darker {
+  background-color: #09131f !important;
+}
+
+.theme-ocean .dark\:bg-\[\#181b21\],
+.theme-ocean .dark\:bg-\[\#191d24\],
+.theme-ocean .dark\:bg-\[\#15181e\],
+.theme-ocean .dark\:bg-\[\#14171d\] {
+  background-color: #0f1e30 !important;
+}
+
+/* Aurora Theme: Velvet Midnight & Neon Violet */
+.theme-aurora {
+  --app-bg: #110d1f;
+  --panel-bg: #1a1430;
+  --border-color: #302454;
+  --text-primary: #faf5ff;
+  --text-secondary: #d8b4fe;
+  --accent-color: #a855f7;
+}
+
+.theme-aurora body,
+.theme-aurora main {
+  background-color: #110d1f !important;
+}
+
+.theme-aurora .bg-fluent-darker {
+  background-color: #110d1f !important;
+}
+
+.theme-aurora .dark\:bg-\[\#181b21\],
+.theme-aurora .dark\:bg-\[\#191d24\],
+.theme-aurora .dark\:bg-\[\#15181e\],
+.theme-aurora .dark\:bg-\[\#14171d\] {
+  background-color: #1a1430 !important;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.3);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
+}
+
+/* Electron titlebar drag regions */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
