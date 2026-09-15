@@ -1,6 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import si from 'systeminformation'
 import os from 'node:os'
+import { spawn, type ChildProcess } from 'node:child_process'
 import type { SystemStats, ProcessStats } from '../../shared/types'
 import { sortProcesses } from '../../shared/monitorUtils'
 
@@ -11,6 +12,68 @@ let isCollectingFast = false
 let isCollectingProcesses = false
 let activeSubscribers = 0
 let lastKnownProcesses: ProcessStats[] = []
+let diskIoProc: ChildProcess | null = null
+let currentDiskRead = 0
+let currentDiskWrite = 0
+
+export function startDiskIoSampling(): void {
+  if (diskIoProc || process.platform !== 'win32') return
+
+  try {
+    diskIoProc = spawn(
+      'typeperf',
+      ['\\PhysicalDisk(_Total)\\Disk Read Bytes/sec', '\\PhysicalDisk(_Total)\\Disk Write Bytes/sec', '-si', '1'],
+      {
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }
+    )
+
+    let buffer = ''
+    diskIoProc.stdout?.on('data', (chunk: Buffer) => {
+      buffer += chunk.toString()
+      const lines = buffer.split(/\r?\n/)
+      buffer = lines.pop() || ''
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim()
+        if (!line || line.startsWith('(PDH-CSV') || line.includes('PhysicalDisk')) {
+          continue
+        }
+        const parts = line.replace(/"/g, '').split(',')
+        if (parts.length >= 3) {
+          const r = parseFloat(parts[1])
+          const w = parseFloat(parts[2])
+          if (!isNaN(r)) currentDiskRead = Math.max(0, Math.round(r))
+          if (!isNaN(w)) currentDiskWrite = Math.max(0, Math.round(w))
+        }
+      }
+    })
+
+    diskIoProc.on('error', () => {
+      diskIoProc = null
+    })
+
+    diskIoProc.on('exit', () => {
+      diskIoProc = null
+    })
+  } catch {
+    diskIoProc = null
+  }
+}
+
+export function stopDiskIoSampling(): void {
+  if (diskIoProc) {
+    try {
+      diskIoProc.kill()
+    } catch {
+      // Ignored
+    }
+    diskIoProc = null
+  }
+  currentDiskRead = 0
+  currentDiskWrite = 0
+}
 
 export function getActiveSubscribers(): number {
   return activeSubscribers
@@ -109,9 +172,9 @@ export async function collectFastMetrics(): Promise<Omit<SystemStats, 'topProces
     }
 
     // 3. Disk I/O Read/Write (bytes/sec)
-    let diskReadSpeed = 0
-    let diskWriteSpeed = 0
-    if (diskRes.status === 'fulfilled' && diskRes.value) {
+    let diskReadSpeed = currentDiskRead
+    let diskWriteSpeed = currentDiskWrite
+    if (diskReadSpeed === 0 && diskWriteSpeed === 0 && diskRes.status === 'fulfilled' && diskRes.value) {
       diskReadSpeed = Math.max(0, Math.round(diskRes.value.rIO_sec || 0))
       diskWriteSpeed = Math.max(0, Math.round(diskRes.value.wIO_sec || 0))
     }
@@ -220,6 +283,7 @@ export async function collectRealtimeStats(): Promise<SystemStats> {
  */
 export function startCollecting(getWindow: () => BrowserWindow | null): void {
   activeSubscribers++
+  startDiskIoSampling()
 
   // If intervals are already running, nothing more to do
   if (statsInterval && processInterval) {
@@ -322,6 +386,7 @@ export function registerMonitorIpc(getWindow: () => BrowserWindow | null): void 
  * Stops the streaming monitor interval and clears timers.
  */
 export function stopMonitorIpc(): void {
+  stopDiskIoSampling()
   if (statsInterval) {
     clearInterval(statsInterval)
     statsInterval = null

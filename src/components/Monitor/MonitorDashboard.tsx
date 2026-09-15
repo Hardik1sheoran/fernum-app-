@@ -102,78 +102,57 @@ export const MonitorDashboard: React.FC = () => {
   const memChart = buildSvgPath(history.memory, 300, 90)
 
   return (
-    <div className="flex flex-col h-full space-y-4 overflow-y-auto pr-0.5 max-w-6xl mx-auto pb-4">
+    <div className="flex flex-col h-full space-y-3 overflow-y-auto pr-0.5 max-w-6xl mx-auto pb-4">
       {/* Top Header Card */}
-      <div className="bg-slate-900/80 border border-white/[0.08] p-4 rounded-xl shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 flex-shrink-0">
+      <div className="bg-[#202024] border border-[#2d2d33] p-4 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 flex-shrink-0">
         <div>
-          <div className="flex items-center gap-2.5">
-            <h2 className="text-base font-semibold tracking-tight text-slate-100 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
-                <Activity className="w-4 h-4 text-blue-400" />
-              </div>
-              System Performance Telemetry
-            </h2>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.04] text-slate-400 border border-white/[0.06]">
-              1 Hz Interval
-            </span>
-          </div>
-          <p className="text-xs text-slate-400 mt-0.5">
+          <h2 className="text-sm font-semibold tracking-tight text-zinc-100 flex items-center gap-2">
+            <Activity className="w-4 h-4 text-blue-400" />
+            Performance
+          </h2>
+          <p className="text-xs text-zinc-400 mt-1">
             {stats?.cpu.model ? (
               <span className="font-mono">
-                {stats.cpu.model} • {stats.cpu.cores} Cores • {formatMemoryBytes(totalMem)} RAM
+                {stats.cpu.model} · {stats.cpu.cores} Cores · {formatMemoryBytes(totalMem)} RAM
               </span>
             ) : (
-              'Real-time CPU, RAM, active disk read/write bandwidth, and network telemetry'
+              'Real-time system CPU, memory, disk throughput, and network performance'
             )}
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-end sm:self-auto px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+        <div className="flex items-center gap-2 px-2.5 py-1 rounded bg-[#27272d] border border-[#32323a] text-xs font-mono text-zinc-300">
           <span className="inline-block h-2 w-2 rounded-full bg-emerald-500" />
-          <span className="text-xs font-mono text-slate-300">
-            Live Stream
-          </span>
+          <span>Live</span>
         </div>
       </div>
 
       {/* Grid of 4 Telemetry Metrics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-shrink-0">
         {/* 1. CPU Usage */}
-        <div className="bg-slate-900/60 border border-white/[0.08] p-3.5 rounded-xl space-y-3 shadow-md">
+        <div className="bg-[#202024] border border-[#2d2d33] p-3.5 rounded-lg space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-300 flex items-center justify-center">
-                <Cpu className="w-4 h-4 text-blue-400" />
-              </div>
+              <Cpu className="w-4 h-4 text-blue-400" />
               <div>
-                <span className="text-xs font-semibold text-slate-200">
-                  CPU Usage
-                </span>
-                <span className="text-[10px] text-slate-400 block font-mono">
+                <span className="text-xs font-semibold text-zinc-200">CPU</span>
+                <span className="text-[10px] text-zinc-400 block font-mono">
                   {stats?.cpu.cores ? `${stats.cpu.cores} Cores` : 'All Cores'}
                 </span>
               </div>
             </div>
             <span
-              className={`text-xl font-bold font-mono ${
-                cpuPercent > 80
-                  ? 'text-rose-400'
-                  : cpuPercent > 50
-                  ? 'text-amber-400'
-                  : 'text-blue-400'
+              className={`text-lg font-bold font-mono ${
+                cpuPercent > 80 ? 'text-rose-400' : cpuPercent > 50 ? 'text-amber-400' : 'text-blue-400'
               }`}
             >
               {cpuPercent}%
             </span>
           </div>
-          <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+          <div className="w-full h-1.5 rounded-full bg-zinc-700/40 overflow-hidden">
             <div
               className={`h-full transition-all duration-300 rounded-full ${
-                cpuPercent > 80
-                  ? 'bg-rose-500'
-                  : cpuPercent > 50
-                  ? 'bg-amber-500'
-                  : 'bg-blue-500'
+                cpuPercent > 80 ? 'bg-rose-500' : cpuPercent > 50 ? 'bg-amber-500' : 'bg-blue-500'
               }`}
               style={{ width: `${cpuPercent}%` }}
             />
@@ -181,26 +160,22 @@ export const MonitorDashboard: React.FC = () => {
         </div>
 
         {/* 2. RAM Usage */}
-        <div className="bg-slate-900/60 border border-white/[0.08] p-3.5 rounded-xl space-y-3 shadow-md">
+        <div className="bg-[#202024] border border-[#2d2d33] p-3.5 rounded-lg space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-300 flex items-center justify-center">
-                <Database className="w-4 h-4 text-indigo-400" />
-              </div>
+              <Database className="w-4 h-4 text-indigo-400" />
               <div>
-                <span className="text-xs font-semibold text-slate-200">
-                  RAM Usage
-                </span>
-                <span className="text-[10px] text-slate-400 block font-mono">
+                <span className="text-xs font-semibold text-zinc-200">Memory</span>
+                <span className="text-[10px] text-zinc-400 block font-mono">
                   {formatMemoryBytes(usedMem)} / {formatMemoryBytes(totalMem)} ({formatMemoryBytes(freeMem)} free)
                 </span>
               </div>
             </div>
-            <span className="text-xl font-bold font-mono text-indigo-400">
+            <span className="text-lg font-bold font-mono text-indigo-400">
               {memPercent}%
             </span>
           </div>
-          <div className="w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+          <div className="w-full h-1.5 rounded-full bg-zinc-700/40 overflow-hidden">
             <div
               className="h-full bg-indigo-500 transition-all duration-300 rounded-full"
               style={{ width: `${memPercent}%` }}
@@ -209,60 +184,52 @@ export const MonitorDashboard: React.FC = () => {
         </div>
 
         {/* 3. Disk I/O */}
-        <div className="bg-slate-900/60 border border-white/[0.08] p-3.5 rounded-xl space-y-3 shadow-md">
+        <div className="bg-[#202024] border border-[#2d2d33] p-3.5 rounded-lg space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-300 flex items-center justify-center">
-                <HardDrive className="w-4 h-4 text-emerald-400" />
-              </div>
+              <HardDrive className="w-4 h-4 text-emerald-400" />
               <div>
-                <span className="text-xs font-semibold text-slate-200">
-                  Disk I/O
-                </span>
-                <span className="text-[10px] text-slate-400 block font-mono">Read & Write</span>
+                <span className="text-xs font-semibold text-zinc-200">Disk I/O</span>
+                <span className="text-[10px] text-zinc-400 block font-mono">Throughput</span>
               </div>
             </div>
             {(diskRead > 0 || diskWrite > 0) && (
-              <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 font-medium border border-emerald-500/20">
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#1e2e22] text-emerald-400 border border-[#2d5034]">
                 Active
               </span>
             )}
           </div>
-          <div className="flex items-center justify-between text-xs pt-1 border-t border-white/[0.04]">
-            <div className="flex items-center gap-1.5 font-mono text-slate-300">
+          <div className="flex items-center justify-between text-xs pt-1 border-t border-[#2d2d33]">
+            <div className="flex items-center gap-1.5 font-mono text-zinc-300">
               <ArrowDown className="w-3.5 h-3.5 text-emerald-400" />
-              <span>R: {formatSpeed(diskRead)}</span>
+              <span>Read: {formatSpeed(diskRead)}</span>
             </div>
-            <div className="flex items-center gap-1.5 font-mono text-slate-300">
+            <div className="flex items-center gap-1.5 font-mono text-zinc-300">
               <ArrowUp className="w-3.5 h-3.5 text-blue-400" />
-              <span>W: {formatSpeed(diskWrite)}</span>
+              <span>Write: {formatSpeed(diskWrite)}</span>
             </div>
           </div>
         </div>
 
         {/* 4. Network */}
-        <div className="bg-slate-900/60 border border-white/[0.08] p-3.5 rounded-xl space-y-3 shadow-md">
+        <div className="bg-[#202024] border border-[#2d2d33] p-3.5 rounded-lg space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] text-slate-300 flex items-center justify-center">
-                <Wifi className="w-4 h-4 text-amber-400" />
-              </div>
+              <Wifi className="w-4 h-4 text-amber-400" />
               <div>
-                <span className="text-xs font-semibold text-slate-200">
-                  Network
-                </span>
-                <span className="text-[10px] text-slate-400 block font-mono">Down & Up</span>
+                <span className="text-xs font-semibold text-zinc-200">Network</span>
+                <span className="text-[10px] text-zinc-400 block font-mono">Throughput</span>
               </div>
             </div>
           </div>
-          <div className="flex items-center justify-between text-xs pt-1 border-t border-white/[0.04]">
-            <div className="flex items-center gap-1.5 font-mono text-slate-300">
+          <div className="flex items-center justify-between text-xs pt-1 border-t border-[#2d2d33]">
+            <div className="flex items-center gap-1.5 font-mono text-zinc-300">
               <ArrowDown className="w-3.5 h-3.5 text-amber-400" />
-              <span>↓ {formatSpeed(netRx)}</span>
+              <span>Down: {formatSpeed(netRx)}</span>
             </div>
-            <div className="flex items-center gap-1.5 font-mono text-slate-300">
-              <ArrowUp className="w-3.5 h-3.5 text-purple-400" />
-              <span>↑ {formatSpeed(netTx)}</span>
+            <div className="flex items-center gap-1.5 font-mono text-zinc-300">
+              <ArrowUp className="w-3.5 h-3.5 text-blue-400" />
+              <span>Up: {formatSpeed(netTx)}</span>
             </div>
           </div>
         </div>
@@ -271,11 +238,11 @@ export const MonitorDashboard: React.FC = () => {
       {/* Realtime 30-Second Rolling Sparklines */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 min-h-[160px] flex-shrink-0">
         {/* CPU Sparkline Card */}
-        <div className="bg-slate-900/60 border border-white/[0.08] p-4 rounded-xl flex flex-col justify-between shadow-md">
+        <div className="bg-[#202024] border border-[#2d2d33] p-4 rounded-lg flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-200 flex items-center gap-2">
+            <span className="text-xs font-semibold text-zinc-200 flex items-center gap-2">
               <Cpu className="w-4 h-4 text-blue-400" />
-              CPU Utilization (30s)
+              CPU History (30s)
             </span>
             <span className="font-mono text-xs text-blue-400 font-bold">{cpuPercent}%</span>
           </div>
@@ -284,7 +251,7 @@ export const MonitorDashboard: React.FC = () => {
             <svg viewBox="0 0 300 90" preserveAspectRatio="none" className="w-full h-full">
               <defs>
                 <linearGradient id="cpuGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.2" />
                   <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
@@ -295,11 +262,11 @@ export const MonitorDashboard: React.FC = () => {
         </div>
 
         {/* Memory Sparkline Card */}
-        <div className="bg-slate-900/60 border border-white/[0.08] p-4 rounded-xl flex flex-col justify-between shadow-md">
+        <div className="bg-[#202024] border border-[#2d2d33] p-4 rounded-lg flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-200 flex items-center gap-2">
+            <span className="text-xs font-semibold text-zinc-200 flex items-center gap-2">
               <Database className="w-4 h-4 text-indigo-400" />
-              Memory Utilization (30s)
+              Memory History (30s)
             </span>
             <span className="font-mono text-xs text-indigo-400 font-bold">{memPercent}%</span>
           </div>
@@ -308,7 +275,7 @@ export const MonitorDashboard: React.FC = () => {
             <svg viewBox="0 0 300 90" preserveAspectRatio="none" className="w-full h-full">
               <defs>
                 <linearGradient id="memGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#818cf8" stopOpacity="0.25" />
+                  <stop offset="0%" stopColor="#818cf8" stopOpacity="0.2" />
                   <stop offset="100%" stopColor="#818cf8" stopOpacity="0.0" />
                 </linearGradient>
               </defs>
@@ -320,25 +287,25 @@ export const MonitorDashboard: React.FC = () => {
       </div>
 
       {/* Top Active Processes Table */}
-      <div className="bg-slate-900/60 rounded-xl border border-white/[0.08] overflow-hidden flex flex-col shadow-md flex-1 min-h-[220px]">
-        <div className="p-3.5 border-b border-white/[0.06] flex items-center justify-between">
+      <div className="bg-[#202024] rounded-lg border border-[#2d2d33] overflow-hidden flex flex-col flex-1 min-h-[220px]">
+        <div className="p-3 border-b border-[#2d2d33] flex items-center justify-between">
           <div>
-            <h3 className="text-xs font-semibold text-slate-100 flex items-center gap-2">
+            <h3 className="text-xs font-semibold text-zinc-100 flex items-center gap-2">
               <Layers className="w-3.5 h-3.5 text-blue-400" />
               Active Processes
             </h3>
-            <p className="text-[11px] text-slate-400 mt-0.5">
-              Processes ranked by memory footprint and CPU utilization
+            <p className="text-[11px] text-zinc-400 mt-0.5">
+              Processes sorted by {processSortBy === 'memory' ? 'memory usage' : 'CPU usage'}
             </p>
           </div>
 
-          <div className="flex items-center gap-1 bg-white/[0.03] border border-white/[0.06] p-0.5 rounded-lg text-xs">
+          <div className="flex items-center gap-1 bg-[#28282e] border border-[#32323a] p-0.5 rounded-md text-xs">
             <button
               onClick={() => setProcessSortBy('memory')}
               className={`px-2.5 py-1 rounded transition-colors font-medium ${
                 processSortBy === 'memory'
-                  ? 'bg-blue-600 font-medium text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               By Memory
@@ -347,8 +314,8 @@ export const MonitorDashboard: React.FC = () => {
               onClick={() => setProcessSortBy('cpu')}
               className={`px-2.5 py-1 rounded transition-colors font-medium ${
                 processSortBy === 'cpu'
-                  ? 'bg-blue-600 font-medium text-white'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               By CPU
@@ -357,28 +324,28 @@ export const MonitorDashboard: React.FC = () => {
         </div>
 
         {sortedProcesses.length === 0 ? (
-          <div className="p-8 text-center text-xs text-slate-400">
-            Streaming process metrics…
+          <div className="p-8 text-center text-xs text-zinc-400">
+            Collecting process performance data…
           </div>
         ) : (
-          <div className="overflow-y-auto divide-y divide-white/[0.04]">
+          <div className="overflow-y-auto divide-y divide-[#27272d]">
             {sortedProcesses.map((proc) => {
               const memMb = Math.round(proc.memoryBytes / (1024 * 1024))
               return (
                 <div
                   key={proc.pid}
-                  className="flex items-center justify-between p-3 hover:bg-white/[0.03] transition-colors"
+                  className="flex items-center justify-between px-3 py-2.5 hover:bg-[#25252b] transition-colors"
                 >
                   <div className="flex items-center gap-3 min-w-0 pr-4">
-                    <div className="w-7 h-7 rounded bg-white/[0.04] border border-white/[0.08] flex items-center justify-center font-medium text-[10px] text-slate-300 font-mono flex-shrink-0">
+                    <div className="w-6 h-6 rounded bg-[#27272d] border border-[#32323a] flex items-center justify-center font-medium text-[10px] text-zinc-300 font-mono flex-shrink-0">
                       {proc.name.substring(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-xs text-slate-200 truncate">
+                        <span className="font-medium text-xs text-zinc-200 truncate">
                           {proc.name}
                         </span>
-                        <span className="text-[10px] text-slate-400 font-mono bg-white/[0.04] border border-white/[0.06] px-1.5 py-0.2 rounded">
+                        <span className="text-[10px] text-zinc-400 font-mono bg-[#27272d] border border-[#32323a] px-1.5 py-0.2 rounded">
                           PID {proc.pid}
                         </span>
                       </div>
@@ -387,10 +354,10 @@ export const MonitorDashboard: React.FC = () => {
 
                   <div className="flex items-center gap-6 flex-shrink-0">
                     <div className="text-right">
-                      <span className="text-xs font-medium text-slate-200 block font-mono">
+                      <span className="text-xs font-medium text-zinc-200 block font-mono">
                         {formatMemoryBytes(proc.memoryBytes)}
                       </span>
-                      <span className="text-[10px] text-slate-400 block font-mono">
+                      <span className="text-[10px] text-zinc-400 block font-mono">
                         {memMb} MB RSS
                       </span>
                     </div>
@@ -402,12 +369,12 @@ export const MonitorDashboard: React.FC = () => {
                             ? 'text-rose-400'
                             : proc.cpuPercent > 15
                             ? 'text-amber-400'
-                            : 'text-slate-300'
+                            : 'text-zinc-300'
                         }`}
                       >
                         {proc.cpuPercent.toFixed(1)}%
                       </span>
-                      <span className="text-[9px] text-slate-400 block uppercase font-semibold">CPU</span>
+                      <span className="text-[9px] text-zinc-400 block uppercase font-semibold">CPU</span>
                     </div>
                   </div>
                 </div>

@@ -231,35 +231,33 @@ export const SearchPanel: React.FC = () => {
     : null
 
   return (
-    <div className="flex flex-col h-full space-y-4 max-w-6xl mx-auto pb-4">
+    <div className="flex flex-col h-full space-y-3 max-w-6xl mx-auto pb-4">
       {/* Search Header Controls */}
-      <div className="bg-slate-900/80 border border-white/[0.08] p-4 rounded-xl shadow-lg space-y-3.5 flex-shrink-0">
+      <div className="bg-[#202024] border border-[#2d2d33] p-4 rounded-lg space-y-3 flex-shrink-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-semibold tracking-tight text-slate-100 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
-                <Search className="w-4 h-4 text-blue-400" />
-              </div>
-              File Index Search
+            <h2 className="text-sm font-semibold tracking-tight text-zinc-100 flex items-center gap-2">
+              <Search className="w-4 h-4 text-blue-400" />
+              Search Files
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Locate disk-hogging files and media across scanned storage or live disk directories.
+            <p className="text-xs text-zinc-400 mt-0.5">
+              Locate large files and directories across scanned storage or disk.
             </p>
           </div>
 
           {/* Search Source Selector */}
-          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs">
+          <div className="flex items-center gap-1 p-0.5 rounded-md bg-[#28282e] border border-[#32323a] text-xs">
             <button
               onClick={() => setSourceMode('tree')}
               disabled={!rootNode}
               className={`px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 font-medium ${
                 sourceMode === 'tree'
-                  ? 'bg-blue-600 text-white font-medium'
-                  : 'text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed'
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>Scanned Tree {rootNode ? '(Instant)' : '(No Scan)'}</span>
+              <span>Scanned Tree</span>
             </button>
             <button
               onClick={() => {
@@ -268,8 +266,8 @@ export const SearchPanel: React.FC = () => {
               }}
               className={`px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 font-medium ${
                 sourceMode === 'disk'
-                  ? 'bg-blue-600 text-white font-medium'
-                  : 'text-slate-400 hover:text-slate-200'
+                  ? 'bg-blue-600 text-white'
+                  : 'text-zinc-400 hover:text-zinc-200'
               }`}
             >
               <HardDrive className="w-3.5 h-3.5" />
@@ -281,7 +279,7 @@ export const SearchPanel: React.FC = () => {
         {/* Search Input Bar & Action */}
         <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
             <input
               type="text"
               value={query}
@@ -291,13 +289,13 @@ export const SearchPanel: React.FC = () => {
                   handleDiskSearch()
                 }
               }}
-              placeholder="Search filename or extension (e.g. *.iso, .vmdk, node_modules, holiday)…"
-              className="w-full text-xs pl-9 pr-8 py-2 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
+              placeholder="Search by filename or extension (e.g. .mp4, .zip, node_modules)…"
+              className="w-full text-xs pl-9 pr-8 py-2 rounded-md border border-[#32323a] bg-[#27272d] text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors"
             />
             {query && (
               <button
                 onClick={() => setQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white text-xs font-bold"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs font-bold"
               >
                 ✕
               </button>
@@ -317,25 +315,25 @@ export const SearchPanel: React.FC = () => {
               }
               onClick={handleDiskSearch}
               disabled={isSearchingDisk}
-              className="bg-blue-600 hover:bg-blue-500 font-medium px-4 text-white"
+              className="bg-blue-600 hover:bg-blue-500 font-medium px-4 text-white text-xs py-1.5"
             >
-              {isSearchingDisk ? 'Searching…' : 'Scan Disk'}
+              {isSearchingDisk ? 'Searching…' : 'Search Disk'}
             </Button>
           )}
         </div>
 
-        {/* Filter Rows: Categories & Size Presets */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pt-2 border-t border-white/[0.06]">
+        {/* Category Filters & Size Presets */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pt-2 border-t border-[#2d2d33]">
           {/* Category Chips */}
           <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
             {CATEGORY_FILTERS.map((f) => (
               <button
                 key={f.id}
                 onClick={() => setActiveCategory(f.id)}
-                className={`text-xs px-3 py-1.5 rounded-xl whitespace-nowrap transition-all flex items-center gap-2 border font-medium ${
+                className={`text-xs px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 font-medium ${
                   activeCategory === f.id
-                    ? 'bg-blue-600/20 border-blue-500/40 text-blue-300 font-bold shadow-sm'
-                    : 'bg-white/[0.03] border-white/[0.05] text-slate-400 hover:text-slate-200 hover:bg-white/[0.06]'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-[#27272d] border border-[#32323a] text-zinc-300 hover:bg-[#303038]'
                 }`}
               >
                 {f.icon}
@@ -350,10 +348,10 @@ export const SearchPanel: React.FC = () => {
               <button
                 key={p.bytes}
                 onClick={() => setMinSizeBytes(p.bytes)}
-                className={`text-[11px] px-2.5 py-1 rounded-lg whitespace-nowrap transition-all font-mono border ${
+                className={`text-[11px] px-2 py-0.5 rounded font-mono border transition-colors ${
                   minSizeBytes === p.bytes
-                    ? 'bg-amber-500/20 text-amber-300 font-bold border-amber-500/40 shadow-sm'
-                    : 'bg-white/[0.02] border-white/[0.04] text-slate-400 hover:text-slate-200'
+                    ? 'bg-[#3b321a] text-amber-300 border-amber-600/50'
+                    : 'bg-[#27272d] border-[#32323a] text-zinc-400 hover:text-zinc-200'
                 }`}
               >
                 {p.label}
@@ -438,11 +436,11 @@ export const SearchPanel: React.FC = () => {
       )}
 
       {/* Results Table Container */}
-      <div className="flex-1 bg-slate-900/60 rounded-xl border border-white/[0.08] overflow-hidden flex flex-col min-h-0 shadow-lg">
+      <div className="flex-1 bg-[#202024] rounded-lg border border-[#2d2d33] overflow-hidden flex flex-col min-h-0">
         {isSearchingDisk ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-xs text-slate-400 space-y-2">
+          <div className="flex-1 flex flex-col items-center justify-center text-xs text-zinc-400 space-y-2">
             <RefreshCw className="w-6 h-6 animate-spin text-blue-400" />
-            <span>Scanning filesystem for matching files…</span>
+            <span>Searching files on disk…</span>
           </div>
         ) : activeResults.length === 0 ? (
           <EmptyState
@@ -453,33 +451,33 @@ export const SearchPanel: React.FC = () => {
                 ? 'No drive has been scanned yet. Run a scan from the Storage tab or click "Direct Disk Search" above.'
                 : query.trim() || activeCategory !== 'all' || minSizeBytes > 0
                 ? 'No files matched your current query or size filters. Try widening your filters.'
-                : 'Type a query or select a category filter above to find disk-hogging files.'
+                : 'Type a query or select a category filter above to find large files.'
             }
             className="flex-1 border-none bg-transparent"
           />
         ) : (
-          <div className="overflow-y-auto flex-1 divide-y divide-white/[0.04]">
+          <div className="overflow-y-auto flex-1 divide-y divide-[#27272d]">
             {activeResults.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between p-3.5 hover:bg-white/[0.03] transition-colors group"
+                className="flex items-center justify-between p-3 hover:bg-[#25252b] transition-colors group"
               >
                 <div className="flex items-center gap-3 min-w-0 pr-4">
-                  <div className="w-8 h-8 rounded bg-white/[0.04] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
+                  <div className="w-7 h-7 rounded bg-[#28282e] border border-[#32323a] flex items-center justify-center flex-shrink-0">
                     {getFileCategoryIcon(item.category)}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-medium text-xs text-slate-100 truncate">
+                      <span className="font-medium text-xs text-zinc-100 truncate">
                         {item.name}
                       </span>
                       {item.extension && (
-                        <span className="text-[10px] text-slate-400 uppercase font-mono px-1.5 py-0.2 rounded bg-white/[0.04] border border-white/[0.06]">
+                        <span className="text-[10px] text-zinc-400 uppercase font-mono px-1.5 py-0.2 rounded bg-[#27272d] border border-[#32323a]">
                           {item.extension}
                         </span>
                       )}
                     </div>
-                    <div className="text-[11px] text-slate-400 truncate mt-0.5 font-mono flex items-center gap-1.5">
+                    <div className="text-[11px] text-zinc-400 truncate mt-0.5 font-mono flex items-center gap-1.5">
                       <span className="truncate">{item.path}</span>
                     </div>
                   </div>

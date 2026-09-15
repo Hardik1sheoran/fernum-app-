@@ -324,7 +324,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100 font-sans select-none">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#18181b] text-zinc-100 font-sans select-none">
       {/* Top Title Bar */}
       <Header
         onRefreshDrives={loadDrives}
@@ -345,7 +345,7 @@ export const App: React.FC = () => {
       />
 
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-64 shrink-0 flex-col border-r border-white/[0.08] bg-slate-900/75 backdrop-blur-xl">
+        <aside className="flex w-64 shrink-0 flex-col border-r border-[#2d2d33] bg-[#202024]">
           <TabNavigation activeTab={activeTab} onSelectTab={setActiveTab} />
           {activeTab === 'storage' ? (
             <DrivePicker
@@ -365,20 +365,20 @@ export const App: React.FC = () => {
           ) : (
             <div className="flex-1 p-3 flex flex-col justify-between select-none">
               <div className="space-y-3">
-                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.05] space-y-2">
+                <div className="p-3 rounded-lg bg-[#242429] border border-[#2f2f36] space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Selected Disk</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Current Drive</span>
                     <span className="text-[10px] font-mono text-blue-400 font-medium">{selectedDrive?.id || 'C:'}</span>
                   </div>
                   {selectedDrive && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs">
-                        <span className="text-slate-200 font-medium truncate">{selectedDrive.name}</span>
-                        <span className="text-slate-400 font-mono text-[11px]">
+                        <span className="text-zinc-200 font-medium truncate">{selectedDrive.name}</span>
+                        <span className="text-zinc-400 font-mono text-[11px]">
                           {(selectedDrive.freeBytes / (1024 ** 3)).toFixed(1)} GB free
                         </span>
                       </div>
-                      <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                      <div className="h-1.5 w-full bg-zinc-700/50 rounded-full overflow-hidden">
                         <div
                           className="h-full bg-blue-500 rounded-full"
                           style={{
@@ -395,11 +395,11 @@ export const App: React.FC = () => {
                 </div>
               </div>
 
-              {/* Bottom Quick Privacy Tag */}
-              <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1 text-xs">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Security & Privacy</span>
-                <p className="text-[11px] text-slate-400 leading-relaxed">
-                  All analysis, disk scanning, and cleanup operations run 100% locally with zero cloud transmission.
+              {/* Bottom Privacy Status */}
+              <div className="p-3 rounded-lg bg-[#242429] border border-[#2f2f36] space-y-1 text-xs">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400 block">Security</span>
+                <p className="text-[11px] text-zinc-400 leading-relaxed">
+                  All analysis, disk scanning, and cleanup operations execute locally on this machine.
                 </p>
               </div>
             </div>
@@ -407,7 +407,7 @@ export const App: React.FC = () => {
         </aside>
 
         {/* Main Content Area */}
-        <main className="min-w-0 flex-1 overflow-hidden bg-slate-950/40 backdrop-blur-sm p-3">
+        <main className="min-w-0 flex-1 overflow-hidden bg-[#18181b] p-3">
           {activeTab === 'storage' && (
             <div className="h-full">
               <div className="h-full min-h-[420px]">

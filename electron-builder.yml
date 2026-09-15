@@ -7,6 +7,8 @@ files:
   - dist/**
   - dist-electron/**
   - package.json
+asarUnpack:
+  - "dist-electron/workers/**"
 win:
   target:
     - target: nsis

@@ -142,38 +142,33 @@ export const JunkCleaner: React.FC = () => {
   return (
     <div className="flex h-full flex-col space-y-4 max-w-6xl mx-auto pb-4">
       {/* Top Header Card */}
-      <div className="rounded-xl border border-white/[0.08] bg-slate-900/80 p-5 shadow-lg flex-shrink-0">
+      <div className="rounded-lg border border-[#2d2d33] bg-[#202024] p-4 flex-shrink-0">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/[0.04] text-slate-300 border border-white/[0.08]">
-              <Trash2 className="w-5 h-5 text-blue-400" />
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-md bg-[#28282e] text-zinc-300 border border-[#32323a]">
+              <Trash2 className="w-4 h-4 text-blue-400" />
             </div>
             <div>
-              <div className="flex items-center gap-2.5">
-                <h1 className="text-base font-semibold tracking-tight text-slate-100">
-                  System Junk & Cache Cleaner
-                </h1>
-                <span className="rounded px-2 py-0.5 text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
-                  Safe Purge
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Safely clear temporary files, Windows Update caches, crash dumps, and recycle bins.
+              <h1 className="text-sm font-semibold tracking-tight text-zinc-100">
+                Disk Cleanup
+              </h1>
+              <p className="text-xs text-zinc-400 mt-0.5">
+                Clear system temporary files, cache, and recycle bin to free up drive space.
               </p>
             </div>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <Button
               variant="secondary"
               size="md"
               icon={<RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin text-blue-400' : ''}`} />}
               onClick={loadJunkScan}
               disabled={isScanning || isCleaning}
-              className="bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] text-slate-200"
+              className="bg-[#28282e] hover:bg-[#303038] border border-[#32323a] text-zinc-200 text-xs py-1.5"
             >
-              {isScanning ? 'Scanning…' : 'Scan Junk'}
+              {isScanning ? 'Scanning…' : 'Scan'}
             </Button>
 
             <Button
@@ -182,7 +177,7 @@ export const JunkCleaner: React.FC = () => {
               icon={<Trash2 className="w-3.5 h-3.5" />}
               onClick={() => setShowConfirmModal(true)}
               disabled={isScanning || isCleaning || totalReclaimableBytes === 0 || selectedCategoryIds.size === 0}
-              className="bg-blue-600 hover:bg-blue-500 font-medium px-4 text-white disabled:opacity-50"
+              className="bg-blue-600 hover:bg-blue-500 font-medium px-4 text-white text-xs py-1.5 disabled:opacity-40"
             >
               {isCleaning ? 'Cleaning…' : `Clean Selected (${formatBytes(totalReclaimableBytes)})`}
             </Button>
@@ -190,23 +185,23 @@ export const JunkCleaner: React.FC = () => {
         </div>
 
         {/* Quick Stats Grid */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2.5 border-t border-white/[0.06] pt-4">
-          <div className="rounded-lg bg-white/[0.02] p-3 border border-white/[0.04]">
-            <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Reclaimable Space</div>
-            <div className="text-lg font-bold text-blue-400 mt-0.5 font-mono">
+        <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-2 border-t border-[#2d2d33] pt-3">
+          <div className="rounded bg-[#27272d] p-2.5 border border-[#32323a]">
+            <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Reclaimable Space</div>
+            <div className="text-base font-bold text-blue-400 mt-0.5 font-mono">
               {formatBytes(totalReclaimableBytes)}
             </div>
           </div>
-          <div className="rounded-lg bg-white/[0.02] p-3 border border-white/[0.04]">
-            <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Target Items</div>
-            <div className="text-lg font-bold text-slate-200 mt-0.5 font-mono">
+          <div className="rounded bg-[#27272d] p-2.5 border border-[#32323a]">
+            <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Files Found</div>
+            <div className="text-base font-bold text-zinc-200 mt-0.5 font-mono">
               {totalReclaimableFiles.toLocaleString()} files
             </div>
           </div>
-          <div className="rounded-lg bg-white/[0.02] p-3 border border-white/[0.04]">
-            <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Selected Scope</div>
-            <div className="text-lg font-bold text-emerald-400 mt-0.5 font-mono">
-              {selectedCategoryIds.size} of {categories.length} categories
+          <div className="rounded bg-[#27272d] p-2.5 border border-[#32323a]">
+            <div className="text-[10px] font-semibold text-zinc-400 uppercase tracking-wider">Categories Selected</div>
+            <div className="text-base font-bold text-emerald-400 mt-0.5 font-mono">
+              {selectedCategoryIds.size} of {categories.length}
             </div>
           </div>
         </div>
@@ -292,34 +287,34 @@ export const JunkCleaner: React.FC = () => {
                 key={cat.id}
                 className={`rounded-lg border transition-colors ${
                   isSelected
-                    ? 'border-blue-500/30 bg-blue-950/15'
-                    : 'border-white/[0.05] bg-white/[0.02] hover:bg-white/[0.04]'
+                    ? 'border-blue-500/40 bg-[#242730]'
+                    : 'border-[#2d2d33] bg-[#202024] hover:bg-[#25252b]'
                 }`}
               >
-                <div className="flex items-center justify-between p-3.5 gap-3">
+                <div className="flex items-center justify-between p-3 gap-3">
                   {/* Left Column: Checkbox, Icon, Title */}
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleCategory(cat.id)}
-                      className="rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer shrink-0"
+                      className="rounded border-zinc-600 bg-zinc-800 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer shrink-0"
                     />
 
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-white/[0.04] border border-white/[0.06] shrink-0">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[#28282e] border border-[#32323a] shrink-0">
                       {ICON_MAP[cat.icon] || <Folder className="w-4 h-4 text-blue-400" />}
                     </div>
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-xs font-semibold text-slate-100 truncate">{cat.name}</h3>
+                        <h3 className="text-xs font-semibold text-zinc-100 truncate">{cat.name}</h3>
                         {cat.safeToClean && (
-                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-white/[0.04] text-slate-400 border border-white/[0.06] font-mono">
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#27272d] text-zinc-400 border border-[#32323a] font-mono">
                             Safe
                           </span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-400 truncate mt-0.5">{cat.description}</p>
+                      <p className="text-[11px] text-zinc-400 truncate mt-0.5">{cat.description}</p>
                     </div>
                   </div>
 

@@ -121,6 +121,7 @@ export interface ScanContext {
   dirSemaphore: AsyncSemaphore
   cachedDirMap?: Map<string, { mtimeMs: number; node: FileNode }>
   onPartialUpdate?: (node: FileNode) => void
+  onProgressUpdate?: (progress: ScanProgress) => void
 }
 
 export function buildDirMtimeMap(rootNode: FileNode): Map<string, { mtimeMs: number; node: FileNode }> {
@@ -281,16 +282,18 @@ export async function scanDirectory(
     const now = Date.now()
     if (now - ctx.lastReportTime > 150) {
       ctx.lastReportTime = now
+      const progressData: ScanProgress = {
+        status: 'scanning',
+        currentPath: dirPath,
+        scannedFiles: ctx.totalFiles,
+        scannedBytes: ctx.totalBytes,
+        percentage: 0,
+      }
       parentPort?.postMessage({
         type: 'progress',
-        data: {
-          status: 'scanning',
-          currentPath: dirPath,
-          scannedFiles: ctx.totalFiles,
-          scannedBytes: ctx.totalBytes,
-          percentage: 0,
-        } as ScanProgress,
+        data: progressData,
       })
+      ctx.onProgressUpdate?.(progressData)
     }
   }
 
@@ -531,6 +534,73 @@ async function runScan(options: ScanOptions): Promise<void> {
       error: errorMsg,
     })
   }
+}
+
+export function cancelDirectScan(): void {
+  isCancelled = true
+}
+
+export async function runScanDirectly(
+  options: ScanOptions,
+  callbacks?: {
+    onProgress?: (progress: ScanProgress) => void
+    onPartial?: (node: FileNode) => void
+  }
+): Promise<FileNode> {
+  isCancelled = false
+  const targetPath = options.targetPath || 'C:\\'
+  const excludedSet = new Set(
+    (options.excludePaths || []).map((p) => p.toLowerCase())
+  )
+
+  const ctx: ScanContext = {
+    totalFiles: 0,
+    totalBytes: 0,
+    lastReportTime: Date.now(),
+    lastPartialTime: Date.now(),
+    targetPath,
+    excludedSet,
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : 6,
+    dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
+    cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
+    onPartialUpdate: callbacks?.onPartial,
+    onProgressUpdate: callbacks?.onProgress,
+  }
+
+  callbacks?.onProgress?.({
+    status: 'scanning',
+    currentPath: targetPath,
+    scannedFiles: 0,
+    scannedBytes: 0,
+    percentage: 0,
+  })
+
+  const rootNode = await scanDirectory(targetPath, 0, ctx)
+
+  if (isCancelled) {
+    callbacks?.onProgress?.({
+      status: 'cancelled',
+      currentPath: targetPath,
+      scannedFiles: ctx.totalFiles,
+      scannedBytes: ctx.totalBytes,
+      percentage: 0,
+    })
+    throw new Error('Scan was cancelled')
+  }
+
+  if (!rootNode) {
+    throw new Error(`Failed to access target path: ${targetPath}`)
+  }
+
+  callbacks?.onProgress?.({
+    status: 'completed',
+    currentPath: targetPath,
+    scannedFiles: ctx.totalFiles,
+    scannedBytes: ctx.totalBytes,
+    percentage: 100,
+  })
+
+  return rootNode
 }
 
 if (parentPort) {
