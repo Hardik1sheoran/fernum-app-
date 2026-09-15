@@ -202,11 +202,11 @@ export const App: React.FC = () => {
     }
   }
 
-  const handleStartScan = async (drive: DriveInfo, forceRescan = false) => {
+  const handleStartScan = async (drive: DriveInfo, forceRescan = false, deepScan = false) => {
     if (window.electronAPI) {
       let hasWarmCached = false
 
-      if (!forceRescan && window.electronAPI.getCachedScan) {
+      if (!forceRescan && !deepScan && window.electronAPI.getCachedScan) {
         try {
           const cached = await window.electronAPI.getCachedScan(drive.path)
           if (cached) {
@@ -251,6 +251,7 @@ export const App: React.FC = () => {
           targetPath: drive.path,
           excludePaths: excludedPaths,
           forceRescan,
+          deepScan,
         })
         if (!started) throw new Error('The scanner could not start.')
       } catch (err) {
@@ -359,7 +360,8 @@ export const App: React.FC = () => {
               currentViewNode={currentViewNode}
               errorMessage={driveError}
               onSelectDrive={setSelectedDrive}
-              onStartScan={handleStartScan}
+              onStartScan={(drive) => handleStartScan(drive, false, false)}
+              onStartDeepScan={(drive) => handleStartScan(drive, true, true)}
               onScanHome={handleScanHome}
               onSelectQuickFolder={handleSelectQuickFolder}
               onSelectCustomFolder={handleSelectCustomFolder}

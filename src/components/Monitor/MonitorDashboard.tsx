@@ -8,12 +8,20 @@ import {
   Layers,
   ArrowDown,
   ArrowUp,
+  Monitor,
+  ShieldCheck,
+  BatteryCharging,
+  Zap,
+  Lock,
 } from 'lucide-react'
-import type { SystemStats } from '@shared/types'
+import type { SystemStats, SystemSpecs } from '@shared/types'
 import { formatSpeed, formatMemoryBytes, appendRollingHistory } from '@shared/monitorUtils'
+import { useLicenseStore } from '../../stores/licenseStore'
 
 export const MonitorDashboard: React.FC = () => {
+  const { isPro, openUpgradeModal } = useLicenseStore()
   const [stats, setStats] = useState<SystemStats | null>(null)
+  const [specs, setSpecs] = useState<SystemSpecs | null>(null)
   const [history, setHistory] = useState<{ cpu: number[]; memory: number[] }>({
     cpu: [12, 14, 18, 22, 20, 15, 19, 25, 22, 18, 16, 20, 24, 21, 19],
     memory: [46, 46, 47, 47, 48, 48, 48, 49, 49, 48, 48, 49, 49, 50, 49],
@@ -26,6 +34,10 @@ export const MonitorDashboard: React.FC = () => {
 
     if (window.electronAPI) {
       window.electronAPI.startMonitoring().catch(() => {})
+
+      if (window.electronAPI.getSystemSpecs) {
+        window.electronAPI.getSystemSpecs().then(setSpecs).catch(() => {})
+      }
 
       window.electronAPI.getSystemStats().then((initialStats) => {
         setStats(initialStats)
@@ -284,6 +296,157 @@ export const MonitorDashboard: React.FC = () => {
             </svg>
           </div>
         </div>
+      </div>
+
+      {/* PC Hardware & System Specifications (Pro Feature) */}
+      <div className="bg-[#202024] border border-[#2d2d33] rounded-lg p-3.5 space-y-3 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Monitor className="w-4 h-4 text-amber-400" />
+            <h3 className="text-xs font-semibold text-zinc-100">PC Hardware & System Profile</h3>
+            <span className="rounded bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 uppercase tracking-wider">
+              PRO
+            </span>
+          </div>
+          {isPro ? (
+            <span className="text-[10px] text-emerald-400 font-medium flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Verified Hardware Telemetry
+            </span>
+          ) : (
+            <button
+              onClick={() => openUpgradeModal('Full PC System Specifications & Hardware Profile')}
+              className="text-[11px] font-medium text-amber-300 hover:text-amber-200 flex items-center gap-1 transition-colors"
+            >
+              <Lock className="w-3 h-3" />
+              Unlock Full Hardware Details
+            </button>
+          )}
+        </div>
+
+        {isPro ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {/* OS Card */}
+            <div className="bg-[#242429] border border-[#2f2f36] p-3 rounded-md space-y-1.5">
+              <div className="flex items-center justify-between text-zinc-400">
+                <span className="text-[10px] font-semibold uppercase tracking-wider">Operating System</span>
+                <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+              </div>
+              <p className="text-xs font-semibold text-zinc-100 truncate" title={specs?.os.distro || 'Windows'}>
+                {specs?.os.distro || 'Windows 11'}
+              </p>
+              <div className="space-y-0.5 text-[11px] font-mono text-zinc-400">
+                <p>Build: {specs?.os.release || '10.0'} ({specs?.os.arch || 'x64'})</p>
+                <p className="truncate text-zinc-500 text-[10px]">Host: {specs?.os.hostname || 'Local PC'}</p>
+              </div>
+            </div>
+
+            {/* CPU Card */}
+            <div className="bg-[#242429] border border-[#2f2f36] p-3 rounded-md space-y-1.5">
+              <div className="flex items-center justify-between text-zinc-400">
+                <span className="text-[10px] font-semibold uppercase tracking-wider">Processor</span>
+                <Cpu className="w-3.5 h-3.5 text-indigo-400" />
+              </div>
+              <p className="text-xs font-semibold text-zinc-100 truncate" title={specs?.cpu.brand || 'Processor'}>
+                {specs?.cpu.brand || 'Intel / AMD Processor'}
+              </p>
+              <div className="space-y-0.5 text-[11px] font-mono text-zinc-400">
+                <p>{specs?.cpu.physicalCores || specs?.cpu.cores || 8} Cores · {specs?.cpu.cores || 16} Threads</p>
+                <p className="text-zinc-500 text-[10px]">{specs?.cpu.speed ? `${specs.cpu.speed} GHz Base Clock` : 'High Performance'}</p>
+              </div>
+            </div>
+
+            {/* RAM Hardware Card */}
+            <div className="bg-[#242429] border border-[#2f2f36] p-3 rounded-md space-y-1.5">
+              <div className="flex items-center justify-between text-zinc-400">
+                <span className="text-[10px] font-semibold uppercase tracking-wider">Physical Memory</span>
+                <Database className="w-3.5 h-3.5 text-emerald-400" />
+              </div>
+              <p className="text-xs font-semibold text-zinc-100">
+                {specs?.memory.totalBytes
+                  ? `${(specs.memory.totalBytes / 1024 ** 3).toFixed(1)} GB Total RAM`
+                  : totalMem > 0
+                  ? `${(totalMem / 1024 ** 3).toFixed(1)} GB Total RAM`
+                  : 'Installed RAM'}
+              </p>
+              <div className="space-y-0.5 text-[11px] font-mono text-zinc-400">
+                <p>{formatMemoryBytes(usedMem)} In Use ({memPercent}%)</p>
+                <p className="text-zinc-500 text-[10px]">{formatMemoryBytes(freeMem)} Available</p>
+              </div>
+            </div>
+
+            {/* Physical Storage & Power Card */}
+            <div className="bg-[#242429] border border-[#2f2f36] p-3 rounded-md space-y-1.5">
+              <div className="flex items-center justify-between text-zinc-400">
+                <span className="text-[10px] font-semibold uppercase tracking-wider">Storage & Power</span>
+                {specs?.battery?.hasBattery ? (
+                  <BatteryCharging className="w-3.5 h-3.5 text-amber-400" />
+                ) : (
+                  <HardDrive className="w-3.5 h-3.5 text-purple-400" />
+                )}
+              </div>
+              <p className="text-xs font-semibold text-zinc-100 truncate" title={specs?.disks?.[0]?.name || 'Solid State Drive'}>
+                {specs?.disks?.[0]?.name || 'Solid State Drive'}
+              </p>
+              <div className="space-y-0.5 text-[11px] font-mono text-zinc-400">
+                <p>
+                  {specs?.disks?.[0]
+                    ? `${specs.disks[0].type || 'Disk'} · ${(specs.disks[0].size / 1024 ** 3).toFixed(0)} GB`
+                    : 'System Storage'}
+                </p>
+                <p className="text-zinc-500 text-[10px]">
+                  {specs?.battery?.hasBattery
+                    ? `Battery: ${specs.battery.percent}% ${specs.battery.isCharging ? '(Charging)' : '(On Battery)'}`
+                    : 'Continuous AC Power'}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="relative rounded-md overflow-hidden border border-[#2f2f36] bg-[#242429]/60 p-4">
+            {/* Blurred specs preview behind */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 opacity-25 filter blur-[1px] pointer-events-none select-none">
+              <div className="bg-[#1e1e24] p-3 rounded space-y-1">
+                <span className="text-[10px] uppercase text-zinc-500">OS Edition</span>
+                <p className="text-xs text-zinc-300">Windows 11 Professional</p>
+                <p className="text-[10px] text-zinc-500 font-mono">Build 26100 (x64)</p>
+              </div>
+              <div className="bg-[#1e1e24] p-3 rounded space-y-1">
+                <span className="text-[10px] uppercase text-zinc-500">Processor</span>
+                <p className="text-xs text-zinc-300">Intel Core i7-13700H</p>
+                <p className="text-[10px] text-zinc-500 font-mono">14 Cores · 20 Threads</p>
+              </div>
+              <div className="bg-[#1e1e24] p-3 rounded space-y-1">
+                <span className="text-[10px] uppercase text-zinc-500">Memory Hardware</span>
+                <p className="text-xs text-zinc-300">32.0 GB High-Speed RAM</p>
+                <p className="text-[10px] text-zinc-500 font-mono">Channel Architecture</p>
+              </div>
+              <div className="bg-[#1e1e24] p-3 rounded space-y-1">
+                <span className="text-[10px] uppercase text-zinc-500">Physical NVMe</span>
+                <p className="text-xs text-zinc-300">Samsung 990 PRO 2TB</p>
+                <p className="text-[10px] text-zinc-500 font-mono">PCIe Gen4 x4 NVMe</p>
+              </div>
+            </div>
+
+            {/* Overlay CTA */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] p-4 text-center">
+              <div className="flex items-center gap-1.5 text-amber-300 font-semibold text-xs mb-1">
+                <Lock className="w-3.5 h-3.5" />
+                <span>Full PC Hardware Specifications & Deep Diagnostics</span>
+              </div>
+              <p className="text-[11px] text-zinc-300 max-w-md mb-2.5">
+                Pro unlocks comprehensive details: OS build release, exact CPU topology & clock speed, physical NVMe drive controller specs, and power telemetry.
+              </p>
+              <button
+                onClick={() => openUpgradeModal('Full PC System Specifications & Hardware Profile')}
+                className="rounded-md bg-gradient-to-r from-amber-600 to-amber-500 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:from-amber-500 hover:to-amber-400 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Zap className="w-3.5 h-3.5 fill-current" />
+                <span>Upgrade to Pro to View All PC Specs</span>
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Top Active Processes Table */}

@@ -62,6 +62,8 @@ export const UpgradeModal: React.FC = () => {
 
   const powerSuiteFeatures = [
     'Everything in Free +',
+    'Full PC Deep Scan (unthrottled Windows & leaf directory scan)',
+    'Complete PC Hardware profile & CPU topology report',
     'Delete files within the app (Fast multi-file parallel deletion)',
     'App uninstaller with residue cleanup',
     'Super Power search & direct disk queries',

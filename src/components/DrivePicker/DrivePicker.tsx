@@ -6,9 +6,11 @@ import {
   ExternalLink,
   Loader2,
   Folder,
+  Zap,
 } from 'lucide-react'
 import type { DriveInfo, QuickFolderInfo, FileNode } from '@shared/types'
 import { formatBytes } from '../Treemap/treemapLayout'
+import { useLicenseStore } from '../../stores/licenseStore'
 
 interface DrivePickerProps {
   drives: DriveInfo[]
@@ -18,6 +20,7 @@ interface DrivePickerProps {
   errorMessage?: string | null
   onSelectDrive: (drive: DriveInfo) => void
   onStartScan: (drive: DriveInfo) => void
+  onStartDeepScan?: (drive: DriveInfo) => void
   onScanHome: () => void
   onSelectQuickFolder?: (folder: QuickFolderInfo) => void
   onSelectCustomFolder?: () => void
@@ -47,12 +50,14 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
   errorMessage,
   onSelectDrive,
   onStartScan,
+  onStartDeepScan,
   onScanHome,
   onSelectQuickFolder,
   onSelectCustomFolder,
   onRevealInExplorer,
   isScanning,
 }) => {
+  const { isPro, openUpgradeModal } = useLicenseStore()
   const active = selectedDrive || drives[0]
   const usage = active?.totalBytes ? Math.round((active.usedBytes / active.totalBytes) * 100) : 0
 
@@ -65,6 +70,35 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
     <section className="flex min-h-0 flex-1 flex-col overflow-y-auto bg-transparent text-zinc-200 divide-y divide-[#2d2d33] select-none">
       {/* 1. Top Action Buttons */}
       <div className="space-y-1.5 p-2.5">
+        {/* Full PC Deep Scan (Pro) */}
+        <button
+          disabled={!active || isScanning}
+          onClick={() => {
+            if (!isPro) {
+              openUpgradeModal('Full PC Deep Scan & Windows Diagnostics')
+              return
+            }
+            if (active) {
+              if (onStartDeepScan) onStartDeepScan(active)
+              else onStartScan(active)
+            }
+          }}
+          className={`group flex w-full items-center justify-between rounded-md px-3 py-2 text-xs font-medium transition-all ${
+            isPro
+              ? 'bg-amber-500/15 hover:bg-amber-500/25 border border-amber-500/40 text-amber-200'
+              : 'bg-[#242429] hover:bg-[#2c2c33] border border-amber-500/30 text-zinc-200 hover:border-amber-500/60'
+          } disabled:opacity-50 disabled:cursor-not-allowed`}
+          title={isPro ? 'Perform unthrottled deep scan across full PC directories' : 'Pro Feature: Full PC Deep Scan'}
+        >
+          <div className="flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+            <span>Full PC Deep Scan</span>
+          </div>
+          <span className="rounded bg-amber-500/20 border border-amber-500/40 px-1.5 py-0.5 text-[9px] font-bold text-amber-300 uppercase tracking-wider">
+            PRO
+          </span>
+        </button>
+
         <button
           disabled={!active || isScanning}
           onClick={() => active && onStartScan(active)}

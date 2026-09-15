@@ -13,6 +13,7 @@ import type {
   SearchResultItem,
   SearchResultResponse,
   SystemStats,
+  SystemSpecs,
   ProcessStats,
 } from '@shared/types'
 
@@ -166,6 +167,36 @@ export function initBrowserFallback(): void {
       failed: [],
     }),
     getSystemStats: () => api<SystemStats>('/api/stats'),
+    getSystemSpecs: async (): Promise<SystemSpecs> => ({
+      os: {
+        distro: 'Windows 11 Home',
+        release: '10.0.26200',
+        arch: 'x64',
+        hostname: 'DESKTOP-PC',
+      },
+      cpu: {
+        brand: 'Intel(R) Core(TM) i7-13700H',
+        cores: 14,
+        physicalCores: 8,
+        speed: 2.4,
+      },
+      memory: {
+        totalBytes: 16 * 1024 * 1024 * 1024,
+      },
+      disks: [
+        {
+          name: 'NVMe Solidigm SSD 1TB',
+          type: 'NVMe',
+          size: 1024 * 1024 * 1024 * 1024,
+          interfaceType: 'NVMe',
+        },
+      ],
+      battery: {
+        hasBattery: true,
+        percent: 85,
+        isCharging: true,
+      },
+    }),
     subscribeSystemStats: (listener) => {
       const timer = setInterval(() => { void browserApi.getSystemStats().then(listener).catch(() => {}) }, 1000)
       return () => clearInterval(timer)

@@ -122,6 +122,7 @@ export interface ScanContext {
   cachedDirMap?: Map<string, { mtimeMs: number; node: FileNode }>
   onPartialUpdate?: (node: FileNode) => void
   onProgressUpdate?: (progress: ScanProgress) => void
+  deepScan?: boolean
 }
 
 export function buildDirMtimeMap(rootNode: FileNode): Map<string, { mtimeMs: number; node: FileNode }> {
@@ -170,7 +171,7 @@ export async function scanDirectory(
     return null
   }
 
-  const isOpaque = OPAQUE_BUNDLE_DIRS.has(lowerName) || opaqueDepth > 0
+  const isOpaque = !ctx.deepScan && (OPAQUE_BUNDLE_DIRS.has(lowerName) || opaqueDepth > 0)
   const nextOpaqueDepth = isOpaque ? opaqueDepth + 1 : 0
 
   // Incremental scan fast-path: ONLY stat dirPath if cachedDirMap actually contains this directory!
@@ -268,8 +269,9 @@ export async function scanDirectory(
 
     for (const fileNode of statsResults) {
       if (fileNode) {
-        // Retain individual leaf file objects only for visual depths (< 5) outside opaque bundles
-        if (opaqueDepth < 2 && depth < 5) {
+        // Retain individual leaf file objects only for visual depths (< 5 or < 15 in deepScan) outside opaque bundles
+        const maxLeafDepth = ctx.deepScan ? 15 : 5
+        if ((ctx.deepScan || opaqueDepth < 2) && depth < maxLeafDepth) {
           childNodes.push(fileNode)
         }
         dirNode.size += fileNode.size
@@ -430,8 +432,9 @@ export async function scanDirectory(
   // Sort child nodes descending by size for optimal treemap packing
   childNodes.sort((a, b) => b.size - a.size)
   // Treemap visual layout renders at most top 25-50 items per level.
-  // Truncate child list to top 80 largest nodes to eliminate 500MB IPC payloads while preserving full sizes.
-  dirNode.children = childNodes.length > 80 ? childNodes.slice(0, 80) : childNodes
+  // Truncate child list to top 80 (or 250 in deepScan) largest nodes to eliminate 500MB IPC payloads while preserving full sizes.
+  const maxChildren = ctx.deepScan ? 250 : 80
+  dirNode.children = childNodes.length > maxChildren ? childNodes.slice(0, maxChildren) : childNodes
 
   return dirNode
 }
@@ -448,9 +451,10 @@ export async function performScan(options: ScanOptions): Promise<FileNode | null
     lastPartialTime: Date.now(),
     targetPath,
     excludedSet,
-    maxDepth: options.maxDepth !== undefined ? options.maxDepth : 6,
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 25 : 6),
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
+    deepScan: Boolean(options.deepScan),
   }
 
   return scanDirectory(targetPath, 0, ctx)
@@ -470,9 +474,10 @@ async function runScan(options: ScanOptions): Promise<void> {
     lastPartialTime: Date.now(),
     targetPath,
     excludedSet,
-    maxDepth: options.maxDepth !== undefined ? options.maxDepth : 6,
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 25 : 6),
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
+    deepScan: Boolean(options.deepScan),
   }
 
   parentPort?.postMessage({

@@ -51,6 +51,7 @@ export interface ScanOptions {
   maxDepth?: number
   forceRescan?: boolean
   cachedRoot?: FileNode
+  deepScan?: boolean
 }
 
 export type ScanStatus = 'idle' | 'scanning' | 'paused' | 'completed' | 'cancelled' | 'error'
@@ -108,6 +109,35 @@ export interface SystemStats {
     txSpeedBytesPerSec: number
   }
   topProcesses?: ProcessStats[]
+}
+
+export interface SystemSpecs {
+  os: {
+    distro: string
+    release: string
+    arch: string
+    hostname: string
+  }
+  cpu: {
+    brand: string
+    cores: number
+    physicalCores: number
+    speed: number
+  }
+  memory: {
+    totalBytes: number
+  }
+  disks: Array<{
+    name: string
+    type: string
+    size: number
+    interfaceType: string
+  }>
+  battery?: {
+    hasBattery: boolean
+    percent: number
+    isCharging: boolean
+  }
 }
 
 export interface FsOperationResult {
@@ -242,6 +272,7 @@ export interface ElectronAPI {
 
   // Monitor IPC
   getSystemStats: () => Promise<SystemStats>
+  getSystemSpecs?: () => Promise<SystemSpecs>
   subscribeSystemStats: (callback: (stats: SystemStats) => void) => () => void
   subscribeProcesses: (callback: (processes: ProcessStats[]) => void) => () => void
   startMonitoring: () => Promise<boolean>

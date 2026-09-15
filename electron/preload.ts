@@ -14,6 +14,7 @@ import type {
   SearchResultItem,
   SearchResultResponse,
   SystemStats,
+  SystemSpecs,
   ProcessStats,
   JunkCategoryType,
   JunkScanResult,
@@ -118,6 +119,9 @@ const api: ElectronAPI = {
   // Monitor IPC
   getSystemStats: (): Promise<SystemStats> => {
     return ipcRenderer.invoke('monitor:get-stats')
+  },
+  getSystemSpecs: (): Promise<SystemSpecs> => {
+    return ipcRenderer.invoke('monitor:get-system-specs')
   },
   subscribeSystemStats: (callback: (stats: SystemStats) => void) => {
     const handler = (_event: IpcRendererEvent, stats: SystemStats) => callback(stats)
