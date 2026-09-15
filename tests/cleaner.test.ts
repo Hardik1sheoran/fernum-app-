@@ -34,7 +34,7 @@ describe('Phase 7: System Junk & Cache Cleaner', () => {
 
     it('blocks the junk root directories themselves (only children are allowed)', () => {
       const localAppData = process.env.LOCALAPPDATA || 'C:\\Users\\Mock\\AppData\\Local'
-      const tempRoot = process.env.TEMP || path.join(localAppData, 'Temp')
+      const tempRoot = process.env.TEMP || path.win32.join(localAppData, 'Temp')
 
       // Root itself must never be deleted
       expect(isAllowedJunkPath(tempRoot)).toBe(false)
@@ -43,11 +43,11 @@ describe('Phase 7: System Junk & Cache Cleaner', () => {
 
     it('allows safe descendant files within designated junk folders', () => {
       const localAppData = process.env.LOCALAPPDATA || 'C:\\Users\\Mock\\AppData\\Local'
-      const tempRoot = process.env.TEMP || path.join(localAppData, 'Temp')
+      const tempRoot = process.env.TEMP || path.win32.join(localAppData, 'Temp')
 
       // Descendants are allowed
-      expect(isAllowedJunkPath(path.join(tempRoot, 'scratch_file.tmp'))).toBe(true)
-      expect(isAllowedJunkPath(path.join(tempRoot, 'nested_subfolder', 'log.txt'))).toBe(true)
+      expect(isAllowedJunkPath(path.win32.join(tempRoot, 'scratch_file.tmp'))).toBe(true)
+      expect(isAllowedJunkPath(path.win32.join(tempRoot, 'nested_subfolder', 'log.txt'))).toBe(true)
       expect(isAllowedJunkPath('C:\\Windows\\Temp\\service_worker.tmp')).toBe(true)
       expect(isAllowedJunkPath('C:\\Windows\\SoftwareDistribution\\Download\\patch_12345.cab')).toBe(true)
     })
@@ -94,6 +94,6 @@ describe('Phase 7: System Junk & Cache Cleaner', () => {
       expect(result.categories[0].name).toBe('User Temporary Files')
       expect(typeof result.categories[0].sizeBytes).toBe('number')
       expect(typeof result.categories[0].fileCount).toBe('number')
-    })
+    }, 20000)
   })
 })

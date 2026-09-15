@@ -173,6 +173,7 @@ export function initBrowserFallback(): void {
         release: '10.0.26200',
         arch: 'x64',
         hostname: 'DESKTOP-PC',
+        uptime: 184500,
       },
       cpu: {
         brand: 'Intel(R) Core(TM) i7-13700H',
@@ -191,6 +192,10 @@ export function initBrowserFallback(): void {
           interfaceType: 'NVMe',
         },
       ],
+      graphics: {
+        model: 'NVIDIA GeForce RTX 4070 Laptop GPU',
+        vramMb: 8192,
+      },
       battery: {
         hasBattery: true,
         percent: 85,

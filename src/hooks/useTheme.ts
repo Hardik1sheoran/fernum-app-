@@ -6,20 +6,30 @@ export function useTheme() {
 
   useEffect(() => {
     const root = document.documentElement
-    // Remove all theme classes first
-    root.classList.remove('dark', 'light', 'theme-forest', 'theme-ocean', 'theme-aurora', 'theme-light')
+    const body = document.body
+    const classesToRemove = ['dark', 'light', 'theme-forest', 'theme-ocean', 'theme-aurora', 'theme-light']
+    root.classList.remove(...classesToRemove)
+    if (body) body.classList.remove(...classesToRemove)
 
     if (theme === 'dark') {
       root.classList.add('dark')
+      if (body) body.classList.add('dark')
     } else if (theme === 'forest') {
       root.classList.add('dark', 'theme-forest')
+      if (body) body.classList.add('dark', 'theme-forest')
     } else if (theme === 'ocean') {
       root.classList.add('dark', 'theme-ocean')
+      if (body) body.classList.add('dark', 'theme-ocean')
     } else if (theme === 'aurora') {
       root.classList.add('dark', 'theme-aurora')
+      if (body) body.classList.add('dark', 'theme-aurora')
     } else if (theme === 'light') {
       root.classList.add('light', 'theme-light')
+      if (body) body.classList.add('light', 'theme-light')
     }
+
+    root.setAttribute('data-theme', theme)
+    if (body) body.setAttribute('data-theme', theme)
 
     if (window.electronAPI?.setTheme) {
       window.electronAPI.setTheme(theme === 'light' ? 'light' : 'dark').catch(() => {})

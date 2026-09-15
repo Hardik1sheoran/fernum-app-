@@ -248,7 +248,7 @@ async function inspectRecycleBin(): Promise<{ sizeBytes: number; fileCount: numb
       'Bypass',
       '-Command',
       psScript,
-    ])
+    ], { timeout: 6000 })
     const [sumStr, countStr] = stdout.trim().split(',')
     const sizeBytes = parseInt(sumStr, 10) || 0
     const fileCount = parseInt(countStr, 10) || 0
@@ -333,7 +333,7 @@ async function clearRecycleBinNative(): Promise<{ success: boolean; bytesReclaim
       'Bypass',
       '-Command',
       'Clear-RecycleBin -Confirm:$false -ErrorAction SilentlyContinue',
-    ])
+    ], { timeout: 8000 })
     return { success: true, bytesReclaimed: before.sizeBytes }
   } catch {
     return { success: false, bytesReclaimed: 0 }
@@ -384,13 +384,14 @@ async function cleanDirectoryContents(dirPath: string): Promise<{
     }
 
     try {
-      const stats = await fs.promises.stat(itemPath)
       if (entry.isDirectory()) {
-        // Recursive deletion of subfolder
+        // Accurately inspect files and sizes inside the folder before removing it
+        const subInfo = await inspectDirectoryJunk(itemPath)
         await fs.promises.rm(itemPath, { recursive: true, force: true })
-        cleanedBytes += stats.size
-        deletedCount++
+        cleanedBytes += subInfo.sizeBytes
+        deletedCount += Math.max(1, subInfo.fileCount)
       } else {
+        const stats = await fs.promises.stat(itemPath)
         await fs.promises.unlink(itemPath)
         cleanedBytes += stats.size
         deletedCount++

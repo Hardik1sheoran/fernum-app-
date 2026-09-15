@@ -59,6 +59,7 @@
 }
 
 .theme-forest .bg-\[\#28282e\],
+.theme-forest .bg-\[\#282830\],
 .theme-forest .bg-\[\#242429\],
 .theme-forest .bg-\[\#27272d\],
 .theme-forest .bg-\[\#25252b\],
@@ -70,9 +71,15 @@
 .theme-forest .bg-\[\#21232d\],
 .theme-forest .bg-\[\#252932\],
 .theme-forest .bg-\[\#141418\],
+.theme-forest .bg-slate-900,
+.theme-forest .bg-slate-800,
 .theme-forest .dark\:bg-\[\#14171d\],
 .theme-forest .dark\:bg-\[\#15181f\] {
   background-color: #132a22 !important;
+}
+
+.theme-forest .bg-slate-950 {
+  background-color: #071510 !important;
 }
 
 .theme-forest .hover\:bg-\[\#25252b\]:hover,
@@ -153,6 +160,7 @@
 }
 
 .theme-ocean .bg-\[\#28282e\],
+.theme-ocean .bg-\[\#282830\],
 .theme-ocean .bg-\[\#242429\],
 .theme-ocean .bg-\[\#27272d\],
 .theme-ocean .bg-\[\#25252b\],
@@ -164,9 +172,15 @@
 .theme-ocean .bg-\[\#21232d\],
 .theme-ocean .bg-\[\#252932\],
 .theme-ocean .bg-\[\#141418\],
+.theme-ocean .bg-slate-900,
+.theme-ocean .bg-slate-800,
 .theme-ocean .dark\:bg-\[\#14171d\],
 .theme-ocean .dark\:bg-\[\#15181f\] {
   background-color: #10243d !important;
+}
+
+.theme-ocean .bg-slate-950 {
+  background-color: #06111f !important;
 }
 
 .theme-ocean .hover\:bg-\[\#25252b\]:hover,
@@ -247,6 +261,7 @@
 }
 
 .theme-aurora .bg-\[\#28282e\],
+.theme-aurora .bg-\[\#282830\],
 .theme-aurora .bg-\[\#242429\],
 .theme-aurora .bg-\[\#27272d\],
 .theme-aurora .bg-\[\#25252b\],
@@ -258,9 +273,15 @@
 .theme-aurora .bg-\[\#21232d\],
 .theme-aurora .bg-\[\#252932\],
 .theme-aurora .bg-\[\#141418\],
+.theme-aurora .bg-slate-900,
+.theme-aurora .bg-slate-800,
 .theme-aurora .dark\:bg-\[\#14171d\],
 .theme-aurora .dark\:bg-\[\#15181f\] {
   background-color: #1e163a !important;
+}
+
+.theme-aurora .bg-slate-950 {
+  background-color: #0b0717 !important;
 }
 
 .theme-aurora .hover\:bg-\[\#25252b\]:hover,
@@ -354,6 +375,7 @@
 }
 
 .theme-light .bg-\[\#28282e\],
+.theme-light .bg-\[\#282830\],
 .theme-light .bg-\[\#242429\],
 .theme-light .bg-\[\#27272d\],
 .theme-light .bg-\[\#25252b\],
@@ -365,7 +387,10 @@
 .theme-light .bg-\[\#21232d\],
 .theme-light .bg-\[\#252932\],
 .theme-light .bg-\[\#141418\],
+.theme-light .bg-slate-900,
+.theme-light .bg-slate-800,
 .light .bg-\[\#28282e\],
+.light .bg-\[\#282830\],
 .light .bg-\[\#242429\],
 .light .bg-\[\#27272d\],
 .light .bg-\[\#25252b\],
@@ -376,8 +401,15 @@
 .light .bg-\[\#2b2b32\],
 .light .bg-\[\#21232d\],
 .light .bg-\[\#252932\],
-.light .bg-\[\#141418\] {
+.light .bg-\[\#141418\],
+.light .bg-slate-900,
+.light .bg-slate-800 {
   background-color: #f1f3f9 !important;
+}
+
+.theme-light .bg-slate-950,
+.light .bg-slate-950 {
+  background-color: #ffffff !important;
 }
 
 .theme-light .hover\:bg-\[\#25252b\]:hover,
@@ -425,6 +457,13 @@
 .light .text-slate-200,
 .light .text-zinc-200 {
   color: #0f172a !important;
+}
+
+.theme-light .text-zinc-300,
+.theme-light .text-slate-300,
+.light .text-zinc-300,
+.light .text-slate-300 {
+  color: #334155 !important;
 }
 
 .theme-light .text-zinc-400,

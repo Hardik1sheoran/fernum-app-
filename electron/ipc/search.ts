@@ -75,12 +75,11 @@ export async function searchDiskFiles(
 
       if (entry.isDirectory()) {
         const lowerName = entry.name.toLowerCase()
-        // Skip hidden/junk/system directories
+        // Skip hidden/junk/volume metadata directories
         if (
           lowerName.startsWith('.') ||
           lowerName === '$recycle.bin' ||
-          lowerName === 'system volume information' ||
-          lowerName === 'windows'
+          lowerName === 'system volume information'
         ) {
           continue
         }

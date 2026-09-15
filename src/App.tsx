@@ -249,7 +249,7 @@ export const App: React.FC = () => {
       try {
         const started = await window.electronAPI.startScan({
           targetPath: drive.path,
-          excludePaths: excludedPaths,
+          excludePaths: deepScan ? [] : excludedPaths,
           forceRescan,
           deepScan,
         })

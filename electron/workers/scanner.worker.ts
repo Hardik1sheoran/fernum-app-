@@ -1,4 +1,3 @@
-process.env.UV_THREADPOOL_SIZE = '64'
 import { parentPort, workerData } from 'node:worker_threads'
 import fs from 'node:fs/promises'
 import path from 'node:path'
@@ -451,7 +450,7 @@ export async function performScan(options: ScanOptions): Promise<FileNode | null
     lastPartialTime: Date.now(),
     targetPath,
     excludedSet,
-    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 25 : 6),
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 6),
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
     deepScan: Boolean(options.deepScan),
@@ -474,7 +473,7 @@ async function runScan(options: ScanOptions): Promise<void> {
     lastPartialTime: Date.now(),
     targetPath,
     excludedSet,
-    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 25 : 6),
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 6),
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
     deepScan: Boolean(options.deepScan),
@@ -565,11 +564,12 @@ export async function runScanDirectly(
     lastPartialTime: Date.now(),
     targetPath,
     excludedSet,
-    maxDepth: options.maxDepth !== undefined ? options.maxDepth : 6,
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 6),
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
     onPartialUpdate: callbacks?.onPartial,
     onProgressUpdate: callbacks?.onProgress,
+    deepScan: Boolean(options.deepScan),
   }
 
   callbacks?.onProgress?.({
@@ -608,11 +608,11 @@ export async function runScanDirectly(
   return rootNode
 }
 
-if (parentPort) {
+if (parentPort && !process.env.VITEST && !process.env.NODE_TEST_CONTEXT) {
   parentPort.on('message', (message: { command: string; options?: ScanOptions }) => {
-    if (message.command === 'start') {
+    if (message?.command === 'start') {
       runScan(message.options || { targetPath: 'C:\\' })
-    } else if (message.command === 'cancel') {
+    } else if (message?.command === 'cancel') {
       isCancelled = true
     }
   })

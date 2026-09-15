@@ -117,6 +117,7 @@ export interface SystemSpecs {
     release: string
     arch: string
     hostname: string
+    uptime?: number
   }
   cpu: {
     brand: string
@@ -133,6 +134,10 @@ export interface SystemSpecs {
     size: number
     interfaceType: string
   }>
+  graphics?: {
+    model: string
+    vramMb?: number
+  }
   battery?: {
     hasBattery: boolean
     percent: number

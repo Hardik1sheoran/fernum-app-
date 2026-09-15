@@ -376,13 +376,16 @@ export function registerMonitorIpc(getWindow: () => BrowserWindow | null): void 
     if (cachedSystemSpecs) return cachedSystemSpecs
 
     try {
-      const [osInfo, cpuInfo, memInfo, diskLayout, bat] = await Promise.all([
+      const [osInfo, cpuInfo, memInfo, diskLayout, bat, gfx] = await Promise.all([
         si.osInfo(),
         si.cpu(),
         si.mem(),
         si.diskLayout(),
         si.battery().catch(() => ({ hasBattery: false, percent: 0, isCharging: false })),
+        si.graphics().catch(() => null),
       ])
+
+      const primaryGpu = gfx?.controllers && gfx.controllers.length > 0 ? gfx.controllers[0] : null
 
       cachedSystemSpecs = {
         os: {
@@ -390,6 +393,7 @@ export function registerMonitorIpc(getWindow: () => BrowserWindow | null): void 
           release: osInfo.release || os.release(),
           arch: osInfo.arch || os.arch(),
           hostname: osInfo.hostname || os.hostname(),
+          uptime: os.uptime ? Math.floor(os.uptime()) : undefined,
         },
         cpu: {
           brand: cpuInfo.brand || os.cpus()[0]?.model || 'Processor',
@@ -413,6 +417,12 @@ export function registerMonitorIpc(getWindow: () => BrowserWindow | null): void 
               size: os.totalmem() * 10,
               interfaceType: 'NVMe',
             }],
+        graphics: primaryGpu
+          ? {
+              model: primaryGpu.model || 'Display Controller',
+              vramMb: primaryGpu.vram || undefined,
+            }
+          : undefined,
         battery: bat && bat.hasBattery
           ? {
               hasBattery: true,

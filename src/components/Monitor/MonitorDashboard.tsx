@@ -110,6 +110,16 @@ export const MonitorDashboard: React.FC = () => {
     return { linePath, areaPath }
   }
 
+  const formatUptime = (seconds?: number): string => {
+    if (!seconds || seconds <= 0) return 'Just started'
+    const days = Math.floor(seconds / 86400)
+    const hours = Math.floor((seconds % 86400) / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    if (days > 0) return `${days}d ${hours}h uptime`
+    if (hours > 0) return `${hours}h ${minutes}m uptime`
+    return `${minutes}m uptime`
+  }
+
   const cpuChart = buildSvgPath(history.cpu, 300, 90)
   const memChart = buildSvgPath(history.memory, 300, 90)
 
@@ -337,7 +347,9 @@ export const MonitorDashboard: React.FC = () => {
               </p>
               <div className="space-y-0.5 text-[11px] font-mono text-zinc-400">
                 <p>Build: {specs?.os.release || '10.0'} ({specs?.os.arch || 'x64'})</p>
-                <p className="truncate text-zinc-500 text-[10px]">Host: {specs?.os.hostname || 'Local PC'}</p>
+                <p className="truncate text-zinc-500 text-[10px]">
+                  {specs?.os.uptime ? formatUptime(specs.os.uptime) : `Host: ${specs?.os.hostname || 'Local PC'}`}
+                </p>
               </div>
             </div>
 
@@ -375,18 +387,20 @@ export const MonitorDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* Physical Storage & Power Card */}
+            {/* Physical Storage & Power / GPU Card */}
             <div className="bg-[#242429] border border-[#2f2f36] p-3 rounded-md space-y-1.5">
               <div className="flex items-center justify-between text-zinc-400">
-                <span className="text-[10px] font-semibold uppercase tracking-wider">Storage & Power</span>
+                <span className="text-[10px] font-semibold uppercase tracking-wider">
+                  {specs?.graphics?.model ? 'GPU & Storage' : 'Storage & Power'}
+                </span>
                 {specs?.battery?.hasBattery ? (
                   <BatteryCharging className="w-3.5 h-3.5 text-amber-400" />
                 ) : (
                   <HardDrive className="w-3.5 h-3.5 text-purple-400" />
                 )}
               </div>
-              <p className="text-xs font-semibold text-zinc-100 truncate" title={specs?.disks?.[0]?.name || 'Solid State Drive'}>
-                {specs?.disks?.[0]?.name || 'Solid State Drive'}
+              <p className="text-xs font-semibold text-zinc-100 truncate" title={specs?.graphics?.model || specs?.disks?.[0]?.name || 'Solid State Drive'}>
+                {specs?.graphics?.model || specs?.disks?.[0]?.name || 'Solid State Drive'}
               </p>
               <div className="space-y-0.5 text-[11px] font-mono text-zinc-400">
                 <p>
@@ -397,6 +411,8 @@ export const MonitorDashboard: React.FC = () => {
                 <p className="text-zinc-500 text-[10px]">
                   {specs?.battery?.hasBattery
                     ? `Battery: ${specs.battery.percent}% ${specs.battery.isCharging ? '(Charging)' : '(On Battery)'}`
+                    : specs?.graphics?.vramMb
+                    ? `${specs.graphics.vramMb} MB VRAM · AC Power`
                     : 'Continuous AC Power'}
                 </p>
               </div>
