@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Sparkles, Trash2, Folder, CheckCircle2, RefreshCw, X, AlertCircle } from 'lucide-react'
+import { FolderSearch, Trash2, Folder, CheckCircle2, RefreshCw, X, AlertCircle } from 'lucide-react'
 import type { InstalledApp, ScanLeftoversResult } from '@shared/types'
 import { formatBytes } from '../Treemap/treemapLayout'
 import { Button } from '../shared/Button'
@@ -163,15 +163,15 @@ export const LeftoversModal: React.FC<LeftoversModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-amber-500/15 text-amber-500">
-              <Sparkles className="w-4 h-4" />
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-blue-500/10 text-blue-400 border border-blue-500/20">
+              <FolderSearch className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 flex items-center gap-2">
-                Leftover Residue Cleaner
+              <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
+                Residual Files & Cache Cleaner
               </h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate max-w-md">
-                Target: <span className="font-semibold text-slate-700 dark:text-slate-200">{app.name}</span>
+                Target: <span className="font-medium text-slate-700 dark:text-slate-200">{app.name}</span>
                 {app.publisher && ` • ${app.publisher}`}
               </p>
             </div>

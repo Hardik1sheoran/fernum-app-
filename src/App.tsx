@@ -365,22 +365,22 @@ export const App: React.FC = () => {
           ) : (
             <div className="flex-1 p-3 flex flex-col justify-between select-none">
               <div className="space-y-3">
-                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-2.5">
+                <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.05] space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Selected Disk</span>
-                    <span className="text-[10px] font-mono text-blue-400 font-bold">{selectedDrive?.id || 'C:'}</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400">Selected Disk</span>
+                    <span className="text-[10px] font-mono text-blue-400 font-medium">{selectedDrive?.id || 'C:'}</span>
                   </div>
                   {selectedDrive && (
                     <div className="space-y-2">
                       <div className="flex justify-between text-xs">
-                        <span className="text-slate-200 font-semibold truncate">{selectedDrive.name}</span>
+                        <span className="text-slate-200 font-medium truncate">{selectedDrive.name}</span>
                         <span className="text-slate-400 font-mono text-[11px]">
                           {(selectedDrive.freeBytes / (1024 ** 3)).toFixed(1)} GB free
                         </span>
                       </div>
                       <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
+                          className="h-full bg-blue-500 rounded-full"
                           style={{
                             width: `${
                               selectedDrive.totalBytes
@@ -396,8 +396,8 @@ export const App: React.FC = () => {
               </div>
 
               {/* Bottom Quick Privacy Tag */}
-              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05] space-y-1.5 text-xs">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Security & Privacy</span>
+              <div className="p-3 rounded-lg bg-white/[0.02] border border-white/[0.04] space-y-1 text-xs">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 block">Security & Privacy</span>
                 <p className="text-[11px] text-slate-400 leading-relaxed">
                   All analysis, disk scanning, and cleanup operations run 100% locally with zero cloud transmission.
                 </p>

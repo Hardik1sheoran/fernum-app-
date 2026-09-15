@@ -4,13 +4,13 @@ import {
   AppWindow,
   Search,
   Trash2,
-  Sparkles,
+  FolderSearch,
   ArrowUpDown,
   RefreshCw,
-  ExternalLink,
-  ShieldAlert,
   Calendar,
   Building,
+  ShieldAlert,
+  ExternalLink,
 } from 'lucide-react'
 import type { InstalledApp } from '@shared/types'
 import { formatBytes } from '../Treemap/treemapLayout'
@@ -134,21 +134,21 @@ export const AppsList: React.FC = () => {
   return (
     <div className="flex flex-col h-full space-y-4 max-w-6xl mx-auto pb-4">
       {/* Top Header Card */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-slate-900/80 border border-white/[0.08] p-5 rounded-2xl shadow-xl backdrop-blur-xl flex-shrink-0">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 bg-slate-900/80 border border-white/[0.08] p-5 rounded-xl shadow-lg flex-shrink-0">
         <div>
           <div className="flex items-center gap-2.5">
-            <h2 className="text-base font-extrabold tracking-tight text-slate-100 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-                <AppWindow className="w-4 h-4" />
+            <h2 className="text-base font-semibold tracking-tight text-slate-100 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
+                <AppWindow className="w-4 h-4 text-blue-400" />
               </div>
               Installed Applications
             </h2>
-            <span className="text-[11px] font-bold font-mono px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-white/[0.04] text-slate-400 border border-white/[0.06]">
               {apps.length} programs • {formatBytes(totalInstalledSize)}
             </span>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Launch native uninstallers with elevation and deep-clean residual AppData & ProgramData leftovers.
+            Launch native uninstallers with elevation and scan residual AppData & ProgramData leftovers.
           </p>
         </div>
 
@@ -160,18 +160,18 @@ export const AppsList: React.FC = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search apps or publisher..."
-              className="w-full text-xs pl-8 pr-3 py-2 rounded-xl border border-white/[0.08] bg-white/[0.04] text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+              placeholder="Search apps or publisher…"
+              className="w-full text-xs pl-8 pr-3 py-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
             />
           </div>
 
           {/* Sort Buttons */}
-          <div className="flex items-center rounded-xl border border-white/[0.08] bg-white/[0.04] p-1 text-xs">
+          <div className="flex items-center rounded-lg border border-white/[0.08] bg-white/[0.03] p-0.5 text-xs">
             <button
               onClick={() => toggleSort('size')}
-              className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 font-medium ${
+              className={`px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 font-medium ${
                 sortBy === 'size'
-                  ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20'
+                  ? 'bg-blue-600 text-white font-medium'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -182,9 +182,9 @@ export const AppsList: React.FC = () => {
             </button>
             <button
               onClick={() => toggleSort('name')}
-              className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 font-medium ${
+              className={`px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 font-medium ${
                 sortBy === 'name'
-                  ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20'
+                  ? 'bg-blue-600 text-white font-medium'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -195,9 +195,9 @@ export const AppsList: React.FC = () => {
             </button>
             <button
               onClick={() => toggleSort('date')}
-              className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 font-medium ${
+              className={`px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 font-medium ${
                 sortBy === 'date'
-                  ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20'
+                  ? 'bg-blue-600 text-white font-medium'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -213,7 +213,7 @@ export const AppsList: React.FC = () => {
       {/* Status Notification Banner */}
       {statusMessage && (
         <div
-          className={`text-xs p-3.5 rounded-xl border flex items-center justify-between flex-shrink-0 animate-fade-in shadow-lg ${
+          className={`text-xs p-3 rounded-lg border flex items-center justify-between flex-shrink-0 animate-fade-in ${
             statusMessage.type === 'error'
               ? 'bg-rose-950/40 text-rose-300 border-rose-800/40'
               : statusMessage.type === 'warning'
@@ -226,9 +226,9 @@ export const AppsList: React.FC = () => {
             {statusMessage.actionApp && (
               <button
                 onClick={() => setLeftoversTargetApp(statusMessage.actionApp!)}
-                className="font-bold underline hover:no-underline flex items-center gap-1.5 text-amber-400 hover:text-amber-300 transition-colors"
+                className="font-medium underline hover:no-underline flex items-center gap-1.5 text-blue-400 hover:text-blue-300 transition-colors"
               >
-                <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                <FolderSearch className="w-3.5 h-3.5" />
                 Scan for Leftover Residue
               </button>
             )}
@@ -243,11 +243,11 @@ export const AppsList: React.FC = () => {
       )}
 
       {/* Applications List Table */}
-      <div className="flex-1 bg-slate-900/60 rounded-2xl border border-white/[0.08] backdrop-blur-xl overflow-hidden flex flex-col min-h-0 shadow-xl">
+      <div className="flex-1 bg-slate-900/60 rounded-xl border border-white/[0.08] overflow-hidden flex flex-col min-h-0 shadow-lg">
         {isLoading ? (
           <div className="flex-1 flex flex-col items-center justify-center text-xs text-slate-400 space-y-3">
-            <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
-            <span className="font-medium">Scanning Windows registry for installed software...</span>
+            <RefreshCw className="w-6 h-6 animate-spin text-blue-400" />
+            <span className="font-medium">Scanning Windows registry for installed software…</span>
           </div>
         ) : loadError && filteredAndSortedApps.length === 0 ? (
           <EmptyState
@@ -287,28 +287,28 @@ export const AppsList: React.FC = () => {
                 <div
                   key={app.id}
                   onClick={() => setSelectedApp(app)}
-                  className={`flex items-center justify-between p-4 transition-all duration-200 cursor-pointer ${
+                  className={`flex items-center justify-between p-3.5 transition-colors cursor-pointer ${
                     isSelected
                       ? 'bg-blue-950/20 border-l-2 border-blue-500'
                       : 'hover:bg-white/[0.03]'
                   }`}
                 >
-                  <div className="flex items-center gap-3.5 min-w-0 pr-4">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600/20 to-indigo-600/20 border border-blue-500/20 flex items-center justify-center text-blue-400 font-extrabold text-xs flex-shrink-0 select-none shadow-sm">
+                  <div className="flex items-center gap-3 min-w-0 pr-4">
+                    <div className="w-8 h-8 rounded bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300 font-mono font-medium text-xs flex-shrink-0 select-none">
                       {app.name.substring(0, 2).toUpperCase()}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-slate-100 truncate">
+                        <span className="font-medium text-xs text-slate-100 truncate">
                           {app.name}
                         </span>
                         {app.version && (
-                          <span className="text-[10px] text-slate-400 bg-white/[0.05] border border-white/[0.08] px-1.5 py-0.5 rounded font-mono">
+                          <span className="text-[10px] text-slate-400 bg-white/[0.04] border border-white/[0.06] px-1.5 py-0.2 rounded font-mono">
                             v{app.version}
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 text-[11px] text-slate-400 truncate mt-1">
+                      <div className="flex items-center gap-3 text-[11px] text-slate-400 truncate mt-0.5">
                         {app.publisher && (
                           <span className="flex items-center gap-1.5 truncate">
                             <Building className="w-3 h-3 flex-shrink-0 text-slate-500" />
@@ -332,7 +332,7 @@ export const AppsList: React.FC = () => {
 
                   <div className="flex items-center gap-4 flex-shrink-0">
                     <div className="text-right">
-                      <span className="font-extrabold text-xs text-slate-200 block font-mono">
+                      <span className="font-medium text-xs text-slate-200 block font-mono">
                         {app.estimatedSizeBytes ? formatBytes(app.estimatedSizeBytes) : 'Unknown size'}
                       </span>
                     </div>
@@ -341,13 +341,13 @@ export const AppsList: React.FC = () => {
                       <Button
                         variant="secondary"
                         size="sm"
-                        icon={<Sparkles className="w-3.5 h-3.5 text-amber-400" />}
+                        icon={<FolderSearch className="w-3.5 h-3.5 text-slate-400" />}
                         onClick={(e) => {
                           e.stopPropagation()
                           setLeftoversTargetApp(app)
                         }}
                       >
-                        Clean Junk
+                        Residue
                       </Button>
                       <Button
                         variant="danger"

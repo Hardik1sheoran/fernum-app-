@@ -233,28 +233,28 @@ export const SearchPanel: React.FC = () => {
   return (
     <div className="flex flex-col h-full space-y-4 max-w-6xl mx-auto pb-4">
       {/* Search Header Controls */}
-      <div className="bg-slate-900/80 border border-white/[0.08] p-5 rounded-2xl shadow-xl backdrop-blur-xl space-y-4 flex-shrink-0">
+      <div className="bg-slate-900/80 border border-white/[0.08] p-4 rounded-xl shadow-lg space-y-3.5 flex-shrink-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <h2 className="text-base font-extrabold tracking-tight text-slate-100 flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center text-white shadow-md shadow-blue-500/20">
-                <Search className="w-4 h-4" />
+            <h2 className="text-base font-semibold tracking-tight text-slate-100 flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-300">
+                <Search className="w-4 h-4 text-blue-400" />
               </div>
-              Fast File Index Search
+              File Index Search
             </h2>
-            <p className="text-xs text-slate-400 mt-1">
-              Locate disk-hogging files and large media instantly across scanned storage or live disk directories.
+            <p className="text-xs text-slate-400 mt-0.5">
+              Locate disk-hogging files and media across scanned storage or live disk directories.
             </p>
           </div>
 
           {/* Search Source Selector */}
-          <div className="flex items-center gap-1.5 p-1 rounded-xl bg-white/[0.04] border border-white/[0.06] text-xs">
+          <div className="flex items-center gap-1 p-0.5 rounded-lg bg-white/[0.03] border border-white/[0.06] text-xs">
             <button
               onClick={() => setSourceMode('tree')}
               disabled={!rootNode}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 font-medium ${
+              className={`px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 font-medium ${
                 sourceMode === 'tree'
-                  ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20'
+                  ? 'bg-blue-600 text-white font-medium'
                   : 'text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed'
               }`}
             >
@@ -266,9 +266,9 @@ export const SearchPanel: React.FC = () => {
                 setSourceMode('disk')
                 handleDiskSearch()
               }}
-              className={`px-3 py-1.5 rounded-lg transition-all flex items-center gap-1.5 font-medium ${
+              className={`px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 font-medium ${
                 sourceMode === 'disk'
-                  ? 'bg-blue-600 text-white font-bold shadow-md shadow-blue-600/20'
+                  ? 'bg-blue-600 text-white font-medium'
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
@@ -279,9 +279,9 @@ export const SearchPanel: React.FC = () => {
         </div>
 
         {/* Search Input Bar & Action */}
-        <div className="flex flex-col sm:flex-row gap-2.5">
+        <div className="flex flex-col sm:flex-row gap-2">
           <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
               value={query}
@@ -291,8 +291,8 @@ export const SearchPanel: React.FC = () => {
                   handleDiskSearch()
                 }
               }}
-              placeholder="Search filename or extension (e.g. *.iso, .vmdk, node_modules, holiday)..."
-              className="w-full text-xs pl-10 pr-9 py-2.5 rounded-xl border border-white/[0.08] bg-white/[0.04] text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
+              placeholder="Search filename or extension (e.g. *.iso, .vmdk, node_modules, holiday)…"
+              className="w-full text-xs pl-9 pr-8 py-2 rounded-lg border border-white/[0.08] bg-white/[0.03] text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
             />
             {query && (
               <button
@@ -317,9 +317,9 @@ export const SearchPanel: React.FC = () => {
               }
               onClick={handleDiskSearch}
               disabled={isSearchingDisk}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 font-semibold shadow-lg shadow-blue-600/25 px-5"
+              className="bg-blue-600 hover:bg-blue-500 font-medium px-4 text-white"
             >
-              {isSearchingDisk ? 'Searching...' : 'Scan Disk'}
+              {isSearchingDisk ? 'Searching…' : 'Scan Disk'}
             </Button>
           )}
         </div>
@@ -429,8 +429,8 @@ export const SearchPanel: React.FC = () => {
       )}
 
       {sourceMode === 'disk' && isTruncated && !isSearchingDisk && (
-        <div className="text-xs px-4 py-3 rounded-xl bg-amber-950/30 border border-amber-800/40 text-amber-200 flex items-center gap-2 flex-shrink-0 animate-fade-in shadow-lg">
-          <span className="inline-block w-2 h-2 rounded-full bg-amber-400 flex-shrink-0 animate-pulse" />
+        <div className="text-xs px-3.5 py-2.5 rounded-lg bg-amber-950/30 border border-amber-800/40 text-amber-200 flex items-center gap-2 flex-shrink-0 animate-fade-in">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
           <span>
             Showing partial results — search stopped early to stay fast. Try a more specific term or a narrower folder.
           </span>
@@ -438,11 +438,11 @@ export const SearchPanel: React.FC = () => {
       )}
 
       {/* Results Table Container */}
-      <div className="flex-1 bg-slate-900/60 rounded-2xl border border-white/[0.08] backdrop-blur-xl overflow-hidden flex flex-col min-h-0 shadow-xl">
+      <div className="flex-1 bg-slate-900/60 rounded-xl border border-white/[0.08] overflow-hidden flex flex-col min-h-0 shadow-lg">
         {isSearchingDisk ? (
           <div className="flex-1 flex flex-col items-center justify-center text-xs text-slate-400 space-y-2">
-            <RefreshCw className="w-6 h-6 animate-spin text-blue-500" />
-            <span>Scanning filesystem for matching files...</span>
+            <RefreshCw className="w-6 h-6 animate-spin text-blue-400" />
+            <span>Scanning filesystem for matching files…</span>
           </div>
         ) : activeResults.length === 0 ? (
           <EmptyState
@@ -458,23 +458,23 @@ export const SearchPanel: React.FC = () => {
             className="flex-1 border-none bg-transparent"
           />
         ) : (
-          <div className="overflow-y-auto flex-1 divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="overflow-y-auto flex-1 divide-y divide-white/[0.04]">
             {activeResults.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between p-3.5 hover:bg-slate-50 dark:hover:bg-[#1f242d] transition-colors group"
+                className="flex items-center justify-between p-3.5 hover:bg-white/[0.03] transition-colors group"
               >
                 <div className="flex items-center gap-3 min-w-0 pr-4">
-                  <div className="w-9 h-9 rounded-lg bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center flex-shrink-0">
+                  <div className="w-8 h-8 rounded bg-white/[0.04] border border-white/[0.08] flex items-center justify-center flex-shrink-0">
                     {getFileCategoryIcon(item.category)}
                   </div>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2">
-                      <span className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">
+                      <span className="font-medium text-xs text-slate-100 truncate">
                         {item.name}
                       </span>
                       {item.extension && (
-                        <span className="text-[10px] text-slate-400 uppercase font-mono px-1.5 py-0.2 rounded bg-slate-100 dark:bg-slate-800">
+                        <span className="text-[10px] text-slate-400 uppercase font-mono px-1.5 py-0.2 rounded bg-white/[0.04] border border-white/[0.06]">
                           {item.extension}
                         </span>
                       )}
@@ -487,7 +487,7 @@ export const SearchPanel: React.FC = () => {
 
                 <div className="flex items-center gap-3 flex-shrink-0">
                   <div className="text-right">
-                    <span className="font-bold text-xs text-slate-800 dark:text-slate-200 block font-mono">
+                    <span className="font-medium text-xs text-slate-200 block font-mono">
                       {formatBytes(item.sizeBytes)}
                     </span>
                     {item.lastModified && (
@@ -501,10 +501,10 @@ export const SearchPanel: React.FC = () => {
                     <button
                       onClick={() => handleCopyPath(item.path)}
                       title="Copy full path"
-                      className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition-colors"
+                      className="p-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.08] text-slate-400 hover:text-slate-200 transition-colors"
                     >
                       {copiedPath === item.path ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-500" />
+                        <Check className="w-3.5 h-3.5 text-emerald-400" />
                       ) : (
                         <Copy className="w-3.5 h-3.5" />
                       )}
@@ -513,7 +513,7 @@ export const SearchPanel: React.FC = () => {
                     <Button
                       variant="secondary"
                       size="sm"
-                      icon={<FolderOpen className="w-3 h-3 text-blue-500" />}
+                      icon={<FolderOpen className="w-3 h-3 text-slate-400" />}
                       onClick={() => handleReveal(item.path)}
                       title="Reveal in File Explorer"
                     >

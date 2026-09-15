@@ -126,66 +126,22 @@
   -webkit-app-region: no-drag;
 }
 
-/* Glassmorphic Cards & Panels */
-.glass-panel {
-  background: rgba(22, 27, 34, 0.7);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+/* Native Desktop Card & Surface Utilities */
+.surface-card {
+  background: #16191f;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.dark .glass-panel {
-  background: rgba(18, 22, 29, 0.75);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+.light .surface-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
 }
 
-.theme-forest .glass-panel {
-  background: rgba(14, 28, 23, 0.8) !important;
-  border: 1px solid rgba(16, 185, 129, 0.15) !important;
+.surface-hover:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.theme-ocean .glass-panel {
-  background: rgba(11, 25, 42, 0.8) !important;
-  border: 1px solid rgba(2, 132, 199, 0.18) !important;
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
 }
 
-.theme-aurora .glass-panel {
-  background: rgba(22, 16, 42, 0.8) !important;
-  border: 1px solid rgba(168, 85, 247, 0.18) !important;
-}
-
-.glass-card {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.glass-card:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.12);
-  transform: translateY(-1px);
-}
-
-/* Shimmer & Glow effects */
-@keyframes pulse-subtle {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(0.99); }
-}
-
-.animate-pulse-subtle {
-  animation: pulse-subtle 3s ease-in-out infinite;
-}
-
-.glow-blue {
-  box-shadow: 0 0 20px -3px rgba(59, 130, 246, 0.35);
-}
-
-.glow-emerald {
-  box-shadow: 0 0 20px -3px rgba(16, 185, 129, 0.35);
-}
-
-.glow-violet {
-  box-shadow: 0 0 20px -3px rgba(168, 85, 247, 0.35);
-}
