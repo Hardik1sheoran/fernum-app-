@@ -97,14 +97,16 @@ export function initBrowserFallback(): void {
     moveToTrash: (targetPath: string) => api<FsOperationResult>('/api/trash', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetPath }),
     }),
-    deletePermanently: (targetPath: string) => api<FsOperationResult>('/api/trash', {
+    deletePermanently: (targetPath: string) => api<FsOperationResult>('/api/delete', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetPath }),
     }),
     searchFiles: (options: SearchQueryOptions) => api<SearchResultItem[] | SearchResultResponse>('/api/search', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(options),
     }),
     listInstalledApps: () => api<InstalledApp[]>('/api/apps'),
-    uninstallApp: async () => ({ success: false, message: 'Native uninstallers require the Electron desktop app.' }),
+    uninstallApp: (appId: string) => api<{ success: boolean; message?: string }>('/api/apps/uninstall', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appId }),
+    }),
     scanLeftovers: async (): Promise<ScanLeftoversResult> => {
       throw new Error('Leftover cleanup requires the Electron desktop app.')
     },

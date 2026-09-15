@@ -21,6 +21,15 @@ export function getActiveSubscribers(): number {
  */
 export async function initCpuInfo() {
   if (cachedCpuInfo) return cachedCpuInfo
+  const cpus = os.cpus()
+  if (cpus && cpus.length > 0 && cpus[0].model) {
+    cachedCpuInfo = {
+      model: cpus[0].model.trim(),
+      cores: cpus.length,
+      speedGhz: Number(((cpus[0].speed || 2400) / 1000).toFixed(2)),
+    }
+    return cachedCpuInfo
+  }
   try {
     const cpu = await si.cpu()
     cachedCpuInfo = {
@@ -29,14 +38,28 @@ export async function initCpuInfo() {
       speedGhz: cpu.speed || 0,
     }
   } catch {
-    const cpus = os.cpus()
     cachedCpuInfo = {
-      model: cpus[0]?.model || 'Generic x64 Processor',
-      cores: cpus.length,
-      speedGhz: (cpus[0]?.speed || 2400) / 1000,
+      model: 'Generic x64 Processor',
+      cores: 8,
+      speedGhz: 2.4,
     }
   }
   return cachedCpuInfo
+}
+
+function timeoutPromise<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(fallback), ms)
+    promise
+      .then((val) => {
+        clearTimeout(timer)
+        resolve(val)
+      })
+      .catch(() => {
+        clearTimeout(timer)
+        resolve(fallback)
+      })
+  })
 }
 
 /**
@@ -48,10 +71,10 @@ export async function collectFastMetrics(): Promise<Omit<SystemStats, 'topProces
 
   try {
     const [loadRes, memRes, diskRes, netRes] = await Promise.allSettled([
-      si.currentLoad(),
-      si.mem(),
-      si.disksIO(),
-      si.networkStats(),
+      timeoutPromise(si.currentLoad(), 4000, { currentLoad: 0 } as any),
+      timeoutPromise(si.mem(), 4000, null as any),
+      timeoutPromise(si.disksIO(), 4000, null as any),
+      timeoutPromise(si.networkStats(), 4000, [] as any),
     ])
 
     // 1. CPU Usage
@@ -77,11 +100,11 @@ export async function collectFastMetrics(): Promise<Omit<SystemStats, 'topProces
     let freeMem = os.freemem()
     let memPercent = Math.round((usedMem / totalMem) * 100)
 
-    if (memRes.status === 'fulfilled') {
+    if (memRes.status === 'fulfilled' && memRes.value) {
       const m = memRes.value
-      totalMem = m.total
-      usedMem = m.active || m.used
-      freeMem = m.available || m.free
+      totalMem = m.total || totalMem
+      usedMem = m.active || m.used || usedMem
+      freeMem = m.available || m.free || freeMem
       memPercent = Math.round((usedMem / totalMem) * 100)
     }
 

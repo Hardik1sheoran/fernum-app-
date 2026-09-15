@@ -4,11 +4,7 @@ import { promisify } from 'node:util'
 import fs from 'node:fs'
 import path from 'node:path'
 import type { DriveInfo, FsOperationResult, QuickFolderInfo } from '../../shared/types'
-import {
-  getAllowedCleanupRoots,
-  isProtectedSystemPath,
-  isWithinAllowedCleanupRoot,
-} from '../../shared/pathSecurity'
+import { isProtectedSystemPath } from '../../shared/pathSecurity'
 
 const execAsync = promisify(exec)
 
@@ -197,11 +193,11 @@ Get-CimInstance -ClassName Win32_LogicalDisk | Select-Object DeviceID, VolumeNam
 
   ipcMain.handle('fs:trash', async (_event, targetPath: string): Promise<FsOperationResult> => {
     try {
-      if (!isWithinAllowedCleanupRoot(targetPath, getAllowedCleanupRoots()) || isProtectedSystemPath(targetPath)) {
+      if (isProtectedSystemPath(targetPath)) {
         return {
           success: false,
           path: targetPath,
-          error: 'Cannot delete paths outside the allowed cleanup roots.',
+          error: 'Cannot delete protected system paths or drive roots.',
         }
       }
       await shell.trashItem(targetPath)
@@ -214,11 +210,11 @@ Get-CimInstance -ClassName Win32_LogicalDisk | Select-Object DeviceID, VolumeNam
 
   ipcMain.handle('fs:delete', async (_event, targetPath: string): Promise<FsOperationResult> => {
     try {
-      if (!isWithinAllowedCleanupRoot(targetPath, getAllowedCleanupRoots()) || isProtectedSystemPath(targetPath)) {
+      if (isProtectedSystemPath(targetPath)) {
         return {
           success: false,
           path: targetPath,
-          error: 'Cannot permanently delete paths outside the allowed cleanup roots.',
+          error: 'Cannot permanently delete protected system paths or drive roots.',
         }
       }
       const fs = await import('node:fs/promises')

@@ -271,7 +271,16 @@ export function parseUninstallCommand(uninstallString?: string): { filePath: str
   const match = command.match(/^(?:"([^"]+)"|(.+?\.exe))(?:\s+(.*))?$/i)
   if (!match) return null
 
-  const filePath = match[1] || match[2]
+  let filePath = match[1] || match[2]
+  const systemRoot = process.env.SystemRoot || 'C:\\Windows'
+  if (!path.win32.isAbsolute(filePath)) {
+    const sys32Path = path.win32.join(systemRoot, 'System32', filePath)
+    if (fs.existsSync(sys32Path)) {
+      filePath = sys32Path
+    } else if (fs.existsSync(`${sys32Path}.exe`)) {
+      filePath = `${sys32Path}.exe`
+    }
+  }
   if (!path.win32.isAbsolute(filePath) || !fs.existsSync(filePath)) return null
   const rawArgs = match[3] || ''
   const tokens = rawArgs.match(/(?:"[^"]*"|[^\s"])+/g) || []
@@ -287,6 +296,20 @@ export async function launchNativeUninstaller(
   app: InstalledApp
 ): Promise<{ success: boolean; message?: string }> {
   if (!app.uninstallString) {
+    if (app.installLocation && fs.existsSync(app.installLocation) && !isProtectedSystemPath(app.installLocation)) {
+      try {
+        await shell.trashItem(app.installLocation)
+        return {
+          success: true,
+          message: `Moved "${app.name}" installation folder to Recycle Bin.`,
+        }
+      } catch (err: unknown) {
+        return {
+          success: false,
+          message: `No uninstaller registered and could not delete installation folder: ${err instanceof Error ? err.message : String(err)}`,
+        }
+      }
+    }
     return {
       success: false,
       message: `No uninstaller is registered for "${app.name}". You can clean its residual leftover files below.`,
@@ -295,6 +318,17 @@ export async function launchNativeUninstaller(
 
   const command = parseUninstallCommand(app.uninstallString)
   if (!command) {
+    if (app.installLocation && fs.existsSync(app.installLocation) && !isProtectedSystemPath(app.installLocation)) {
+      try {
+        await shell.trashItem(app.installLocation)
+        return {
+          success: true,
+          message: `Moved "${app.name}" installation folder to Recycle Bin.`,
+        }
+      } catch {
+        // continue
+      }
+    }
     return {
       success: false,
       message: `The registered uninstaller command for "${app.name}" could not be parsed safely.`,

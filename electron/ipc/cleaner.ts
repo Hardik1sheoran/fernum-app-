@@ -29,7 +29,11 @@ function getCategoryConfigs(): CategoryConfig[] {
   const localAppData = process.env.LOCALAPPDATA || ''
   const systemRoot = process.env.SystemRoot || 'C:\\Windows'
   const programData = process.env.PROGRAMDATA || 'C:\\ProgramData'
-  const tempDir = process.env.TEMP || (localAppData ? path.join(localAppData, 'Temp') : '')
+  const tempDir =
+    process.env.TEMP ||
+    (localAppData
+      ? path.win32.join(localAppData, 'Temp')
+      : 'C:\\Users\\Default\\AppData\\Local\\Temp')
 
   return [
     {
@@ -46,7 +50,7 @@ function getCategoryConfigs(): CategoryConfig[] {
       description: 'Temporary files and service work buffers created by Windows OS services.',
       icon: 'HardDrive',
       safeToClean: true,
-      getPaths: () => [path.join(systemRoot, 'Temp')],
+      getPaths: () => [path.win32.join(systemRoot, 'Temp')],
     },
     {
       id: 'recycleBin',
@@ -62,7 +66,7 @@ function getCategoryConfigs(): CategoryConfig[] {
       description: 'Downloaded updates and patch installer packages that have already been applied.',
       icon: 'Download',
       safeToClean: true,
-      getPaths: () => [path.join(systemRoot, 'SoftwareDistribution', 'Download')],
+      getPaths: () => [path.win32.join(systemRoot, 'SoftwareDistribution', 'Download')],
     },
     {
       id: 'crashDumps',
@@ -71,9 +75,9 @@ function getCategoryConfigs(): CategoryConfig[] {
       icon: 'ShieldAlert',
       safeToClean: true,
       getPaths: () => [
-        path.join(localAppData, 'CrashDumps'),
-        path.join(programData, 'Microsoft', 'Windows', 'WER', 'ReportArchive'),
-        path.join(programData, 'Microsoft', 'Windows', 'WER', 'ReportQueue'),
+        path.win32.join(localAppData, 'CrashDumps'),
+        path.win32.join(programData, 'Microsoft', 'Windows', 'WER', 'ReportArchive'),
+        path.win32.join(programData, 'Microsoft', 'Windows', 'WER', 'ReportQueue'),
       ],
     },
     {
@@ -83,9 +87,9 @@ function getCategoryConfigs(): CategoryConfig[] {
       icon: 'Zap',
       safeToClean: true,
       getPaths: () => [
-        path.join(localAppData, 'D3DSCache'),
-        path.join(localAppData, 'NVIDIA', 'DXCache'),
-        path.join(localAppData, 'AMD', 'DxCache'),
+        path.win32.join(localAppData, 'D3DSCache'),
+        path.win32.join(localAppData, 'NVIDIA', 'DXCache'),
+        path.win32.join(localAppData, 'AMD', 'DxCache'),
       ],
     },
     {
@@ -94,7 +98,7 @@ function getCategoryConfigs(): CategoryConfig[] {
       description: 'Cached preview thumbnails for pictures, videos, and folders in File Explorer.',
       icon: 'Image',
       safeToClean: true,
-      getPaths: () => [path.join(localAppData, 'Microsoft', 'Windows', 'Explorer')],
+      getPaths: () => [path.win32.join(localAppData, 'Microsoft', 'Windows', 'Explorer')],
     },
     {
       id: 'browserCache',
@@ -103,9 +107,9 @@ function getCategoryConfigs(): CategoryConfig[] {
       icon: 'Globe',
       safeToClean: true,
       getPaths: () => [
-        path.join(localAppData, 'Google', 'Chrome', 'User Data', 'Default', 'Cache'),
-        path.join(localAppData, 'Microsoft', 'Edge', 'User Data', 'Default', 'Cache'),
-        path.join(localAppData, 'BraveSoftware', 'Brave-Browser', 'User Data', 'Default', 'Cache'),
+        path.win32.join(localAppData, 'Google', 'Chrome', 'User Data', 'Default', 'Cache'),
+        path.win32.join(localAppData, 'Microsoft', 'Edge', 'User Data', 'Default', 'Cache'),
+        path.win32.join(localAppData, 'BraveSoftware', 'Brave-Browser', 'User Data', 'Default', 'Cache'),
       ],
     },
   ]
@@ -190,19 +194,32 @@ export async function inspectDirectoryJunk(dirPath: string): Promise<{ sizeBytes
       continue
     }
 
+    const files: string[] = []
+
     for (const entry of entries) {
       if (entry.isSymbolicLink()) continue
-      const fullPath = path.join(current, entry.name)
+      const fullPath =
+        process.platform === 'win32' || /^[a-zA-Z]:/.test(current) || current.includes('\\')
+          ? path.win32.join(current, entry.name)
+          : path.join(current, entry.name)
 
       if (entry.isDirectory()) {
         stack.push(fullPath)
       } else if (entry.isFile()) {
-        try {
-          const st = await fs.promises.stat(fullPath)
-          sizeBytes += st.size
-          fileCount++
-        } catch {
-          // File in use, ignore
+        files.push(fullPath)
+      }
+    }
+
+    if (files.length > 0) {
+      const BATCH_SIZE = 64
+      for (let i = 0; i < files.length; i += BATCH_SIZE) {
+        const batch = files.slice(i, i + BATCH_SIZE)
+        const stats = await Promise.allSettled(batch.map((f) => fs.promises.stat(f)))
+        for (const st of stats) {
+          if (st.status === 'fulfilled' && st.value) {
+            sizeBytes += st.value.size
+            fileCount++
+          }
         }
       }
     }
@@ -355,7 +372,10 @@ async function cleanDirectoryContents(dirPath: string): Promise<{
   }
 
   for (const entry of entries) {
-    const itemPath = path.join(dirPath, entry.name)
+    const itemPath =
+      process.platform === 'win32' || /^[a-zA-Z]:/.test(dirPath) || dirPath.includes('\\')
+        ? path.win32.join(dirPath, entry.name)
+        : path.join(dirPath, entry.name)
 
     // Security check: Must strictly be an allowed junk path
     if (!isAllowedJunkPath(itemPath)) {

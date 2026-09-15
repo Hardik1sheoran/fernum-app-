@@ -16,11 +16,7 @@ import type {
   SearchResultItem,
   SystemStats,
 } from '../shared/types'
-import {
-  getAllowedCleanupRoots,
-  isProtectedSystemPath,
-  isWithinAllowedCleanupRoot,
-} from '../shared/pathSecurity'
+import { isProtectedSystemPath } from '../shared/pathSecurity'
 
 const execAsync = promisify(exec)
 
@@ -557,9 +553,9 @@ $items | ConvertTo-Json -Compress -Depth 2
           req.on('data', (c) => (body += c))
           req.on('end', async () => {
             const { targetPath } = JSON.parse(body || '{}')
-            if (!targetPath || !isWithinAllowedCleanupRoot(targetPath, getAllowedCleanupRoots()) || isProtectedSystemPath(targetPath)) {
+            if (!targetPath || isProtectedSystemPath(targetPath)) {
               res.writeHead(400, { 'Content-Type': 'application/json' })
-              res.end(JSON.stringify({ success: false, error: 'Path is outside the allowed cleanup roots.' }))
+              res.end(JSON.stringify({ success: false, error: 'Protected system path cannot be targeted.' }))
               return
             }
             if (targetPath) {
@@ -585,9 +581,9 @@ $items | ConvertTo-Json -Compress -Depth 2
           req.on('data', (c) => (body += c))
           req.on('end', async () => {
             const { targetPath } = JSON.parse(body || '{}')
-            if (!targetPath || !isWithinAllowedCleanupRoot(targetPath, getAllowedCleanupRoots()) || isProtectedSystemPath(targetPath)) {
+            if (!targetPath || isProtectedSystemPath(targetPath)) {
               res.writeHead(400, { 'Content-Type': 'application/json' })
-              res.end(JSON.stringify({ success: false, error: 'Path is outside the allowed cleanup roots.' }))
+              res.end(JSON.stringify({ success: false, error: 'Protected system paths or drive roots cannot be deleted.' }))
               return
             }
             if (targetPath) {
@@ -613,6 +609,85 @@ if (Test-Path -LiteralPath $targetPath -PathType Container) {
             }
             res.writeHead(200, { 'Content-Type': 'application/json' })
             res.end(JSON.stringify({ success: true, path: targetPath }))
+          })
+          return
+        }
+
+        // Permanent Delete
+        if (pathname === '/api/delete' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (c) => (body += c))
+          req.on('end', async () => {
+            const { targetPath } = JSON.parse(body || '{}')
+            if (!targetPath || isProtectedSystemPath(targetPath)) {
+              res.writeHead(400, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ success: false, error: 'Protected system paths or drive roots cannot be permanently deleted.' }))
+              return
+            }
+            try {
+              await fsPromises.rm(targetPath, { recursive: true, force: true })
+              res.writeHead(200, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ success: true, path: targetPath }))
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ success: false, error: String(err) }))
+            }
+          })
+          return
+        }
+
+        // Native Uninstall App
+        if (pathname === '/api/apps/uninstall' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (c) => (body += c))
+          req.on('end', async () => {
+            const { appId } = JSON.parse(body || '{}')
+            try {
+              const psScript = `
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$paths = @(
+    'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
+    'HKLM:\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
+    'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'
+)
+$items = Get-ItemProperty -Path $paths -ErrorAction SilentlyContinue |
+    Where-Object { $_.DisplayName -and -not $_.SystemComponent -and ($_.UninstallString -or $_.QuietUninstallString) } |
+    Select-Object DisplayName, UninstallString, InstallLocation
+$items | ConvertTo-Json -Compress
+`
+              const b64 = Buffer.from(psScript, 'utf16le').toString('base64')
+              const { stdout } = await execAsync(
+                `powershell -NoProfile -NonInteractive -EncodedCommand ${b64}`,
+                { windowsHide: true, maxBuffer: 10 * 1024 * 1024 }
+              )
+              if (stdout && stdout.trim()) {
+                const firstChar = stdout.search(/[{\[]/)
+                const jsonStr = firstChar !== -1 ? stdout.slice(firstChar).trim() : stdout.trim()
+                const raw = JSON.parse(jsonStr)
+                const list = Array.isArray(raw) ? raw : [raw]
+                const matched = list.find((item: any, idx: number) => {
+                  const id = `app-${idx}-${(item.DisplayName || '').replace(/\\s+/g, '-').toLowerCase()}`
+                  return id === appId || item.DisplayName === appId
+                })
+                if (matched && matched.UninstallString) {
+                  const { spawn } = await import('node:child_process')
+                  const child = spawn('cmd.exe', ['/c', 'start', '""', matched.UninstallString], {
+                    detached: true,
+                    stdio: 'ignore',
+                    windowsHide: true,
+                  })
+                  child.unref()
+                  res.writeHead(200, { 'Content-Type': 'application/json' })
+                  res.end(JSON.stringify({ success: true, message: `Uninstaller launched for "${matched.DisplayName}". Follow the on-screen prompts.` }))
+                  return
+                }
+              }
+              res.writeHead(200, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ success: false, message: 'Application uninstaller command was not found.' }))
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ success: false, message: String(err) }))
+            }
           })
           return
         }
