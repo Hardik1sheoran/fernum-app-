@@ -141,23 +141,26 @@ export const JunkCleaner: React.FC = () => {
   }
 
   return (
-    <div className="flex h-full flex-col space-y-4 max-w-6xl mx-auto">
+    <div className="flex h-full flex-col space-y-4 max-w-6xl mx-auto pb-4">
       {/* Top Banner Hero */}
-      <div className="rounded-xl border border-white/10 bg-gradient-to-r from-[#1b2028] via-[#161a22] to-[#12151b] p-5 shadow-lg flex-shrink-0">
-        <div className="flex flex-wrap items-center justify-between gap-4">
+      <div className="rounded-2xl border border-white/[0.08] bg-gradient-to-r from-slate-900/90 via-slate-900/70 to-indigo-950/40 p-6 shadow-2xl backdrop-blur-xl flex-shrink-0 relative overflow-hidden">
+        <div className="absolute -right-16 -top-16 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="flex flex-wrap items-center justify-between gap-4 relative z-10">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-600/20 text-blue-400 border border-blue-500/30">
-              <Sparkles className="w-6 h-6 animate-pulse" />
+            <div className="flex h-13 w-13 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-500/25 border border-white/20">
+              <Sparkles className="w-6 h-6 animate-pulse-subtle" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-xl font-bold text-slate-100">System Junk & Cache Cleaner</h1>
-                <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-400 border border-emerald-500/20">
+              <div className="flex items-center gap-2.5">
+                <h1 className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
+                  System Junk & Cache Cleaner
+                </h1>
+                <span className="rounded-full bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-400 border border-emerald-500/25">
                   Safe Cleanup
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5">
-                Clean temporary files, Windows Update downloads, thumbnail caches, and Recycle Bin safely.
+              <p className="text-xs text-slate-400 mt-1">
+                Safely purge temporary files, Windows Update caches, crash dumps, and recycle bins to reclaim storage.
               </p>
             </div>
           </div>
@@ -170,8 +173,9 @@ export const JunkCleaner: React.FC = () => {
               icon={<RefreshCw className={`w-4 h-4 ${isScanning ? 'animate-spin text-blue-400' : ''}`} />}
               onClick={loadJunkScan}
               disabled={isScanning || isCleaning}
+              className="bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.08] text-slate-200"
             >
-              {isScanning ? 'Scanning...' : 'Scan Junk'}
+              {isScanning ? 'Scanning...' : 'Refresh Scan'}
             </Button>
 
             <Button
@@ -180,7 +184,7 @@ export const JunkCleaner: React.FC = () => {
               icon={<Trash2 className="w-4 h-4" />}
               onClick={() => setShowConfirmModal(true)}
               disabled={isScanning || isCleaning || totalReclaimableBytes === 0 || selectedCategoryIds.size === 0}
-              className="bg-blue-600 hover:bg-blue-500 font-semibold px-4"
+              className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-500 hover:from-blue-500 hover:to-indigo-500 font-semibold px-5 shadow-lg shadow-blue-600/30 transition-all hover:scale-[1.02] active:scale-[0.98]"
             >
               {isCleaning ? 'Cleaning...' : `Clean Selected (${formatBytes(totalReclaimableBytes)})`}
             </Button>
@@ -188,23 +192,23 @@ export const JunkCleaner: React.FC = () => {
         </div>
 
         {/* Quick Stats Grid */}
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-white/5 pt-4">
-          <div className="rounded-lg bg-white/5 p-3 border border-white/5">
-            <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Reclaimable Space</div>
-            <div className="text-lg font-bold text-blue-400 mt-0.5">
+        <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3 border-t border-white/[0.06] pt-5 relative z-10">
+          <div className="rounded-xl bg-white/[0.03] p-3.5 border border-white/[0.06] backdrop-blur-md">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Reclaimable Space</div>
+            <div className="text-xl font-extrabold text-blue-400 mt-1 font-mono">
               {formatBytes(totalReclaimableBytes)}
             </div>
           </div>
-          <div className="rounded-lg bg-white/5 p-3 border border-white/5">
-            <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Target Files & Dumps</div>
-            <div className="text-lg font-bold text-slate-200 mt-0.5">
+          <div className="rounded-xl bg-white/[0.03] p-3.5 border border-white/[0.06] backdrop-blur-md">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Target Files & Dumps</div>
+            <div className="text-xl font-extrabold text-slate-200 mt-1 font-mono">
               {totalReclaimableFiles.toLocaleString()} files
             </div>
           </div>
-          <div className="rounded-lg bg-white/5 p-3 border border-white/5">
-            <div className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Selected Categories</div>
-            <div className="text-lg font-bold text-emerald-400 mt-0.5">
-              {selectedCategoryIds.size} of {categories.length}
+          <div className="rounded-xl bg-white/[0.03] p-3.5 border border-white/[0.06] backdrop-blur-md">
+            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Active Scope</div>
+            <div className="text-xl font-extrabold text-emerald-400 mt-1 font-mono">
+              {selectedCategoryIds.size} of {categories.length} categories
             </div>
           </div>
         </div>
@@ -212,7 +216,7 @@ export const JunkCleaner: React.FC = () => {
 
       {/* Error Banner */}
       {errorMessage && (
-        <div className="flex items-center gap-2 rounded-lg bg-rose-950/40 border border-rose-800/40 px-3.5 py-2.5 text-xs text-rose-300">
+        <div className="flex items-center gap-2.5 rounded-xl bg-rose-950/40 border border-rose-800/40 px-4 py-3 text-xs text-rose-300">
           <AlertCircle className="w-4 h-4 flex-shrink-0 text-rose-400" />
           <span>{errorMessage}</span>
         </div>
@@ -220,16 +224,16 @@ export const JunkCleaner: React.FC = () => {
 
       {/* Success Notification Banner */}
       {cleanResult && (
-        <div className="flex items-center justify-between rounded-lg bg-emerald-950/40 border border-emerald-800/40 px-4 py-3 text-xs text-emerald-300 animate-fade-in">
-          <div className="flex items-center gap-2.5">
+        <div className="flex items-center justify-between rounded-xl bg-emerald-950/40 border border-emerald-800/40 px-5 py-3.5 text-xs text-emerald-300 animate-fade-in shadow-lg">
+          <div className="flex items-center gap-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
             <div>
-              <span className="font-semibold text-emerald-200">
+              <span className="font-bold text-emerald-200 text-sm">
                 Cleanup complete! Reclaimed {formatBytes(cleanResult.reclaimedBytes)}
               </span>
-              <p className="text-[11px] text-emerald-400/80 mt-0.5">
-                Purged {cleanResult.deletedFileCount.toLocaleString()} items
-                {cleanResult.skippedCount > 0 ? ` • ${cleanResult.skippedCount} in-use items safely skipped` : ''}.
+              <p className="text-xs text-emerald-400/80 mt-0.5">
+                Successfully purged {cleanResult.deletedFileCount.toLocaleString()} items
+                {cleanResult.skippedCount > 0 ? ` • ${cleanResult.skippedCount} in-use files safely skipped` : ''}.
               </p>
             </div>
           </div>
@@ -244,7 +248,7 @@ export const JunkCleaner: React.FC = () => {
         <div className="flex items-center gap-2">
           <button
             onClick={toggleSelectAll}
-            className="text-xs font-semibold text-slate-300 hover:text-white transition-colors flex items-center gap-1.5"
+            className="text-xs font-semibold text-slate-300 hover:text-white transition-colors flex items-center gap-2 bg-white/[0.03] hover:bg-white/[0.06] border border-white/[0.06] px-3 py-1.5 rounded-lg cursor-pointer"
           >
             <input
               type="checkbox"
@@ -252,12 +256,12 @@ export const JunkCleaner: React.FC = () => {
               onChange={toggleSelectAll}
               className="rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-0 w-3.5 h-3.5 cursor-pointer"
             />
-            <span>{allSelected ? 'Deselect All' : 'Select All'}</span>
+            <span>{allSelected ? 'Deselect All' : 'Select All Categories'}</span>
           </button>
         </div>
 
-        <div className="text-[11px] text-slate-400">
-          {categories.filter((c) => c.sizeBytes > 0).length} categories contain purgable files
+        <div className="text-xs text-slate-400 font-mono">
+          {categories.filter((c) => c.sizeBytes > 0).length} of {categories.length} categories have detected junk
         </div>
       </div>
 
@@ -265,14 +269,14 @@ export const JunkCleaner: React.FC = () => {
       <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
         {isScanning && categories.length === 0 ? (
           <div className="flex h-64 flex-col items-center justify-center gap-3 text-slate-400">
-            <RefreshCw className="w-8 h-8 animate-spin text-blue-500" />
+            <RefreshCw className="w-8 h-8 animate-spin text-blue-400" />
             <p className="text-xs">Analyzing system caches, temporary folders, and recycle bins...</p>
           </div>
         ) : categories.length === 0 ? (
           <EmptyState
             icon={<CheckCircle2 className="w-6 h-6 text-emerald-400" />}
             title="No Junk Data Found"
-            description="All system temporary folders, caches, and recycle bins are already clean."
+            description="All system temporary folders, caches, and recycle bins are clean."
             action={
               <Button variant="secondary" size="sm" onClick={loadJunkScan}>
                 Scan Again
@@ -288,15 +292,15 @@ export const JunkCleaner: React.FC = () => {
             return (
               <div
                 key={cat.id}
-                className={`rounded-xl border transition-all ${
+                className={`rounded-xl border transition-all duration-200 ${
                   isSelected
-                    ? 'border-blue-500/30 bg-[#161a22]/90 shadow-sm'
-                    : 'border-white/5 bg-[#14161d]/60 hover:bg-[#161922]'
+                    ? 'border-blue-500/40 bg-blue-950/10 shadow-sm shadow-blue-500/5'
+                    : 'border-white/[0.05] bg-white/[0.02] hover:bg-white/[0.04]'
                 }`}
               >
-                <div className="flex items-center justify-between p-3.5 gap-3">
+                <div className="flex items-center justify-between p-4 gap-3">
                   {/* Left Column: Checkbox, Icon, Title */}
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="flex items-center gap-3.5 min-w-0 flex-1">
                     <input
                       type="checkbox"
                       checked={isSelected}
@@ -304,15 +308,15 @@ export const JunkCleaner: React.FC = () => {
                       className="rounded border-slate-700 bg-slate-800 text-blue-600 focus:ring-0 w-4 h-4 cursor-pointer shrink-0"
                     />
 
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white/5 border border-white/5 shrink-0">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/[0.04] border border-white/[0.08] shrink-0">
                       {ICON_MAP[cat.icon] || <Sparkles className="w-5 h-5 text-blue-400" />}
                     </div>
 
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <h3 className="text-sm font-semibold text-slate-200 truncate">{cat.name}</h3>
+                        <h3 className="text-sm font-bold text-slate-100 truncate">{cat.name}</h3>
                         {cat.safeToClean && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20 font-medium">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-semibold">
                             Safe
                           </span>
                         )}
@@ -322,12 +326,12 @@ export const JunkCleaner: React.FC = () => {
                   </div>
 
                   {/* Right Column: Size, File Count, Expand Button */}
-                  <div className="flex items-center gap-3 shrink-0">
+                  <div className="flex items-center gap-3.5 shrink-0">
                     <div className="text-right">
-                      <div className={`text-sm font-bold ${hasJunk ? 'text-slate-100' : 'text-slate-500'}`}>
+                      <div className={`text-sm font-extrabold font-mono ${hasJunk ? 'text-blue-400' : 'text-slate-500'}`}>
                         {formatBytes(cat.sizeBytes)}
                       </div>
-                      <div className="text-[11px] text-slate-400">
+                      <div className="text-[11px] text-slate-400 font-mono">
                         {cat.fileCount.toLocaleString()} {cat.fileCount === 1 ? 'file' : 'files'}
                       </div>
                     </div>
@@ -335,7 +339,7 @@ export const JunkCleaner: React.FC = () => {
                     {cat.paths.length > 0 && (
                       <button
                         onClick={() => toggleExpand(cat.id)}
-                        className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-slate-200 transition-colors"
+                        className="p-1.5 rounded-lg hover:bg-white/10 text-slate-400 hover:text-slate-200 transition-colors"
                         title="Show target folder paths"
                       >
                         {isExpanded ? (

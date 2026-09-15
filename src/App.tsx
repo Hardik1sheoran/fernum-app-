@@ -324,7 +324,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#111] text-slate-100 font-sans">
+    <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-950 text-slate-100 font-sans select-none">
       {/* Top Title Bar */}
       <Header
         onRefreshDrives={loadDrives}
@@ -345,71 +345,114 @@ export const App: React.FC = () => {
       />
 
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-64 shrink-0 flex-col border-r border-white/10 bg-[#171717]">
+        <aside className="flex w-64 shrink-0 flex-col border-r border-white/[0.08] bg-slate-900/75 backdrop-blur-xl">
           <TabNavigation activeTab={activeTab} onSelectTab={setActiveTab} />
-          <DrivePicker
-            drives={drives}
-            quickFolders={quickFolders}
-            selectedDrive={selectedDrive}
-            currentViewNode={currentViewNode}
-            errorMessage={driveError}
-            onSelectDrive={setSelectedDrive}
-            onStartScan={handleStartScan}
-            onScanHome={handleScanHome}
-            onSelectQuickFolder={handleSelectQuickFolder}
-            onSelectCustomFolder={handleSelectCustomFolder}
-            onRevealInExplorer={handleRevealInExplorer}
-            isScanning={scanProgress.status === 'scanning'}
-          />
+          {activeTab === 'storage' ? (
+            <DrivePicker
+              drives={drives}
+              quickFolders={quickFolders}
+              selectedDrive={selectedDrive}
+              currentViewNode={currentViewNode}
+              errorMessage={driveError}
+              onSelectDrive={setSelectedDrive}
+              onStartScan={handleStartScan}
+              onScanHome={handleScanHome}
+              onSelectQuickFolder={handleSelectQuickFolder}
+              onSelectCustomFolder={handleSelectCustomFolder}
+              onRevealInExplorer={handleRevealInExplorer}
+              isScanning={scanProgress.status === 'scanning'}
+            />
+          ) : (
+            <div className="flex-1 p-3 flex flex-col justify-between select-none">
+              <div className="space-y-3">
+                <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.06] space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Selected Disk</span>
+                    <span className="text-[10px] font-mono text-blue-400 font-bold">{selectedDrive?.id || 'C:'}</span>
+                  </div>
+                  {selectedDrive && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-xs">
+                        <span className="text-slate-200 font-semibold truncate">{selectedDrive.name}</span>
+                        <span className="text-slate-400 font-mono text-[11px]">
+                          {(selectedDrive.freeBytes / (1024 ** 3)).toFixed(1)} GB free
+                        </span>
+                      </div>
+                      <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full"
+                          style={{
+                            width: `${
+                              selectedDrive.totalBytes
+                                ? Math.round((selectedDrive.usedBytes / selectedDrive.totalBytes) * 100)
+                                : 0
+                            }%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Bottom Quick Privacy Tag */}
+              <div className="p-3.5 rounded-xl bg-white/[0.02] border border-white/[0.05] space-y-1.5 text-xs">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Security & Privacy</span>
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  All analysis, disk scanning, and cleanup operations run 100% locally with zero cloud transmission.
+                </p>
+              </div>
+            </div>
+          )}
         </aside>
 
-      {/* Main Content Area */}
-      <main className="min-w-0 flex-1 overflow-hidden bg-[#101010] p-2">
-        {activeTab === 'storage' && (
-          <div className="h-full">
-            <div className="h-full min-h-[420px]">
-              <TreemapCanvas
-                rootNode={rootNode}
-                currentViewNode={currentViewNode}
-                breadcrumbs={breadcrumbs}
-                isScanning={scanProgress.status === 'scanning'}
-                scanProgressPercentage={scanProgress.percentage}
-                currentScanPath={scanProgress.currentPath}
-                scannedFiles={scanProgress.scannedFiles}
-                scannedBytes={scanProgress.scannedBytes}
-                onCancelScan={handleCancelScan}
-                onDrillDown={drillDown}
-                onDrillUp={drillUp}
-                onResetView={resetView}
-              />
+        {/* Main Content Area */}
+        <main className="min-w-0 flex-1 overflow-hidden bg-slate-950/40 backdrop-blur-sm p-3">
+          {activeTab === 'storage' && (
+            <div className="h-full">
+              <div className="h-full min-h-[420px]">
+                <TreemapCanvas
+                  rootNode={rootNode}
+                  currentViewNode={currentViewNode}
+                  breadcrumbs={breadcrumbs}
+                  isScanning={scanProgress.status === 'scanning'}
+                  scanProgressPercentage={scanProgress.percentage}
+                  currentScanPath={scanProgress.currentPath}
+                  scannedFiles={scanProgress.scannedFiles}
+                  scannedBytes={scanProgress.scannedBytes}
+                  onCancelScan={handleCancelScan}
+                  onDrillDown={drillDown}
+                  onDrillUp={drillUp}
+                  onResetView={resetView}
+                />
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
-        {activeTab === 'cleaner' && (
-          <div className="h-full overflow-y-auto p-4">
-            <JunkCleaner />
-          </div>
-        )}
+          {activeTab === 'cleaner' && (
+            <div className="h-full overflow-y-auto p-2">
+              <JunkCleaner />
+            </div>
+          )}
 
-        {activeTab === 'apps' && (
-          <div className="h-full overflow-y-auto p-4">
-            <AppsList />
-          </div>
-        )}
+          {activeTab === 'apps' && (
+            <div className="h-full overflow-y-auto p-2">
+              <AppsList />
+            </div>
+          )}
 
-        {activeTab === 'search' && (
-          <div className="h-full overflow-y-auto p-4">
-            <SearchPanel />
-          </div>
-        )}
+          {activeTab === 'search' && (
+            <div className="h-full overflow-y-auto p-2">
+              <SearchPanel />
+            </div>
+          )}
 
-        {activeTab === 'monitor' && (
-          <div className="h-full overflow-y-auto p-4">
-            <MonitorDashboard />
-          </div>
-        )}
-      </main>
+          {activeTab === 'monitor' && (
+            <div className="h-full overflow-y-auto p-2">
+              <MonitorDashboard />
+            </div>
+          )}
+        </main>
       </div>
     </div>
   )

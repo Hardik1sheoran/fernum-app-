@@ -15,51 +15,54 @@ export const Header: React.FC<HeaderProps> = ({ onRefreshDrives, onOpenExclusion
   const { selectedDrive, isLoadingDrives, reclaimedBytes } = useScanStore()
 
   return (
-    <header className="h-12 border-b border-slate-200 dark:border-slate-800/80 bg-white/80 dark:bg-[#14171d]/90 backdrop-blur-md flex items-center justify-between px-4 select-none drag-region">
+    <header className="h-13 border-b border-white/[0.08] bg-slate-950/70 backdrop-blur-xl flex items-center justify-between px-4 select-none drag-region relative z-30">
       {/* Brand / Title */}
-      <div className="flex items-center gap-2.5 no-drag">
-        <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-glow">
-          <Sparkles className="w-4 h-4" />
+      <div className="flex items-center gap-3 no-drag">
+        <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-500 to-cyan-400 p-[1px] shadow-glow flex items-center justify-center">
+          <div className="w-full h-full bg-[#0d1117]/85 backdrop-blur-sm rounded-[11px] flex items-center justify-center">
+            <Sparkles className="w-4 h-4 text-cyan-400 animate-pulse-subtle" />
+          </div>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="font-bold text-sm tracking-tight text-slate-800 dark:text-slate-100">
+          <span className="font-extrabold text-sm tracking-tight bg-gradient-to-r from-white via-slate-100 to-slate-300 bg-clip-text text-transparent">
             Fernum
           </span>
-          <span className="text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-500 border border-blue-500/20">
+          <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20">
             Storage Analyzer
           </span>
         </div>
       </div>
 
       {/* Center status: active drive & reclaimed space */}
-      <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 no-drag">
+      <div className="hidden md:flex items-center gap-2.5 text-xs no-drag">
         {selectedDrive && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 dark:bg-[#1f242d] border border-slate-200/80 dark:border-slate-700/60">
-            <HardDrive className="w-3.5 h-3.5 text-blue-500" />
-            <span className="font-medium text-slate-700 dark:text-slate-200">
+          <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.04] border border-white/[0.08] backdrop-blur-md shadow-sm">
+            <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
+            <HardDrive className="w-3.5 h-3.5 text-blue-400" />
+            <span className="font-medium text-slate-200">
               {selectedDrive.id} ({selectedDrive.name})
             </span>
-            <span className="text-slate-400 dark:text-slate-500">|</span>
-            <span>
+            <span className="text-white/20">|</span>
+            <span className="text-slate-400 font-mono">
               {(selectedDrive.freeBytes / (1024 * 1024 * 1024)).toFixed(1)} GB free
             </span>
           </div>
         )}
 
         {reclaimedBytes > 0 && (
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/25 text-emerald-600 dark:text-emerald-400 font-semibold animate-fade-in">
+          <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 font-semibold shadow-sm animate-pulse-subtle">
             <span>✨ Freed {formatBytes(reclaimedBytes)}</span>
           </div>
         )}
       </div>
 
-      {/* Right controls: privacy + exclusions + refresh drives + theme toggle, spaced away from Windows titlebar buttons */}
-      <div className="flex items-center gap-1.5 no-drag mr-36">
+      {/* Right controls: privacy + exclusions + refresh drives + theme toggle */}
+      <div className="flex items-center gap-2 no-drag mr-36">
         {onOpenPrivacy && (
           <button
             onClick={onOpenPrivacy}
             title="100% Local Privacy Guarantee"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 transition-all duration-200 hover:scale-105 active:scale-95"
           >
             <ShieldCheck className="w-3.5 h-3.5" />
             <span className="hidden sm:inline">100% Local</span>
@@ -69,9 +72,9 @@ export const Header: React.FC<HeaderProps> = ({ onRefreshDrives, onOpenExclusion
           <button
             onClick={onOpenExclusions}
             title="Scan Exclusions Settings"
-            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all duration-200"
           >
-            <Shield className="w-3.5 h-3.5 text-blue-500" />
+            <Shield className="w-3.5 h-3.5 text-blue-400" />
             <span className="hidden sm:inline">Exclusions</span>
           </button>
         )}
@@ -80,9 +83,9 @@ export const Header: React.FC<HeaderProps> = ({ onRefreshDrives, onOpenExclusion
             onClick={onRefreshDrives}
             disabled={isLoadingDrives}
             title="Refresh drives"
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/80 hover:text-slate-900 dark:hover:text-slate-100 transition-colors disabled:opacity-50"
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-slate-400 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.06] transition-all disabled:opacity-40"
           >
-            <RefreshCw className={`w-4 h-4 ${isLoadingDrives ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoadingDrives ? 'animate-spin text-blue-400' : ''}`} />
           </button>
         )}
         {/* Theme Picker Selector */}
@@ -90,17 +93,18 @@ export const Header: React.FC<HeaderProps> = ({ onRefreshDrives, onOpenExclusion
           <select
             value={theme}
             onChange={(e) => setTheme(e.target.value as any)}
-            title="Switch Theme (Forest, Ocean, Aurora, Dark, Light)"
-            className="text-xs py-1 px-2.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 font-medium focus:outline-none cursor-pointer"
+            title="Switch Theme"
+            className="text-xs py-1 px-2.5 rounded-lg border border-white/[0.08] bg-white/[0.05] hover:bg-white/[0.08] text-slate-200 font-medium focus:outline-none focus:ring-1 focus:ring-blue-500/50 cursor-pointer transition-all"
           >
-            <option value="dark">🌙 Dark Mode</option>
-            <option value="forest">🌲 Forest</option>
-            <option value="ocean">🌊 Ocean</option>
-            <option value="aurora">✨ Aurora</option>
-            <option value="light">☀️ Light</option>
+            <option value="dark" className="bg-[#12161d] text-white">🌙 Dark</option>
+            <option value="forest" className="bg-[#0b1411] text-emerald-200">🌲 Forest</option>
+            <option value="ocean" className="bg-[#09131f] text-cyan-200">🌊 Ocean</option>
+            <option value="aurora" className="bg-[#110d1f] text-purple-200">✨ Aurora</option>
+            <option value="light" className="bg-slate-100 text-slate-900">☀️ Light</option>
           </select>
         </div>
       </div>
     </header>
   )
 }
+
