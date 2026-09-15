@@ -350,7 +350,7 @@ export const App: React.FC = () => {
       <UpgradeModal />
 
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-64 shrink-0 flex-col border-r border-[#2d2d33] bg-[#202024]">
+        <aside className="flex w-64 shrink-0 flex-col glass-sidebar">
           <TabNavigation activeTab={activeTab} onSelectTab={setActiveTab} />
           {activeTab === 'storage' ? (
             <DrivePicker

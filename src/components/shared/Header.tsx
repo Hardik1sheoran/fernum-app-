@@ -26,7 +26,7 @@ export const Header: React.FC<HeaderProps> = ({ onRefreshDrives, onOpenExclusion
   }
 
   return (
-    <header className="h-11 border-b border-[#2c2c32] bg-[#1c1c20] flex items-center justify-between px-3 select-none drag-region relative z-30">
+    <header className="h-11 glass-header flex items-center justify-between px-3 select-none drag-region relative z-30">
       {/* Brand / Title */}
       <div className="flex items-center gap-2.5 no-drag">
         <div className="w-5 h-5 rounded bg-blue-600 flex items-center justify-center text-white text-xs font-black tracking-tighter shadow-sm">

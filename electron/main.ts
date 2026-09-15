@@ -32,6 +32,8 @@ function createWindow(): void {
     minWidth: 1000,
     minHeight: 650,
     backgroundColor: '#0f1115',
+    backgroundMaterial: 'acrylic',
+    vibrancy: 'under-window',
     titleBarStyle: 'hidden',
     titleBarOverlay: {
       color: '#14171d',

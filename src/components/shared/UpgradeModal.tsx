@@ -75,13 +75,13 @@ export const UpgradeModal: React.FC = () => {
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-xs select-none animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md select-none animate-fade-in">
       <div
-        className="w-full max-w-3xl rounded-2xl bg-[#1a1a1f] border border-[#2e2e36] shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+        className="w-full max-w-3xl rounded-2xl glass-panel shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[#2a2a32] bg-[#141418]">
+        <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/[0.02]">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-slate-950 font-black shadow-sm">
               <Sparkles className="w-4 h-4" />
@@ -121,7 +121,7 @@ export const UpgradeModal: React.FC = () => {
         {/* Plan Cards Container */}
         <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4 overflow-y-auto">
           {/* Plan 1: The Essentials */}
-          <div className="rounded-xl p-4 bg-[#1e1e24] border border-[#2b2b34] flex flex-col justify-between">
+          <div className="rounded-xl p-4 glass-card flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
                 <div>
@@ -152,11 +152,11 @@ export const UpgradeModal: React.FC = () => {
               </ul>
             </div>
 
-            <div className="mt-6 pt-3 border-t border-[#2d2d38]">
+            <div className="mt-6 pt-3 border-t border-white/10">
               {isPro ? (
                 <button
                   onClick={deactivateLicense}
-                  className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-[#25252b] transition-colors border border-[#33333d]"
+                  className="w-full py-2 px-3 rounded-lg text-xs font-semibold text-zinc-400 hover:text-zinc-200 hover:bg-white/5 transition-colors border border-white/10"
                 >
                   Downgrade to Free
                 </button>
@@ -169,7 +169,7 @@ export const UpgradeModal: React.FC = () => {
           </div>
 
           {/* Plan 2: The Power Suite (Lifetime License) */}
-          <div className="rounded-xl p-4 bg-gradient-to-b from-[#21232d] to-[#1a1b24] border border-blue-500/40 relative flex flex-col justify-between shadow-lg ring-1 ring-blue-500/20">
+          <div className="rounded-xl p-4 glass-card border-blue-500/50 bg-gradient-to-b from-blue-900/20 to-purple-900/10 relative flex flex-col justify-between shadow-lg ring-1 ring-blue-500/20">
             <div className="absolute -top-2.5 right-4 bg-blue-600 text-white text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full shadow-md">
               Most Popular
             </div>
