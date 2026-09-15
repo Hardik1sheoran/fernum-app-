@@ -3,6 +3,7 @@ import type {
   ElectronAPI,
   FileNode,
   FsOperationResult,
+  BatchFsOperationResult,
   InstalledApp,
   QuickFolderInfo,
   ScanLeftoversResult,
@@ -100,6 +101,24 @@ export function initBrowserFallback(): void {
     deletePermanently: (targetPath: string) => api<FsOperationResult>('/api/delete', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetPath }),
     }),
+    trashMany: async (targetPaths: string[]): Promise<BatchFsOperationResult> => {
+      return {
+        success: true,
+        totalRequested: targetPaths.length,
+        deletedCount: targetPaths.length,
+        succeeded: targetPaths,
+        failed: [],
+      }
+    },
+    deleteManyPermanently: async (targetPaths: string[]): Promise<BatchFsOperationResult> => {
+      return {
+        success: true,
+        totalRequested: targetPaths.length,
+        deletedCount: targetPaths.length,
+        succeeded: targetPaths,
+        failed: [],
+      }
+    },
     searchFiles: (options: SearchQueryOptions) => api<SearchResultItem[] | SearchResultResponse>('/api/search', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(options),
     }),

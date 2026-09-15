@@ -16,6 +16,10 @@ import {
   Music,
   FileSpreadsheet,
   Layers,
+  ShieldAlert,
+  CheckSquare,
+  Square,
+  MinusSquare,
 } from 'lucide-react'
 import type { FileCategory, FileNode, SearchResultItem } from '@shared/types'
 import { useScanStore } from '../../stores/scanStore'
@@ -50,7 +54,7 @@ const SIZE_PRESETS: Array<{ label: string; bytes: number }> = [
 ]
 
 export const SearchPanel: React.FC = () => {
-  const { rootNode, selectedDrive, deleteNodeFromTree } = useScanStore()
+  const { rootNode, selectedDrive, deleteNodeFromTree, deleteNodesFromTree } = useScanStore()
 
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<FileCategory | 'all'>('all')
@@ -65,6 +69,10 @@ export const SearchPanel: React.FC = () => {
   const [isTruncated, setIsTruncated] = useState(false)
   const [notification, setNotification] = useState<string | null>(null)
   const [copiedPath, setCopiedPath] = useState<string | null>(null)
+
+  // Multi-selection state
+  const [selectedPaths, setSelectedPaths] = useState<Set<string>>(new Set())
+  const [deleteBatchTargets, setDeleteBatchTargets] = useState<SearchResultItem[] | null>(null)
 
   // Deletion modal state
   const [deleteTarget, setDeleteTarget] = useState<SearchResultItem | null>(null)
@@ -141,6 +149,42 @@ export const SearchPanel: React.FC = () => {
     return activeResults.reduce((acc, item) => acc + item.sizeBytes, 0)
   }, [activeResults])
 
+  // Multi-selection computed properties
+  const selectedItems = useMemo(() => {
+    return activeResults.filter((r) => selectedPaths.has(r.path))
+  }, [activeResults, selectedPaths])
+
+  const selectedTotalBytes = useMemo(() => {
+    return selectedItems.reduce((acc, item) => acc + item.sizeBytes, 0)
+  }, [selectedItems])
+
+  const isAllSelected = activeResults.length > 0 && selectedPaths.size >= activeResults.length
+  const isPartiallySelected = selectedPaths.size > 0 && selectedPaths.size < activeResults.length
+
+  const toggleSelectPath = (path: string) => {
+    setSelectedPaths((prev) => {
+      const next = new Set(prev)
+      if (next.has(path)) {
+        next.delete(path)
+      } else {
+        next.add(path)
+      }
+      return next
+    })
+  }
+
+  const toggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedPaths(new Set())
+    } else {
+      setSelectedPaths(new Set(activeResults.map((r) => r.path)))
+    }
+  }
+
+  const clearSelection = () => {
+    setSelectedPaths(new Set())
+  }
+
   const handleReveal = async (itemPath: string) => {
     if (window.electronAPI) {
       const res = await window.electronAPI.revealInExplorer(itemPath)
@@ -156,8 +200,68 @@ export const SearchPanel: React.FC = () => {
     setTimeout(() => setCopiedPath(null), 2000)
   }
 
+  const handleBatchDelete = (permanent: boolean) => {
+    if (selectedItems.length === 0) return
+    setDeleteBatchTargets(selectedItems)
+    setDeleteInitialPermanent(permanent)
+  }
+
   const confirmDelete = async (permanent: boolean) => {
-    if (!deleteTarget || !window.electronAPI) return
+    if (!window.electronAPI) return
+
+    // Batch deletion case
+    if (deleteBatchTargets && deleteBatchTargets.length > 0) {
+      setIsDeleting(true)
+      setDeleteError(null)
+      const targets = deleteBatchTargets
+      const paths = targets.map((t) => t.path)
+
+      try {
+        const res = permanent && window.electronAPI.deleteManyPermanently
+          ? await window.electronAPI.deleteManyPermanently(paths)
+          : window.electronAPI.trashMany
+          ? await window.electronAPI.trashMany(paths)
+          : null
+
+        if (res && res.succeeded.length > 0) {
+          const { freedBytes } = deleteNodesFromTree(res.succeeded)
+          const succeededSet = new Set(res.succeeded)
+
+          setDiskResults((prev) => prev.filter((r) => !succeededSet.has(r.path)))
+          setSelectedPaths((prev) => {
+            const next = new Set(prev)
+            res.succeeded.forEach((p) => next.delete(p))
+            return next
+          })
+
+          if (res.failed.length > 0) {
+            setNotification(
+              `Deleted ${res.deletedCount} files (freed ${formatBytes(freedBytes)}). ${res.failed.length} file(s) failed.`
+            )
+          } else {
+            setNotification(
+              permanent
+                ? `Permanently deleted ${res.deletedCount} files (freed ${formatBytes(freedBytes)}).`
+                : `Moved ${res.deletedCount} files to Recycle Bin (freed ${formatBytes(freedBytes)}).`
+            )
+          }
+          setDeleteBatchTargets(null)
+        } else if (res && res.failed.length > 0) {
+          setDeleteError(`Failed to delete selected files: ${res.failed[0].error}`)
+        } else {
+          setDeleteError('No files were deleted.')
+        }
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err)
+        setDeleteError(msg)
+      } finally {
+        setIsDeleting(false)
+      }
+      return
+    }
+
+    // Single item deletion case
+    if (!deleteTarget) return
     setIsDeleting(true)
     setDeleteError(null)
 
@@ -167,10 +271,13 @@ export const SearchPanel: React.FC = () => {
         : await window.electronAPI.moveToTrash(deleteTarget.path)
 
       if (res.success) {
-        // Prune from scanned tree and update reclaimed counter
         deleteNodeFromTree(deleteTarget.path)
-        // Remove from disk results
         setDiskResults((prev) => prev.filter((r) => r.path !== deleteTarget.path))
+        setSelectedPaths((prev) => {
+          const next = new Set(prev)
+          next.delete(deleteTarget.path)
+          return next
+        })
         setNotification(
           permanent
             ? `Permanently deleted: ${deleteTarget.name}`
@@ -230,6 +337,15 @@ export const SearchPanel: React.FC = () => {
       }
     : null
 
+  const modalTargetNodes = deleteBatchTargets
+    ? deleteBatchTargets.map((t) => ({
+        name: t.name,
+        path: t.path,
+        size: t.sizeBytes,
+        type: 'file' as const,
+      }))
+    : undefined
+
   return (
     <div className="flex flex-col h-full space-y-3 max-w-6xl mx-auto pb-4">
       {/* Search Header Controls */}
@@ -258,12 +374,15 @@ export const SearchPanel: React.FC = () => {
             >
               <Layers className="w-3.5 h-3.5" />
               <span>Scanned Tree</span>
+              {rootNode && (
+                <span className="text-[10px] opacity-75 font-mono">
+                  ({formatBytes(rootNode.size)})
+                </span>
+              )}
             </button>
+
             <button
-              onClick={() => {
-                setSourceMode('disk')
-                handleDiskSearch()
-              }}
+              onClick={() => setSourceMode('disk')}
               className={`px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 font-medium ${
                 sourceMode === 'disk'
                   ? 'bg-blue-600 text-white'
@@ -272,101 +391,91 @@ export const SearchPanel: React.FC = () => {
             >
               <HardDrive className="w-3.5 h-3.5" />
               <span>Direct Disk Search</span>
+              {selectedDrive && (
+                <span className="text-[10px] opacity-75 font-mono">
+                  ({selectedDrive.path})
+                </span>
+              )}
             </button>
           </div>
         </div>
 
-        {/* Search Input Bar & Action */}
-        <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && sourceMode === 'disk') {
-                  handleDiskSearch()
-                }
-              }}
-              placeholder="Search by filename or extension (e.g. .mp4, .zip, node_modules)…"
-              className="w-full text-xs pl-9 pr-8 py-2 rounded-md border border-[#32323a] bg-[#27272d] text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-blue-500 transition-colors"
-            />
-            {query && (
-              <button
-                onClick={() => setQuery('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs font-bold"
-              >
-                ✕
-              </button>
-            )}
-          </div>
-
-          {sourceMode === 'disk' && (
-            <Button
-              variant="primary"
-              size="md"
-              icon={
-                isSearchingDisk ? (
-                  <RefreshCw className="w-3.5 h-3.5 animate-spin text-blue-200" />
-                ) : (
-                  <Search className="w-3.5 h-3.5" />
-                )
+        {/* Search Query Input */}
+        <div className="relative">
+          <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && sourceMode === 'disk') {
+                handleDiskSearch()
               }
+            }}
+            placeholder={
+              sourceMode === 'tree'
+                ? 'Search by file name or extension (e.g. .mp4, node_modules, dump.sql)...'
+                : `Search disk ${selectedDrive?.path || 'C:'} directly for large files...`
+            }
+            className="w-full pl-9 pr-24 py-2 text-xs bg-[#16161a] border border-[#32323a] rounded-lg text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors font-mono"
+          />
+          {sourceMode === 'disk' && (
+            <button
               onClick={handleDiskSearch}
               disabled={isSearchingDisk}
-              className="bg-blue-600 hover:bg-blue-500 font-medium px-4 text-white text-xs py-1.5"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 px-2.5 py-1 text-xs font-semibold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-md transition-colors flex items-center gap-1"
             >
-              {isSearchingDisk ? 'Searching…' : 'Search Disk'}
-            </Button>
+              {isSearchingDisk ? <RefreshCw className="w-3 h-3 animate-spin" /> : 'Search'}
+            </button>
           )}
         </div>
 
-        {/* Category Filters & Size Presets */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2.5 pt-2 border-t border-[#2d2d33]">
-          {/* Category Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-            {CATEGORY_FILTERS.map((f) => (
+        {/* Filter Pills */}
+        <div className="flex items-center justify-between flex-wrap gap-2 pt-1 border-t border-[#2d2d33]">
+          {/* Category Filters */}
+          <div className="flex items-center gap-1 overflow-x-auto py-0.5">
+            {CATEGORY_FILTERS.map((cat) => (
               <button
-                key={f.id}
-                onClick={() => setActiveCategory(f.id)}
-                className={`text-xs px-2.5 py-1 rounded transition-colors flex items-center gap-1.5 font-medium ${
-                  activeCategory === f.id
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-[#27272d] border border-[#32323a] text-zinc-300 hover:bg-[#303038]'
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors flex items-center gap-1.5 ${
+                  activeCategory === cat.id
+                    ? 'bg-blue-600 text-white shadow-xs'
+                    : 'bg-[#28282e] border border-[#32323a] text-zinc-400 hover:text-zinc-200 hover:border-zinc-500'
                 }`}
               >
-                {f.icon}
-                <span>{f.label}</span>
+                {cat.icon}
+                <span>{cat.label}</span>
               </button>
             ))}
           </div>
 
-          {/* Size Filter Chips */}
-          <div className="flex items-center gap-1.5 overflow-x-auto py-0.5">
-            {SIZE_PRESETS.map((p) => (
+          {/* Size Preset Filters */}
+          <div className="flex items-center gap-1">
+            <span className="text-[11px] text-zinc-500 font-medium mr-1">Min Size:</span>
+            {SIZE_PRESETS.map((preset) => (
               <button
-                key={p.bytes}
-                onClick={() => setMinSizeBytes(p.bytes)}
-                className={`text-[11px] px-2 py-0.5 rounded font-mono border transition-colors ${
-                  minSizeBytes === p.bytes
-                    ? 'bg-[#3b321a] text-amber-300 border-amber-600/50'
-                    : 'bg-[#27272d] border-[#32323a] text-zinc-400 hover:text-zinc-200'
+                key={preset.label}
+                onClick={() => setMinSizeBytes(preset.bytes)}
+                className={`px-2 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                  minSizeBytes === preset.bytes
+                    ? 'bg-zinc-700 text-zinc-100 font-semibold border border-zinc-500'
+                    : 'text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800'
                 }`}
               >
-                {p.label}
+                {preset.label}
               </button>
             ))}
           </div>
         </div>
 
-        {/* Sorting and Summary Bar */}
-        <div className="flex items-center justify-between text-xs text-slate-400 pt-1 border-t border-white/[0.04]">
-          <div className="flex items-center gap-2 font-mono">
+        {/* Results Metadata & Sorting */}
+        <div className="flex items-center justify-between text-xs text-slate-400 pt-2 border-t border-[#2d2d33]">
+          <div className="flex items-center gap-2">
             <span>
-              Found <strong className="text-white font-bold">{activeResults.length}</strong> items
+              Found <strong className="text-slate-200">{activeResults.length}</strong> files
             </span>
-            <span>•</span>
+            <span>·</span>
             <span className="font-bold text-blue-400">
               {formatBytes(totalResultsBytes)} matching
             </span>
@@ -420,7 +529,7 @@ export const SearchPanel: React.FC = () => {
       {notification && (
         <div className="text-xs p-3 rounded-xl bg-blue-950/40 text-blue-300 border border-blue-800/40 flex items-center justify-between flex-shrink-0 animate-fade-in shadow-lg">
           <span>{notification}</span>
-          <button onClick={() => setNotification(null)} className="font-bold ml-2">
+          <button onClick={() => setNotification(null)} className="font-bold ml-2 hover:text-white">
             ✕
           </button>
         </div>
@@ -437,6 +546,61 @@ export const SearchPanel: React.FC = () => {
 
       {/* Results Table Container */}
       <div className="flex-1 bg-[#202024] rounded-lg border border-[#2d2d33] overflow-hidden flex flex-col min-h-0">
+        {/* Table Column & Bulk Selection Header */}
+        <div className="px-3 py-2 bg-[#19191d] border-b border-[#2d2d33] flex items-center justify-between text-xs text-zinc-400 flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleSelectAll}
+              disabled={activeResults.length === 0}
+              className="flex items-center gap-2 text-zinc-300 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              title={isAllSelected ? 'Deselect all' : 'Select all'}
+            >
+              {isAllSelected ? (
+                <CheckSquare className="w-4 h-4 text-blue-400" />
+              ) : isPartiallySelected ? (
+                <MinusSquare className="w-4 h-4 text-blue-400" />
+              ) : (
+                <Square className="w-4 h-4 text-zinc-500" />
+              )}
+              <span className="text-[11px] font-semibold uppercase tracking-wider">
+                {selectedPaths.size > 0
+                  ? `${selectedPaths.size} of ${activeResults.length} selected`
+                  : 'Select All'}
+              </span>
+            </button>
+          </div>
+
+          {selectedPaths.size > 0 && (
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] text-blue-300 font-mono font-semibold mr-2">
+                Total: {formatBytes(selectedTotalBytes)}
+              </span>
+              <Button
+                variant="secondary"
+                size="sm"
+                icon={<Trash2 className="w-3.5 h-3.5 text-blue-400" />}
+                onClick={() => handleBatchDelete(false)}
+              >
+                Recycle ({selectedPaths.size})
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                icon={<ShieldAlert className="w-3.5 h-3.5" />}
+                onClick={() => handleBatchDelete(true)}
+              >
+                Delete Permanently ({selectedPaths.size})
+              </Button>
+              <button
+                onClick={clearSelection}
+                className="text-[11px] text-zinc-400 hover:text-zinc-200 ml-1 underline"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+        </div>
+
         {isSearchingDisk ? (
           <div className="flex-1 flex flex-col items-center justify-center text-xs text-zinc-400 space-y-2">
             <RefreshCw className="w-6 h-6 animate-spin text-blue-400" />
@@ -457,95 +621,124 @@ export const SearchPanel: React.FC = () => {
           />
         ) : (
           <div className="overflow-y-auto flex-1 divide-y divide-[#27272d]">
-            {activeResults.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between p-3 hover:bg-[#25252b] transition-colors group"
-              >
-                <div className="flex items-center gap-3 min-w-0 pr-4">
-                  <div className="w-7 h-7 rounded bg-[#28282e] border border-[#32323a] flex items-center justify-center flex-shrink-0">
-                    {getFileCategoryIcon(item.category)}
+            {activeResults.map((item) => {
+              const isSelected = selectedPaths.has(item.path)
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => toggleSelectPath(item.path)}
+                  className={`flex items-center justify-between p-3 transition-colors group cursor-pointer ${
+                    isSelected
+                      ? 'bg-blue-950/20 hover:bg-blue-950/30'
+                      : 'hover:bg-[#25252b]'
+                  }`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 pr-4">
+                    {/* Multi-selection Checkbox */}
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleSelectPath(item.path)
+                      }}
+                      className="cursor-pointer p-0.5"
+                    >
+                      {isSelected ? (
+                        <CheckSquare className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                      ) : (
+                        <Square className="w-4 h-4 text-zinc-600 group-hover:text-zinc-400 flex-shrink-0 transition-colors" />
+                      )}
+                    </div>
+
+                    <div className="w-7 h-7 rounded bg-[#28282e] border border-[#32323a] flex items-center justify-center flex-shrink-0">
+                      {getFileCategoryIcon(item.category)}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-xs text-zinc-100 truncate">
+                          {item.name}
+                        </span>
+                        {item.extension && (
+                          <span className="text-[10px] text-zinc-400 uppercase font-mono px-1.5 py-0.2 rounded bg-[#27272d] border border-[#32323a]">
+                            {item.extension}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11px] text-zinc-400 truncate mt-0.5 font-mono flex items-center gap-1.5">
+                        <span className="truncate">{item.path}</span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-xs text-zinc-100 truncate">
-                        {item.name}
+
+                  <div
+                    className="flex items-center gap-3 flex-shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="text-right">
+                      <span className="font-medium text-xs text-slate-200 block font-mono">
+                        {formatBytes(item.sizeBytes)}
                       </span>
-                      {item.extension && (
-                        <span className="text-[10px] text-zinc-400 uppercase font-mono px-1.5 py-0.2 rounded bg-[#27272d] border border-[#32323a]">
-                          {item.extension}
+                      {item.lastModified && (
+                        <span className="text-[10px] text-slate-400 block font-mono">
+                          {new Date(item.lastModified).toISOString().slice(0, 10)}
                         </span>
                       )}
                     </div>
-                    <div className="text-[11px] text-zinc-400 truncate mt-0.5 font-mono flex items-center gap-1.5">
-                      <span className="truncate">{item.path}</span>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleCopyPath(item.path)}
+                        title="Copy full path"
+                        className="p-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.08] text-slate-400 hover:text-slate-200 transition-colors"
+                      >
+                        {copiedPath === item.path ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        icon={<FolderOpen className="w-3 h-3 text-slate-400" />}
+                        onClick={() => handleReveal(item.path)}
+                        title="Reveal in File Explorer"
+                      >
+                        Explorer
+                      </Button>
+
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        icon={<Trash2 className="w-3 h-3" />}
+                        onClick={() => {
+                          setDeleteTarget(item)
+                          setDeleteBatchTargets(null)
+                          setDeleteInitialPermanent(false)
+                        }}
+                        title="Move to Recycle Bin"
+                      >
+                        Recycle
+                      </Button>
                     </div>
                   </div>
                 </div>
-
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className="text-right">
-                    <span className="font-medium text-xs text-slate-200 block font-mono">
-                      {formatBytes(item.sizeBytes)}
-                    </span>
-                    {item.lastModified && (
-                      <span className="text-[10px] text-slate-400 block font-mono">
-                        {new Date(item.lastModified).toISOString().slice(0, 10)}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => handleCopyPath(item.path)}
-                      title="Copy full path"
-                      className="p-1.5 rounded-lg border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.08] text-slate-400 hover:text-slate-200 transition-colors"
-                    >
-                      {copiedPath === item.path ? (
-                        <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      ) : (
-                        <Copy className="w-3.5 h-3.5" />
-                      )}
-                    </button>
-
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      icon={<FolderOpen className="w-3 h-3 text-slate-400" />}
-                      onClick={() => handleReveal(item.path)}
-                      title="Reveal in File Explorer"
-                    >
-                      Explorer
-                    </Button>
-
-                    <Button
-                      variant="danger"
-                      size="sm"
-                      icon={<Trash2 className="w-3 h-3" />}
-                      onClick={() => {
-                        setDeleteTarget(item)
-                        setDeleteInitialPermanent(false)
-                      }}
-                      title="Move to Recycle Bin"
-                    >
-                      Recycle
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
 
       {/* Confirmation Modal for file deletion */}
       <ConfirmDeleteModal
-        isOpen={!!deleteTarget}
+        isOpen={!!deleteTarget || (!!deleteBatchTargets && deleteBatchTargets.length > 0)}
         targetNode={modalTargetNode}
+        targetNodes={modalTargetNodes}
         initialPermanent={deleteInitialPermanent}
         onConfirm={confirmDelete}
         onCancel={() => {
           setDeleteTarget(null)
+          setDeleteBatchTargets(null)
           setDeleteError(null)
         }}
         isDeleting={isDeleting}

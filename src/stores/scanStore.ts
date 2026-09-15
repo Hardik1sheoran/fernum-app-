@@ -67,6 +67,7 @@ interface ScanState {
   resetView: () => void
   setIsLoadingDrives: (loading: boolean) => void
   deleteNodeFromTree: (targetPath: string) => { success: boolean; freedBytes: number }
+  deleteNodesFromTree: (targetPaths: string[]) => { success: boolean; freedBytes: number; deletedCount: number }
 }
 
 export const useScanStore = create<ScanState>((set, get) => ({
@@ -162,5 +163,56 @@ export const useScanStore = create<ScanState>((set, get) => ({
     }
 
     return { success: false, freedBytes: 0 }
+  },
+
+  deleteNodesFromTree: (targetPaths: string[]) => {
+    const { rootNode, currentViewNode, breadcrumbs, reclaimedBytes } = get()
+    if (!rootNode || !targetPaths || targetPaths.length === 0) {
+      return { success: false, freedBytes: 0, deletedCount: 0 }
+    }
+
+    if (targetPaths.includes(rootNode.path)) {
+      const freed = rootNode.size
+      set({
+        rootNode: null,
+        currentViewNode: null,
+        breadcrumbs: [],
+        reclaimedBytes: reclaimedBytes + freed,
+      })
+      return { success: true, freedBytes: freed, deletedCount: 1 }
+    }
+
+    const newRoot = cloneTree(rootNode)
+    let totalFreed = 0
+    let deletedCount = 0
+
+    for (const targetPath of targetPaths) {
+      const { deletedNode, freedBytes } = pruneNode(newRoot, targetPath)
+      if (deletedNode) {
+        totalFreed += freedBytes
+        deletedCount++
+      }
+    }
+
+    if (deletedCount > 0) {
+      const updatedViewNode = currentViewNode
+        ? findNodeByPath(newRoot, currentViewNode.path) || newRoot
+        : newRoot
+
+      const updatedBreadcrumbs = breadcrumbs
+        .map((b) => findNodeByPath(newRoot, b.path))
+        .filter((b): b is FileNode => Boolean(b))
+
+      set({
+        rootNode: newRoot,
+        currentViewNode: updatedViewNode,
+        breadcrumbs: updatedBreadcrumbs.length > 0 ? updatedBreadcrumbs : [newRoot],
+        reclaimedBytes: reclaimedBytes + totalFreed,
+      })
+
+      return { success: true, freedBytes: totalFreed, deletedCount }
+    }
+
+    return { success: false, freedBytes: 0, deletedCount: 0 }
   },
 }))

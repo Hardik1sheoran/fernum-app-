@@ -88,4 +88,72 @@ describe('File Operations & Dynamic Tree Pruning', () => {
     expect(isProtectedSystemPath('C:\\Users\\User\\Downloads\\movie.mp4')).toBe(false)
     expect(isProtectedSystemPath('D:\\Projects\\node_modules')).toBe(false)
   })
+
+  it('correctly batch prunes multiple deleted nodes in a single atomic pass', () => {
+    const file1: FileNode = {
+      id: 'C:\\test\\sub\\a.txt',
+      name: 'a.txt',
+      path: 'C:\\test\\sub\\a.txt',
+      size: 100,
+      type: 'file',
+      category: 'document',
+    }
+    const file2: FileNode = {
+      id: 'C:\\test\\sub\\b.txt',
+      name: 'b.txt',
+      path: 'C:\\test\\sub\\b.txt',
+      size: 200,
+      type: 'file',
+      category: 'document',
+    }
+    const file3: FileNode = {
+      id: 'C:\\test\\sub\\c.txt',
+      name: 'c.txt',
+      path: 'C:\\test\\sub\\c.txt',
+      size: 300,
+      type: 'file',
+      category: 'document',
+    }
+    const subDir: FileNode = {
+      id: 'C:\\test\\sub',
+      name: 'sub',
+      path: 'C:\\test\\sub',
+      size: 600,
+      type: 'directory',
+      category: 'other',
+      children: [file1, file2, file3],
+    }
+    const root: FileNode = {
+      id: 'C:\\test',
+      name: 'test',
+      path: 'C:\\test',
+      size: 600,
+      type: 'directory',
+      category: 'other',
+      children: [subDir],
+    }
+
+    useScanStore.getState().setRootNode(root)
+
+    // Batch prune file1 (100) and file3 (300)
+    const result = useScanStore.getState().deleteNodesFromTree([
+      'C:\\test\\sub\\a.txt',
+      'C:\\test\\sub\\c.txt',
+    ])
+
+    expect(result.success).toBe(true)
+    expect(result.deletedCount).toBe(2)
+    expect(result.freedBytes).toBe(400)
+
+    const updatedRoot = useScanStore.getState().rootNode!
+    expect(updatedRoot.size).toBe(200)
+
+    const updatedSub = updatedRoot.children![0]
+    expect(updatedSub.size).toBe(200)
+    expect(updatedSub.children!.length).toBe(1)
+    expect(updatedSub.children![0].name).toBe('b.txt')
+
+    expect(useScanStore.getState().reclaimedBytes).toBe(400)
+  })
 })
+

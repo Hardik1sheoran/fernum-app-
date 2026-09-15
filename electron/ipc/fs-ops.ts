@@ -3,7 +3,7 @@ import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { DriveInfo, FsOperationResult, QuickFolderInfo } from '../../shared/types'
+import type { DriveInfo, FsOperationResult, BatchFsOperationResult, QuickFolderInfo } from '../../shared/types'
 import { isProtectedSystemPath } from '../../shared/pathSecurity'
 
 const execAsync = promisify(exec)
@@ -223,6 +223,82 @@ Get-CimInstance -ClassName Win32_LogicalDisk | Select-Object DeviceID, VolumeNam
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       return { success: false, path: targetPath, error: message }
+    }
+  })
+
+  ipcMain.handle('fs:trash-many', async (_event, targetPaths: string[]): Promise<BatchFsOperationResult> => {
+    const succeeded: string[] = []
+    const failed: Array<{ path: string; error: string }> = []
+
+    if (!Array.isArray(targetPaths) || targetPaths.length === 0) {
+      return { success: true, totalRequested: 0, deletedCount: 0, succeeded: [], failed: [] }
+    }
+
+    // Process deletions in bounded parallel chunks of 12 for high throughput
+    const CHUNK_SIZE = 12
+    for (let i = 0; i < targetPaths.length; i += CHUNK_SIZE) {
+      const chunk = targetPaths.slice(i, i + CHUNK_SIZE)
+      await Promise.all(
+        chunk.map(async (p) => {
+          try {
+            if (isProtectedSystemPath(p)) {
+              failed.push({ path: p, error: 'Protected system path' })
+              return
+            }
+            await shell.trashItem(p)
+            succeeded.push(p)
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err)
+            failed.push({ path: p, error: message })
+          }
+        })
+      )
+    }
+
+    return {
+      success: failed.length === 0,
+      totalRequested: targetPaths.length,
+      deletedCount: succeeded.length,
+      succeeded,
+      failed,
+    }
+  })
+
+  ipcMain.handle('fs:delete-many', async (_event, targetPaths: string[]): Promise<BatchFsOperationResult> => {
+    const succeeded: string[] = []
+    const failed: Array<{ path: string; error: string }> = []
+
+    if (!Array.isArray(targetPaths) || targetPaths.length === 0) {
+      return { success: true, totalRequested: 0, deletedCount: 0, succeeded: [], failed: [] }
+    }
+
+    const fsPromises = await import('node:fs/promises')
+    const CHUNK_SIZE = 12
+    for (let i = 0; i < targetPaths.length; i += CHUNK_SIZE) {
+      const chunk = targetPaths.slice(i, i + CHUNK_SIZE)
+      await Promise.all(
+        chunk.map(async (p) => {
+          try {
+            if (isProtectedSystemPath(p)) {
+              failed.push({ path: p, error: 'Protected system path' })
+              return
+            }
+            await fsPromises.rm(p, { recursive: true, force: true })
+            succeeded.push(p)
+          } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err)
+            failed.push({ path: p, error: message })
+          }
+        })
+      )
+    }
+
+    return {
+      success: failed.length === 0,
+      totalRequested: targetPaths.length,
+      deletedCount: succeeded.length,
+      succeeded,
+      failed,
     }
   })
 }

@@ -116,6 +116,14 @@ export interface FsOperationResult {
   error?: string
 }
 
+export interface BatchFsOperationResult {
+  success: boolean
+  totalRequested: number
+  deletedCount: number
+  succeeded: string[]
+  failed: Array<{ path: string; error: string }>
+}
+
 export interface LeftoverResidue {
   path: string
   sizeBytes: number
@@ -216,6 +224,8 @@ export interface ElectronAPI {
   revealInExplorer: (targetPath: string) => Promise<FsOperationResult>
   moveToTrash: (targetPath: string) => Promise<FsOperationResult>
   deletePermanently: (targetPath: string) => Promise<FsOperationResult>
+  trashMany?: (targetPaths: string[]) => Promise<BatchFsOperationResult>
+  deleteManyPermanently?: (targetPaths: string[]) => Promise<BatchFsOperationResult>
 
   // Search IPC
   searchFiles: (options: SearchQueryOptions) => Promise<SearchResultItem[] | SearchResultResponse>

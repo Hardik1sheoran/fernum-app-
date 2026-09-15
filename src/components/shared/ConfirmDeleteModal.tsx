@@ -1,12 +1,20 @@
 import React, { useState } from 'react'
-import { Trash2, AlertTriangle, RefreshCw, X, ShieldAlert } from 'lucide-react'
+import { Trash2, AlertTriangle, RefreshCw, X, ShieldAlert, Files } from 'lucide-react'
 import type { FileNode } from '@shared/types'
 import { formatBytes } from '../Treemap/treemapLayout'
 import { Button } from './Button'
 
+export interface DeleteTargetItem {
+  name: string
+  path: string
+  size: number
+  type?: 'file' | 'directory'
+}
+
 interface ConfirmDeleteModalProps {
   isOpen: boolean
-  targetNode: FileNode | null
+  targetNode?: FileNode | DeleteTargetItem | null
+  targetNodes?: DeleteTargetItem[]
   initialPermanent?: boolean
   onConfirm: (permanent: boolean) => Promise<void>
   onCancel: () => void
@@ -17,6 +25,7 @@ interface ConfirmDeleteModalProps {
 export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
   isOpen,
   targetNode,
+  targetNodes,
   initialPermanent = false,
   onConfirm,
   onCancel,
@@ -25,14 +34,27 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
 }) => {
   const [permanent, setPermanent] = useState(initialPermanent)
 
-  if (!isOpen || !targetNode) return null
+  if (!isOpen) return null
 
-  const isDirectory = targetNode.type === 'directory'
+  const isMultiple = Boolean(targetNodes && targetNodes.length > 1)
+  const effectiveItems = isMultiple
+    ? targetNodes!
+    : targetNode
+    ? [targetNode]
+    : targetNodes && targetNodes.length === 1
+    ? targetNodes
+    : []
+
+  if (effectiveItems.length === 0) return null
+
+  const firstItem = effectiveItems[0]
+  const totalSize = effectiveItems.reduce((acc, item) => acc + item.size, 0)
+  const isDirectory = !isMultiple && 'type' in firstItem && firstItem.type === 'directory'
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs select-none animate-fade-in">
       <div
-        className="w-full max-w-md rounded-2xl bg-white dark:bg-[#1c2028] border border-slate-200 dark:border-slate-700/80 shadow-2xl overflow-hidden"
+        className="w-full max-w-lg rounded-2xl bg-white dark:bg-[#1c2028] border border-slate-200 dark:border-slate-700/80 shadow-2xl overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -45,14 +67,30 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
                   : 'bg-blue-500/15 text-blue-500'
               }`}
             >
-              {permanent ? <ShieldAlert className="w-4 h-4" /> : <Trash2 className="w-4 h-4" />}
+              {permanent ? (
+                <ShieldAlert className="w-4 h-4" />
+              ) : isMultiple ? (
+                <Files className="w-4 h-4" />
+              ) : (
+                <Trash2 className="w-4 h-4" />
+              )}
             </div>
             <div>
               <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-                {permanent ? 'Permanently Delete' : 'Move to Recycle Bin'}
+                {isMultiple
+                  ? permanent
+                    ? `Permanently Delete ${effectiveItems.length} Items`
+                    : `Move ${effectiveItems.length} Items to Recycle Bin`
+                  : permanent
+                  ? 'Permanently Delete'
+                  : 'Move to Recycle Bin'}
               </h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                {isDirectory ? 'Directory & all contents' : 'File'}
+                {isMultiple
+                  ? `${effectiveItems.length} items selected · ${formatBytes(totalSize)}`
+                  : isDirectory
+                  ? 'Directory & all contents'
+                  : 'File'}
               </p>
             </div>
           </div>
@@ -67,19 +105,45 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
 
         {/* Content */}
         <div className="p-4 space-y-4">
-          <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#14171d] border border-slate-200/80 dark:border-slate-800 space-y-1.5">
-            <div className="flex items-center justify-between">
-              <span className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">
-                {targetNode.name}
-              </span>
-              <span className="font-bold text-xs text-blue-500">
-                {formatBytes(targetNode.size)}
-              </span>
+          {isMultiple ? (
+            <div className="rounded-xl bg-slate-50 dark:bg-[#14171d] border border-slate-200/80 dark:border-slate-800 overflow-hidden">
+              <div className="p-3 border-b border-slate-200/60 dark:border-slate-800 flex items-center justify-between text-xs font-semibold text-slate-700 dark:text-slate-300">
+                <span>Selected Items ({effectiveItems.length})</span>
+                <span className="text-blue-500 font-mono">{formatBytes(totalSize)}</span>
+              </div>
+              <div className="max-h-40 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800/60">
+                {effectiveItems.map((item, idx) => (
+                  <div key={idx} className="p-2.5 flex items-center justify-between gap-2 text-xs">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-medium text-slate-800 dark:text-slate-200 truncate">
+                        {item.name}
+                      </div>
+                      <div className="text-[10px] text-slate-400 font-mono truncate">
+                        {item.path}
+                      </div>
+                    </div>
+                    <span className="font-mono text-[11px] text-slate-500 dark:text-slate-400 flex-shrink-0">
+                      {formatBytes(item.size)}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
-            <div className="text-[10px] text-slate-400 font-mono break-all line-clamp-2">
-              {targetNode.path}
+          ) : (
+            <div className="p-3 rounded-xl bg-slate-50 dark:bg-[#14171d] border border-slate-200/80 dark:border-slate-800 space-y-1.5">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-xs text-slate-800 dark:text-slate-200 truncate">
+                  {firstItem.name}
+                </span>
+                <span className="font-bold text-xs text-blue-500 font-mono">
+                  {formatBytes(firstItem.size)}
+                </span>
+              </div>
+              <div className="text-[10px] text-slate-400 font-mono break-all line-clamp-2">
+                {firstItem.path}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Delete Mode Option */}
           <div className="space-y-2">
@@ -149,7 +213,15 @@ export const ConfirmDeleteModal: React.FC<ConfirmDeleteModalProps> = ({
             disabled={isDeleting}
             icon={isDeleting ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : undefined}
           >
-            {isDeleting ? 'Deleting...' : permanent ? 'Delete Permanently' : 'Move to Recycle Bin'}
+            {isDeleting
+              ? 'Deleting...'
+              : permanent
+              ? isMultiple
+                ? `Delete ${effectiveItems.length} Files`
+                : 'Delete Permanently'
+              : isMultiple
+              ? `Move ${effectiveItems.length} to Recycle Bin`
+              : 'Move to Recycle Bin'}
           </Button>
         </div>
       </div>

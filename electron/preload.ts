@@ -7,6 +7,7 @@ import type {
   DriveInfo,
   QuickFolderInfo,
   FsOperationResult,
+  BatchFsOperationResult,
   InstalledApp,
   ScanLeftoversResult,
   SearchQueryOptions,
@@ -77,6 +78,12 @@ const api: ElectronAPI = {
   },
   deletePermanently: (targetPath: string): Promise<FsOperationResult> => {
     return ipcRenderer.invoke('fs:delete', targetPath)
+  },
+  trashMany: (targetPaths: string[]): Promise<BatchFsOperationResult> => {
+    return ipcRenderer.invoke('fs:trash-many', targetPaths)
+  },
+  deleteManyPermanently: (targetPaths: string[]): Promise<BatchFsOperationResult> => {
+    return ipcRenderer.invoke('fs:delete-many', targetPaths)
   },
 
   // Search IPC
