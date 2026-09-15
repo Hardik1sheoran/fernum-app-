@@ -1,8 +1,10 @@
 import React from 'react'
-import { HardDrive, RefreshCw, SlidersHorizontal, ShieldCheck } from 'lucide-react'
+import { HardDrive, RefreshCw, SlidersHorizontal, ShieldCheck, Sparkles } from 'lucide-react'
 import { useTheme } from '../../hooks/useTheme'
 import { useScanStore } from '../../stores/scanStore'
+import { useLicenseStore } from '../../stores/licenseStore'
 import { formatBytes } from '../Treemap/treemapLayout'
+import type { ThemeMode } from '../../stores/settingsStore'
 
 interface HeaderProps {
   onRefreshDrives?: () => void
@@ -13,6 +15,15 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({ onRefreshDrives, onOpenExclusions, onOpenPrivacy }) => {
   const { theme, setTheme } = useTheme()
   const { selectedDrive, isLoadingDrives, reclaimedBytes } = useScanStore()
+  const { isPro, openUpgradeModal } = useLicenseStore()
+
+  const handleThemeChange = (newTheme: ThemeMode) => {
+    if (!isPro && (newTheme === 'forest' || newTheme === 'ocean' || newTheme === 'aurora')) {
+      openUpgradeModal('Premium themes customisation')
+      return
+    }
+    setTheme(newTheme)
+  }
 
   return (
     <header className="h-11 border-b border-[#2c2c32] bg-[#1c1c20] flex items-center justify-between px-3 select-none drag-region relative z-30">
@@ -53,8 +64,25 @@ export const Header: React.FC<HeaderProps> = ({ onRefreshDrives, onOpenExclusion
         )}
       </div>
 
-      {/* Right controls: privacy + exclusions + refresh drives + theme toggle */}
-      <div className="flex items-center gap-1.5 no-drag mr-36">
+      {/* Right controls: Plan Badge + privacy + exclusions + refresh drives + theme toggle */}
+      <div className="flex items-center gap-2 no-drag mr-36">
+        {/* Tier Badge / Upgrade CTA */}
+        {isPro ? (
+          <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[11px] font-semibold">
+            <Sparkles className="w-3 h-3 text-amber-400" />
+            <span>Lifetime Pro</span>
+          </div>
+        ) : (
+          <button
+            onClick={() => openUpgradeModal()}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-xs transition-all"
+            title="Unlock Lifetime Pro for $12.99"
+          >
+            <Sparkles className="w-3 h-3 text-yellow-300" />
+            <span>Upgrade · $12.99</span>
+          </button>
+        )}
+
         {onOpenPrivacy && (
           <button
             onClick={onOpenPrivacy}
@@ -88,19 +116,23 @@ export const Header: React.FC<HeaderProps> = ({ onRefreshDrives, onOpenExclusion
         {/* Theme Picker Selector */}
         <select
           value={theme}
-          onChange={(e) => setTheme(e.target.value as any)}
+          onChange={(e) => handleThemeChange(e.target.value as ThemeMode)}
           title="Switch Theme"
           className="text-[11px] py-1 px-2 rounded border border-[#2f2f36] bg-[#242429] text-zinc-300 font-medium focus:outline-none cursor-pointer"
         >
           <option value="dark" className="bg-[#18181b] text-white">Dark</option>
-          <option value="forest" className="bg-[#0b1411] text-emerald-200">Forest</option>
-          <option value="ocean" className="bg-[#09131f] text-cyan-200">Ocean</option>
-          <option value="aurora" className="bg-[#110d1f] text-purple-200">Aurora</option>
           <option value="light" className="bg-zinc-100 text-zinc-900">Light</option>
+          <option value="forest" className="bg-[#0b1411] text-emerald-200">
+            {isPro ? 'Forest' : 'Forest (Pro)'}
+          </option>
+          <option value="ocean" className="bg-[#09131f] text-cyan-200">
+            {isPro ? 'Ocean' : 'Ocean (Pro)'}
+          </option>
+          <option value="aurora" className="bg-[#110d1f] text-purple-200">
+            {isPro ? 'Aurora' : 'Aurora (Pro)'}
+          </option>
         </select>
       </div>
     </header>
   )
 }
-
-

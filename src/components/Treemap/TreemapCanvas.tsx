@@ -24,6 +24,7 @@ import { EmptyState } from '../shared/EmptyState'
 import { ConfirmDeleteModal } from '../shared/ConfirmDeleteModal'
 import { useScanStore } from '../../stores/scanStore'
 import { useSettingsStore } from '../../stores/settingsStore'
+import { useLicenseStore } from '../../stores/licenseStore'
 
 interface ContextMenuState {
   visible: boolean
@@ -291,6 +292,7 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
 
   const { deleteNodeFromTree } = useScanStore()
   const { addExcludedPath } = useSettingsStore()
+  const { isPro, openUpgradeModal } = useLicenseStore()
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean
@@ -309,6 +311,11 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const handleRevealInExplorer = () => {
+    if (!isPro) {
+      setContextMenu({ visible: false, x: 0, y: 0, rect: null })
+      openUpgradeModal("One-click 'Show in Explorer'")
+      return
+    }
     if (contextMenu.rect?.node.path && window.electronAPI) {
       window.electronAPI.revealInExplorer(contextMenu.rect.node.path)
     }
@@ -317,6 +324,11 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
 
   const handleOpenDeleteModal = (permanent: boolean) => {
     if (!contextMenu.rect?.node) return
+    if (!isPro) {
+      setContextMenu({ visible: false, x: 0, y: 0, rect: null })
+      openUpgradeModal('Delete files within the app')
+      return
+    }
     setConfirmModal({
       isOpen: true,
       node: contextMenu.rect.node,

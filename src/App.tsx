@@ -9,6 +9,7 @@ import { SearchPanel } from './components/Search/SearchPanel'
 import { MonitorDashboard } from './components/Monitor/MonitorDashboard'
 import { ExclusionsModal } from './components/shared/ExclusionsModal'
 import { PrivacyModal } from './components/shared/PrivacyModal'
+import { UpgradeModal } from './components/shared/UpgradeModal'
 import { useScanStore } from './stores/scanStore'
 import { useSettingsStore } from './stores/settingsStore'
 import { useTheme } from './hooks/useTheme'
@@ -343,6 +344,9 @@ export const App: React.FC = () => {
         isOpen={isPrivacyOpen}
         onClose={() => setIsPrivacyOpen(false)}
       />
+
+      {/* Plan Upgrade & License Modal */}
+      <UpgradeModal />
 
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-64 shrink-0 flex-col border-r border-[#2d2d33] bg-[#202024]">

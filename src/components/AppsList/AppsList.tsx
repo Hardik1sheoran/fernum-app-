@@ -17,10 +17,12 @@ import { formatBytes } from '../Treemap/treemapLayout'
 import { Button } from '../shared/Button'
 import { EmptyState } from '../shared/EmptyState'
 import { LeftoversModal } from './LeftoversModal'
+import { useLicenseStore } from '../../stores/licenseStore'
 
 type SortOption = 'size' | 'name' | 'date'
 
 export const AppsList: React.FC = () => {
+  const { isPro, openUpgradeModal } = useLicenseStore()
   const [apps, setApps] = useState<InstalledApp[]>([])
   const [search, setSearch] = useState('')
   const [sortBy, setSortBy] = useState<SortOption>('size')
@@ -342,6 +344,10 @@ export const AppsList: React.FC = () => {
                         icon={<FolderSearch className="w-3.5 h-3.5 text-slate-400" />}
                         onClick={(e) => {
                           e.stopPropagation()
+                          if (!isPro) {
+                            openUpgradeModal('App uninstaller with residue cleanup')
+                            return
+                          }
                           setLeftoversTargetApp(app)
                         }}
                       >
@@ -359,6 +365,10 @@ export const AppsList: React.FC = () => {
                         disabled={!app.uninstallString}
                         onClick={(e) => {
                           e.stopPropagation()
+                          if (!isPro) {
+                            openUpgradeModal('App uninstaller with residue cleanup')
+                            return
+                          }
                           setUninstallConfirmApp(app)
                         }}
                       >

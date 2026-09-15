@@ -19,6 +19,7 @@ import type { JunkCategoryItem, JunkCategoryType, JunkCleanResult } from '@share
 import { formatBytes } from '../Treemap/treemapLayout'
 import { Button } from '../shared/Button'
 import { EmptyState } from '../shared/EmptyState'
+import { useLicenseStore } from '../../stores/licenseStore'
 
 const ICON_MAP: Record<string, React.ReactNode> = {
   Trash2: <Trash2 className="w-5 h-5 text-amber-400" />,
@@ -32,6 +33,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 }
 
 export const JunkCleaner: React.FC = () => {
+  const { isPro, openUpgradeModal } = useLicenseStore()
   const [categories, setCategories] = useState<JunkCategoryItem[]>([])
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<JunkCategoryType>>(new Set())
   const [expandedCategoryIds, setExpandedCategoryIds] = useState<Set<JunkCategoryType>>(new Set())
@@ -175,7 +177,13 @@ export const JunkCleaner: React.FC = () => {
               variant="primary"
               size="md"
               icon={<Trash2 className="w-3.5 h-3.5" />}
-              onClick={() => setShowConfirmModal(true)}
+              onClick={() => {
+                if (!isPro) {
+                  openUpgradeModal('Actionable tools for deep cleaning and control')
+                  return
+                }
+                setShowConfirmModal(true)
+              }}
               disabled={isScanning || isCleaning || totalReclaimableBytes === 0 || selectedCategoryIds.size === 0}
               className="bg-blue-600 hover:bg-blue-500 font-medium px-4 text-white text-xs py-1.5 disabled:opacity-40"
             >

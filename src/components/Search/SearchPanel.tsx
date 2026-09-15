@@ -23,6 +23,7 @@ import {
 } from 'lucide-react'
 import type { FileCategory, FileNode, SearchResultItem } from '@shared/types'
 import { useScanStore } from '../../stores/scanStore'
+import { useLicenseStore } from '../../stores/licenseStore'
 import { formatBytes } from '../Treemap/treemapLayout'
 import { searchFileNodeTree, sortSearchResults } from '@shared/searchUtils'
 import { Button } from '../shared/Button'
@@ -55,6 +56,7 @@ const SIZE_PRESETS: Array<{ label: string; bytes: number }> = [
 
 export const SearchPanel: React.FC = () => {
   const { rootNode, selectedDrive, deleteNodeFromTree, deleteNodesFromTree } = useScanStore()
+  const { isPro, openUpgradeModal } = useLicenseStore()
 
   const [query, setQuery] = useState('')
   const [activeCategory, setActiveCategory] = useState<FileCategory | 'all'>('all')
@@ -186,6 +188,10 @@ export const SearchPanel: React.FC = () => {
   }
 
   const handleReveal = async (itemPath: string) => {
+    if (!isPro) {
+      openUpgradeModal("One-click 'Show in Explorer'")
+      return
+    }
     if (window.electronAPI) {
       const res = await window.electronAPI.revealInExplorer(itemPath)
       if (res.success) {
@@ -201,6 +207,10 @@ export const SearchPanel: React.FC = () => {
   }
 
   const handleBatchDelete = (permanent: boolean) => {
+    if (!isPro) {
+      openUpgradeModal('Delete files within the app')
+      return
+    }
     if (selectedItems.length === 0) return
     setDeleteBatchTargets(selectedItems)
     setDeleteInitialPermanent(permanent)
@@ -712,6 +722,10 @@ export const SearchPanel: React.FC = () => {
                         size="sm"
                         icon={<Trash2 className="w-3 h-3" />}
                         onClick={() => {
+                          if (!isPro) {
+                            openUpgradeModal('Delete files within the app')
+                            return
+                          }
                           setDeleteTarget(item)
                           setDeleteBatchTargets(null)
                           setDeleteInitialPermanent(false)

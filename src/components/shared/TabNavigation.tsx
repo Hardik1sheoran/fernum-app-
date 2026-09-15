@@ -1,5 +1,6 @@
 import React from 'react'
 import { HardDrive, Trash2, AppWindow, Search, Activity } from 'lucide-react'
+import { useLicenseStore } from '../../stores/licenseStore'
 
 export type TabKey = 'storage' | 'cleaner' | 'apps' | 'search' | 'monitor'
 
@@ -9,10 +10,13 @@ interface TabNavigationProps {
 }
 
 export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onSelectTab }) => {
+  const { isPro } = useLicenseStore()
+
   const tabs: {
     key: TabKey
     label: string
     icon: React.ReactNode
+    isProFeature?: boolean
   }[] = [
     {
       key: 'storage',
@@ -23,11 +27,13 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onSelec
       key: 'cleaner',
       label: 'Disk Cleanup',
       icon: <Trash2 className="w-4 h-4" />,
+      isProFeature: true,
     },
     {
       key: 'apps',
       label: 'Installed Apps',
       icon: <AppWindow className="w-4 h-4" />,
+      isProFeature: true,
     },
     {
       key: 'search',
@@ -50,21 +56,26 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onSelec
             id={`tab-${tab.key}`}
             key={tab.key}
             onClick={() => onSelectTab(tab.key)}
-            className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-xs transition-colors ${
+            className={`flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs transition-colors ${
               isActive
                 ? 'bg-[#2b2b32] text-white font-semibold shadow-sm'
                 : 'text-zinc-400 hover:bg-[#25252b] hover:text-zinc-200'
             }`}
           >
-            <span className={isActive ? 'text-blue-400' : 'text-zinc-400'}>
-              {tab.icon}
-            </span>
-            <span className="tracking-tight">{tab.label}</span>
+            <div className="flex items-center gap-2.5">
+              <span className={isActive ? 'text-blue-400' : 'text-zinc-400'}>
+                {tab.icon}
+              </span>
+              <span className="tracking-tight">{tab.label}</span>
+            </div>
+            {tab.isProFeature && !isPro && (
+              <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                Pro
+              </span>
+            )}
           </button>
         )
       })}
     </nav>
   )
 }
-
-
