@@ -7,7 +7,7 @@ export function useTheme() {
   useEffect(() => {
     const root = document.documentElement
     // Remove all theme classes first
-    root.classList.remove('dark', 'theme-forest', 'theme-ocean', 'theme-aurora')
+    root.classList.remove('dark', 'light', 'theme-forest', 'theme-ocean', 'theme-aurora', 'theme-light')
 
     if (theme === 'dark') {
       root.classList.add('dark')
@@ -17,6 +17,8 @@ export function useTheme() {
       root.classList.add('dark', 'theme-ocean')
     } else if (theme === 'aurora') {
       root.classList.add('dark', 'theme-aurora')
+    } else if (theme === 'light') {
+      root.classList.add('light', 'theme-light')
     }
 
     if (window.electronAPI?.setTheme) {
@@ -24,5 +26,5 @@ export function useTheme() {
     }
   }, [theme])
 
-  return { theme, toggleTheme, setTheme, isDark: theme === 'dark' }
+  return { theme, toggleTheme, setTheme, isDark: theme !== 'light' }
 }

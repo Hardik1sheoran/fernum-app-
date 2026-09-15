@@ -3,102 +3,449 @@
 @tailwind utilities;
 
 :root {
-  --app-bg: #f4f4f5;
-  --panel-bg: #ffffff;
-  --border-color: #e4e4e7;
-  --text-primary: #18181b;
-  --text-secondary: #71717a;
-  --accent-color: #2563eb;
-}
-
-.dark {
   --app-bg: #18181b;
   --panel-bg: #202024;
+  --card-bg: #28282e;
   --border-color: #2d2d33;
   --text-primary: #f4f4f5;
   --text-secondary: #a1a1aa;
   --accent-color: #3b82f6;
 }
 
-/* Forest Theme: Lush Deep Emerald & Mint */
+.dark {
+  --app-bg: #18181b;
+  --panel-bg: #202024;
+  --card-bg: #28282e;
+  --border-color: #2d2d33;
+  --text-primary: #f4f4f5;
+  --text-secondary: #a1a1aa;
+  --accent-color: #3b82f6;
+}
+
+/* ==========================================================================
+   FOREST THEME: Lush Deep Emerald, Pine, and Mint
+   ========================================================================== */
 .theme-forest {
-  --app-bg: #0b1411;
-  --panel-bg: #12211c;
-  --border-color: #1e3a31;
+  --app-bg: #081410;
+  --panel-bg: #0d1f19;
+  --card-bg: #132a22;
+  --border-color: #204a3c;
   --text-primary: #ecfdf5;
   --text-secondary: #6ee7b7;
   --accent-color: #10b981;
 }
 
+.theme-forest,
 .theme-forest body,
-.theme-forest main {
-  background-color: #0b1411 !important;
+.theme-forest main,
+.theme-forest .app-root,
+.theme-forest .bg-\[\#18181b\],
+.theme-forest .dark\:bg-\[\#18181b\] {
+  background-color: #081410 !important;
 }
 
-.theme-forest .bg-fluent-darker {
-  background-color: #0b1411 !important;
-}
-
-.theme-forest .dark\:bg-\[\#181b21\],
+.theme-forest header,
+.theme-forest aside,
+.theme-forest .bg-\[\#1c1c20\],
+.theme-forest .bg-\[\#202024\],
+.theme-forest .bg-\[\#1c2028\],
+.theme-forest .bg-\[\#191d24\],
+.theme-forest .bg-\[\#1a1a1f\],
+.theme-forest .bg-\[\#1e1e24\],
+.theme-forest .bg-\[\#1f242d\],
 .theme-forest .dark\:bg-\[\#191d24\],
-.theme-forest .dark\:bg-\[\#15181e\],
-.theme-forest .dark\:bg-\[\#14171d\] {
-  background-color: #12211c !important;
+.theme-forest .dark\:bg-\[\#1c2028\] {
+  background-color: #0d1f19 !important;
 }
 
-/* Ocean Theme: Deep Marine Cobalt & Cyan */
+.theme-forest .bg-\[\#28282e\],
+.theme-forest .bg-\[\#242429\],
+.theme-forest .bg-\[\#27272d\],
+.theme-forest .bg-\[\#25252b\],
+.theme-forest .bg-\[\#15181f\],
+.theme-forest .bg-\[\#14171d\],
+.theme-forest .bg-\[\#19191d\],
+.theme-forest .bg-\[\#16161a\],
+.theme-forest .bg-\[\#2b2b32\],
+.theme-forest .bg-\[\#21232d\],
+.theme-forest .bg-\[\#252932\],
+.theme-forest .bg-\[\#141418\],
+.theme-forest .dark\:bg-\[\#14171d\],
+.theme-forest .dark\:bg-\[\#15181f\] {
+  background-color: #132a22 !important;
+}
+
+.theme-forest .hover\:bg-\[\#25252b\]:hover,
+.theme-forest .hover\:bg-\[\#303038\]:hover,
+.theme-forest .hover\:bg-white\/\[0\.03\]:hover {
+  background-color: #1a392e !important;
+}
+
+.theme-forest .border-\[\#2d2d33\],
+.theme-forest .border-\[\#32323a\],
+.theme-forest .border-\[\#2c2c32\],
+.theme-forest .border-\[\#2f2f36\],
+.theme-forest .border-\[\#2e2e36\],
+.theme-forest .border-\[\#2a2a32\],
+.theme-forest .border-\[\#2b2b34\],
+.theme-forest .border-\[\#27272d\],
+.theme-forest .border-\[\#26262d\],
+.theme-forest .border-\[\#33333d\],
+.theme-forest .border-\[\#363640\],
+.theme-forest .border-slate-800,
+.theme-forest .border-slate-700,
+.theme-forest .dark\:border-slate-800 {
+  border-color: #204a3c !important;
+}
+
+.theme-forest .text-blue-400,
+.theme-forest .text-blue-500 {
+  color: #34d399 !important;
+}
+
+.theme-forest .bg-blue-600 {
+  background-color: #059669 !important;
+}
+
+.theme-forest .hover\:bg-blue-500:hover {
+  background-color: #10b981 !important;
+}
+
+.theme-forest .border-blue-500,
+.theme-forest .border-blue-600 {
+  border-color: #10b981 !important;
+}
+
+/* ==========================================================================
+   OCEAN THEME: Deep Marine Cobalt, Navy, and Cyan
+   ========================================================================== */
 .theme-ocean {
-  --app-bg: #09131f;
-  --panel-bg: #0f1e30;
-  --border-color: #193352;
+  --app-bg: #06111e;
+  --panel-bg: #0b1a2c;
+  --card-bg: #10243d;
+  --border-color: #1e4472;
   --text-primary: #f0f9ff;
   --text-secondary: #7dd3fc;
   --accent-color: #0284c7;
 }
 
+.theme-ocean,
 .theme-ocean body,
-.theme-ocean main {
-  background-color: #09131f !important;
+.theme-ocean main,
+.theme-ocean .app-root,
+.theme-ocean .bg-\[\#18181b\],
+.theme-ocean .dark\:bg-\[\#18181b\] {
+  background-color: #06111e !important;
 }
 
-.theme-ocean .bg-fluent-darker {
-  background-color: #09131f !important;
-}
-
-.theme-ocean .dark\:bg-\[\#181b21\],
+.theme-ocean header,
+.theme-ocean aside,
+.theme-ocean .bg-\[\#1c1c20\],
+.theme-ocean .bg-\[\#202024\],
+.theme-ocean .bg-\[\#1c2028\],
+.theme-ocean .bg-\[\#191d24\],
+.theme-ocean .bg-\[\#1a1a1f\],
+.theme-ocean .bg-\[\#1e1e24\],
+.theme-ocean .bg-\[\#1f242d\],
 .theme-ocean .dark\:bg-\[\#191d24\],
-.theme-ocean .dark\:bg-\[\#15181e\],
-.theme-ocean .dark\:bg-\[\#14171d\] {
-  background-color: #0f1e30 !important;
+.theme-ocean .dark\:bg-\[\#1c2028\] {
+  background-color: #0b1a2c !important;
 }
 
-/* Aurora Theme: Velvet Midnight & Neon Violet */
+.theme-ocean .bg-\[\#28282e\],
+.theme-ocean .bg-\[\#242429\],
+.theme-ocean .bg-\[\#27272d\],
+.theme-ocean .bg-\[\#25252b\],
+.theme-ocean .bg-\[\#15181f\],
+.theme-ocean .bg-\[\#14171d\],
+.theme-ocean .bg-\[\#19191d\],
+.theme-ocean .bg-\[\#16161a\],
+.theme-ocean .bg-\[\#2b2b32\],
+.theme-ocean .bg-\[\#21232d\],
+.theme-ocean .bg-\[\#252932\],
+.theme-ocean .bg-\[\#141418\],
+.theme-ocean .dark\:bg-\[\#14171d\],
+.theme-ocean .dark\:bg-\[\#15181f\] {
+  background-color: #10243d !important;
+}
+
+.theme-ocean .hover\:bg-\[\#25252b\]:hover,
+.theme-ocean .hover\:bg-\[\#303038\]:hover,
+.theme-ocean .hover\:bg-white\/\[0\.03\]:hover {
+  background-color: #163254 !important;
+}
+
+.theme-ocean .border-\[\#2d2d33\],
+.theme-ocean .border-\[\#32323a\],
+.theme-ocean .border-\[\#2c2c32\],
+.theme-ocean .border-\[\#2f2f36\],
+.theme-ocean .border-\[\#2e2e36\],
+.theme-ocean .border-\[\#2a2a32\],
+.theme-ocean .border-\[\#2b2b34\],
+.theme-ocean .border-\[\#27272d\],
+.theme-ocean .border-\[\#26262d\],
+.theme-ocean .border-\[\#33333d\],
+.theme-ocean .border-\[\#363640\],
+.theme-ocean .border-slate-800,
+.theme-ocean .border-slate-700,
+.theme-ocean .dark\:border-slate-800 {
+  border-color: #1e4472 !important;
+}
+
+.theme-ocean .text-blue-400,
+.theme-ocean .text-blue-500 {
+  color: #38bdf8 !important;
+}
+
+.theme-ocean .bg-blue-600 {
+  background-color: #0284c7 !important;
+}
+
+.theme-ocean .hover\:bg-blue-500:hover {
+  background-color: #0ea5e9 !important;
+}
+
+.theme-ocean .border-blue-500,
+.theme-ocean .border-blue-600 {
+  border-color: #0ea5e9 !important;
+}
+
+/* ==========================================================================
+   AURORA THEME: Velvet Midnight, Cosmic Amethyst, and Violet
+   ========================================================================== */
 .theme-aurora {
-  --app-bg: #110d1f;
-  --panel-bg: #1a1430;
-  --border-color: #302454;
+  --app-bg: #0d091a;
+  --panel-bg: #150f28;
+  --card-bg: #1e163a;
+  --border-color: #3e2e74;
   --text-primary: #faf5ff;
   --text-secondary: #d8b4fe;
-  --accent-color: #a855f7;
+  --accent-color: #9333ea;
 }
 
+.theme-aurora,
 .theme-aurora body,
-.theme-aurora main {
-  background-color: #110d1f !important;
+.theme-aurora main,
+.theme-aurora .app-root,
+.theme-aurora .bg-\[\#18181b\],
+.theme-aurora .dark\:bg-\[\#18181b\] {
+  background-color: #0d091a !important;
 }
 
-.theme-aurora .bg-fluent-darker {
-  background-color: #110d1f !important;
-}
-
-.theme-aurora .dark\:bg-\[\#181b21\],
+.theme-aurora header,
+.theme-aurora aside,
+.theme-aurora .bg-\[\#1c1c20\],
+.theme-aurora .bg-\[\#202024\],
+.theme-aurora .bg-\[\#1c2028\],
+.theme-aurora .bg-\[\#191d24\],
+.theme-aurora .bg-\[\#1a1a1f\],
+.theme-aurora .bg-\[\#1e1e24\],
+.theme-aurora .bg-\[\#1f242d\],
 .theme-aurora .dark\:bg-\[\#191d24\],
-.theme-aurora .dark\:bg-\[\#15181e\],
-.theme-aurora .dark\:bg-\[\#14171d\] {
-  background-color: #1a1430 !important;
+.theme-aurora .dark\:bg-\[\#1c2028\] {
+  background-color: #150f28 !important;
 }
 
-/* Custom scrollbars */
+.theme-aurora .bg-\[\#28282e\],
+.theme-aurora .bg-\[\#242429\],
+.theme-aurora .bg-\[\#27272d\],
+.theme-aurora .bg-\[\#25252b\],
+.theme-aurora .bg-\[\#15181f\],
+.theme-aurora .bg-\[\#14171d\],
+.theme-aurora .bg-\[\#19191d\],
+.theme-aurora .bg-\[\#16161a\],
+.theme-aurora .bg-\[\#2b2b32\],
+.theme-aurora .bg-\[\#21232d\],
+.theme-aurora .bg-\[\#252932\],
+.theme-aurora .bg-\[\#141418\],
+.theme-aurora .dark\:bg-\[\#14171d\],
+.theme-aurora .dark\:bg-\[\#15181f\] {
+  background-color: #1e163a !important;
+}
+
+.theme-aurora .hover\:bg-\[\#25252b\]:hover,
+.theme-aurora .hover\:bg-\[\#303038\]:hover,
+.theme-aurora .hover\:bg-white\/\[0\.03\]:hover {
+  background-color: #2b1f52 !important;
+}
+
+.theme-aurora .border-\[\#2d2d33\],
+.theme-aurora .border-\[\#32323a\],
+.theme-aurora .border-\[\#2c2c32\],
+.theme-aurora .border-\[\#2f2f36\],
+.theme-aurora .border-\[\#2e2e36\],
+.theme-aurora .border-\[\#2a2a32\],
+.theme-aurora .border-\[\#2b2b34\],
+.theme-aurora .border-\[\#27272d\],
+.theme-aurora .border-\[\#26262d\],
+.theme-aurora .border-\[\#33333d\],
+.theme-aurora .border-\[\#363640\],
+.theme-aurora .border-slate-800,
+.theme-aurora .border-slate-700,
+.theme-aurora .dark\:border-slate-800 {
+  border-color: #3e2e74 !important;
+}
+
+.theme-aurora .text-blue-400,
+.theme-aurora .text-blue-500 {
+  color: #c084fc !important;
+}
+
+.theme-aurora .bg-blue-600 {
+  background-color: #9333ea !important;
+}
+
+.theme-aurora .hover\:bg-blue-500:hover {
+  background-color: #a855f7 !important;
+}
+
+.theme-aurora .border-blue-500,
+.theme-aurora .border-blue-600 {
+  border-color: #a855f7 !important;
+}
+
+/* ==========================================================================
+   LIGHT THEME: Crisp, Elegant, High-Contrast Desktop Light Mode
+   ========================================================================== */
+.light,
+.theme-light,
+:root:not(.dark) {
+  --app-bg: #f4f5f8;
+  --panel-bg: #ffffff;
+  --card-bg: #f8f9fc;
+  --border-color: #e2e5ec;
+  --text-primary: #0f172a;
+  --text-secondary: #64748b;
+  --accent-color: #2563eb;
+}
+
+.light,
+.theme-light,
+.theme-light body,
+.theme-light main,
+.theme-light .app-root,
+.light .app-root,
+.theme-light .bg-\[\#18181b\],
+.light .bg-\[\#18181b\] {
+  background-color: #f4f5f8 !important;
+  color: #0f172a !important;
+}
+
+.theme-light header,
+.theme-light aside,
+.light header,
+.light aside,
+.theme-light .bg-\[\#1c1c20\],
+.theme-light .bg-\[\#202024\],
+.theme-light .bg-\[\#1c2028\],
+.theme-light .bg-\[\#191d24\],
+.theme-light .bg-\[\#1a1a1f\],
+.theme-light .bg-\[\#1e1e24\],
+.theme-light .bg-\[\#1f242d\],
+.light .bg-\[\#1c1c20\],
+.light .bg-\[\#202024\],
+.light .bg-\[\#1c2028\],
+.light .bg-\[\#191d24\],
+.light .bg-\[\#1a1a1f\],
+.light .bg-\[\#1e1e24\],
+.light .bg-\[\#1f242d\] {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+}
+
+.theme-light .bg-\[\#28282e\],
+.theme-light .bg-\[\#242429\],
+.theme-light .bg-\[\#27272d\],
+.theme-light .bg-\[\#25252b\],
+.theme-light .bg-\[\#15181f\],
+.theme-light .bg-\[\#14171d\],
+.theme-light .bg-\[\#19191d\],
+.theme-light .bg-\[\#16161a\],
+.theme-light .bg-\[\#2b2b32\],
+.theme-light .bg-\[\#21232d\],
+.theme-light .bg-\[\#252932\],
+.theme-light .bg-\[\#141418\],
+.light .bg-\[\#28282e\],
+.light .bg-\[\#242429\],
+.light .bg-\[\#27272d\],
+.light .bg-\[\#25252b\],
+.light .bg-\[\#15181f\],
+.light .bg-\[\#14171d\],
+.light .bg-\[\#19191d\],
+.light .bg-\[\#16161a\],
+.light .bg-\[\#2b2b32\],
+.light .bg-\[\#21232d\],
+.light .bg-\[\#252932\],
+.light .bg-\[\#141418\] {
+  background-color: #f1f3f9 !important;
+}
+
+.theme-light .hover\:bg-\[\#25252b\]:hover,
+.theme-light .hover\:bg-\[\#303038\]:hover,
+.light .hover\:bg-\[\#25252b\]:hover,
+.light .hover\:bg-\[\#303038\]:hover {
+  background-color: #e5e9f2 !important;
+}
+
+.theme-light .border-\[\#2d2d33\],
+.theme-light .border-\[\#32323a\],
+.theme-light .border-\[\#2c2c32\],
+.theme-light .border-\[\#2f2f36\],
+.theme-light .border-\[\#2e2e36\],
+.theme-light .border-\[\#2a2a32\],
+.theme-light .border-\[\#2b2b34\],
+.theme-light .border-\[\#27272d\],
+.theme-light .border-\[\#26262d\],
+.theme-light .border-\[\#33333d\],
+.theme-light .border-\[\#363640\],
+.theme-light .border-slate-800,
+.theme-light .border-slate-700,
+.light .border-\[\#2d2d33\],
+.light .border-\[\#32323a\],
+.light .border-\[\#2c2c32\],
+.light .border-\[\#2f2f36\],
+.light .border-\[\#2e2e36\],
+.light .border-\[\#2a2a32\],
+.light .border-\[\#2b2b34\],
+.light .border-\[\#27272d\],
+.light .border-\[\#26262d\],
+.light .border-\[\#33333d\],
+.light .border-\[\#363640\],
+.light .border-slate-800,
+.light .border-slate-700 {
+  border-color: #e2e5ec !important;
+}
+
+.theme-light .text-zinc-100,
+.theme-light .text-slate-100,
+.theme-light .text-slate-200,
+.theme-light .text-zinc-200,
+.light .text-zinc-100,
+.light .text-slate-100,
+.light .text-slate-200,
+.light .text-zinc-200 {
+  color: #0f172a !important;
+}
+
+.theme-light .text-zinc-400,
+.theme-light .text-slate-400,
+.theme-light .text-zinc-500,
+.theme-light .text-slate-500,
+.light .text-zinc-400,
+.light .text-slate-400,
+.light .text-zinc-500,
+.light .text-slate-500 {
+  color: #64748b !important;
+}
+
+.theme-light input,
+.light input {
+  color: #0f172a !important;
+}
+
+/* ==========================================================================
+   CUSTOM UTILITIES, SCROLLBARS & DRAG REGIONS
+   ========================================================================== */
 ::-webkit-scrollbar {
   width: 5px;
   height: 5px;
@@ -117,7 +464,6 @@
   background: rgba(148, 163, 184, 0.4);
 }
 
-/* Electron titlebar drag regions */
 .drag-region {
   -webkit-app-region: drag;
 }
@@ -126,13 +472,13 @@
   -webkit-app-region: no-drag;
 }
 
-/* Native Desktop Card & Surface Utilities */
 .surface-card {
   background: #16191f;
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.light .surface-card {
+.light .surface-card,
+.theme-light .surface-card {
   background: #ffffff;
   border: 1px solid #e2e8f0;
 }
@@ -144,4 +490,3 @@
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
-

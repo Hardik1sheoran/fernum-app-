@@ -325,7 +325,7 @@ export const App: React.FC = () => {
   }
 
   return (
-    <div className="flex h-screen w-screen flex-col overflow-hidden bg-[#18181b] text-zinc-100 font-sans select-none">
+    <div className="app-root flex h-screen w-screen flex-col overflow-hidden bg-[#18181b] text-zinc-100 font-sans select-none">
       {/* Top Title Bar */}
       <Header
         onRefreshDrives={loadDrives}
