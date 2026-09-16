@@ -13,6 +13,8 @@ export type FileCategory =
   | 'cache'
   | 'other'
 
+export const FREE_TIER_BYTE_CAP = 70 * 1024 * 1024 * 1024 // 70 GB Free Tier Cap
+
 export interface FileNode {
   id: string
   name: string
@@ -24,6 +26,8 @@ export interface FileNode {
   lastModified?: number
   children?: FileNode[]
   truncatedAtDepth?: boolean
+  capped?: boolean
+  cappedAtBytes?: number
 }
 
 export interface DriveInfo {
@@ -52,6 +56,8 @@ export interface ScanOptions {
   forceRescan?: boolean
   cachedRoot?: FileNode
   deepScan?: boolean
+  isPro?: boolean
+  maxBytes?: number
 }
 
 export type ScanStatus = 'idle' | 'scanning' | 'paused' | 'completed' | 'cancelled' | 'error'
@@ -64,6 +70,8 @@ export interface ScanProgress {
   percentage: number
   estimatedTimeRemainingMs?: number
   error?: string
+  capped?: boolean
+  cappedAtBytes?: number
 }
 
 export interface InstalledApp {

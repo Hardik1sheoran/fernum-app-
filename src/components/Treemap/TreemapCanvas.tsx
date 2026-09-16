@@ -10,6 +10,7 @@ import {
   Check,
   Shield,
   Flame,
+  Sparkles,
 } from 'lucide-react'
 import type { FileNode } from '@shared/types'
 import {
@@ -298,9 +299,9 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
     })
   }
 
-  const { deleteNodeFromTree } = useScanStore()
-  const { addExcludedPath } = useSettingsStore()
-  const { isPro, openUpgradeModal } = useLicenseStore()
+  const { deleteNodeFromTree, selectedDrive } = useScanStore()
+  const { addExcludedPath, setIsPro } = useSettingsStore()
+  const { isPro, openUpgradeModal, activateLicense } = useLicenseStore()
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean
@@ -413,6 +414,23 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
       onDrillDown(contextMenu.rect.node)
     }
     setContextMenu({ visible: false, x: 0, y: 0, rect: null })
+  }
+
+  const handleUpgradeToPro = () => {
+    // TODO: replace with real purchase/license flow (e.g. Stripe checkout or license verification)
+    setIsPro(true)
+    activateLicense()
+    setToastMessage('Pro tier unlocked! Rescanning entire drive without limits...')
+    setTimeout(() => setToastMessage(null), 3500)
+    if (selectedDrive && window.electronAPI) {
+      window.electronAPI.startScan({
+        targetPath: selectedDrive.path,
+        excludePaths: useSettingsStore.getState().excludedPaths,
+        forceRescan: true,
+        deepScan: false,
+        isPro: true,
+      })
+    }
   }
 
   // Close context menu on global click
@@ -529,8 +547,31 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
 
         {rootNode ? (
           <>
+            {/* Free Tier 70GB Capped Banner */}
+            {rootNode?.capped && !isPro && (
+              <div className="absolute top-2.5 left-4 right-4 z-30 px-4 py-2.5 rounded-xl glass-card border-amber-500/40 bg-gradient-to-r from-amber-950/70 via-amber-900/45 to-slate-900/75 backdrop-blur-md text-amber-200 text-xs flex items-center justify-between shadow-2xl animate-fade-in ring-1 ring-amber-500/25">
+                <div className="flex items-center gap-3">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.7)] flex-shrink-0" />
+                  <span className="font-medium tracking-tight">
+                    Free version shows the first 70GB scanned. Upgrade to Pro to see your entire drive.
+                  </span>
+                </div>
+                <button
+                  onClick={handleUpgradeToPro}
+                  className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-zinc-950 shadow-md transition-all flex items-center gap-1.5 flex-shrink-0 active:scale-95 cursor-pointer font-sans"
+                >
+                  <Sparkles className="w-3.5 h-3.5 fill-current" />
+                  Upgrade to Pro
+                </button>
+              </div>
+            )}
+
             {currentViewNode?.truncatedAtDepth && (
-              <div className="absolute top-2 left-4 right-4 z-20 px-3 py-1.5 rounded-lg bg-amber-500/15 backdrop-blur-sm border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between shadow-xs">
+              <div
+                className={`absolute left-4 right-4 z-20 px-3 py-1.5 rounded-lg bg-amber-500/15 backdrop-blur-sm border border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs flex items-center justify-between shadow-xs ${
+                  rootNode?.capped && !isPro ? 'top-16' : 'top-2'
+                }`}
+              >
                 <span className="flex items-center gap-1.5">
                   <span>⚠️</span>
                   <span>Max scan depth reached for this folder. Sub-items beyond this depth were not scanned.</span>

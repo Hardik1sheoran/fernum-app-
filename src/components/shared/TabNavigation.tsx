@@ -1,6 +1,7 @@
 import React from 'react'
-import { HardDrive, Trash2, AppWindow, Search, Activity } from 'lucide-react'
+import { HardDrive, Trash2, AppWindow, Search, Activity, Loader2 } from 'lucide-react'
 import { useLicenseStore } from '../../stores/licenseStore'
+import { useScanStore } from '../../stores/scanStore'
 
 export type TabKey = 'storage' | 'cleaner' | 'apps' | 'search' | 'monitor'
 
@@ -11,6 +12,8 @@ interface TabNavigationProps {
 
 export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onSelectTab }) => {
   const { isPro } = useLicenseStore()
+  const { scanProgress } = useScanStore()
+  const isBackgroundScanning = scanProgress.status === 'scanning'
 
   const tabs: {
     key: TabKey
@@ -68,6 +71,12 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onSelec
               </span>
               <span className="tracking-tight">{tab.label}</span>
             </div>
+            {tab.key === 'storage' && isBackgroundScanning && (
+              <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-400 text-[10px] font-medium animate-pulse shadow-[0_0_10px_rgba(59,130,246,0.25)]">
+                <Loader2 className="w-2.5 h-2.5 animate-spin" />
+                <span>Scanning</span>
+              </div>
+            )}
             {tab.isProFeature && !isPro && (
               <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
                 Pro

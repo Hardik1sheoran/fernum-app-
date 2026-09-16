@@ -90,14 +90,20 @@ export function registerScanIpc(getWindow: () => BrowserWindow | null): void {
     let cachedRoot: FileNode | null = null
     if (!options.forceRescan) {
       cachedRoot = await loadScanCache(targetPath)
+      // If user is Pro now, but the cached result was capped under Free tier, bypass cache to perform full scan
+      if (cachedRoot && options.isPro && cachedRoot.capped) {
+        cachedRoot = null
+      }
       if (cachedRoot) {
-        // Instantly notify renderer in < 20ms with full interactive treemap!
+        // Instantly notify renderer in < 20ms with interactive treemap!
         notifyScanProgress(win, {
           status: 'completed',
           currentPath: targetPath,
           scannedFiles: cachedRoot.children?.length || 0,
           scannedBytes: cachedRoot.size,
           percentage: 100,
+          capped: cachedRoot.capped,
+          cappedAtBytes: cachedRoot.cappedAtBytes,
         })
         notifyScanComplete(win, cachedRoot)
 

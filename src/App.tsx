@@ -12,6 +12,7 @@ import { PrivacyModal } from './components/shared/PrivacyModal'
 import { UpgradeModal } from './components/shared/UpgradeModal'
 import { useScanStore } from './stores/scanStore'
 import { useSettingsStore } from './stores/settingsStore'
+import { useLicenseStore } from './stores/licenseStore'
 import { useTheme } from './hooks/useTheme'
 import type { DriveInfo, QuickFolderInfo, ScanProgress, FileNode } from '@shared/types'
 
@@ -66,6 +67,78 @@ export const App: React.FC = () => {
     setIsLoadingDrives,
   } = useScanStore()
 
+  const handleStartScan = useCallback(async (drive: DriveInfo, forceRescan = false, deepScan = false) => {
+    if (window.electronAPI) {
+      let hasWarmCached = false
+      const isPro = useSettingsStore.getState().isPro || useLicenseStore.getState().isPro
+
+      if (!forceRescan && !deepScan && window.electronAPI.getCachedScan) {
+        try {
+          const cached = await window.electronAPI.getCachedScan(drive.path)
+          // If user upgraded to Pro, but cached result was capped under Free tier, bypass old cache to re-scan in full
+          if (cached && !(isPro && cached.capped)) {
+            hasWarmCached = true
+            setRootNode(cached)
+            setScanProgress({
+              status: 'completed',
+              currentPath: drive.path,
+              scannedFiles: cached.children?.length || 0,
+              scannedBytes: cached.size,
+              percentage: 100,
+              capped: cached.capped,
+              cappedAtBytes: cached.cappedAtBytes,
+            })
+          }
+        } catch {
+          // Fall back to standard scan UI
+        }
+      }
+
+      if (!hasWarmCached) {
+        // Initialize rootNode with empty directory so canvas is mounted and renders progressive partial updates
+        setRootNode({
+          id: drive.path,
+          name: drive.name || drive.path,
+          path: drive.path,
+          size: 0,
+          type: 'directory',
+          category: 'other',
+          children: [],
+        })
+        setScanProgress({
+          status: 'scanning',
+          currentPath: drive.path,
+          scannedFiles: 0,
+          scannedBytes: 0,
+          percentage: 0,
+          capped: false,
+        })
+      }
+
+      const { excludedPaths } = useSettingsStore.getState()
+      try {
+        const started = await window.electronAPI.startScan({
+          targetPath: drive.path,
+          excludePaths: deepScan ? [] : excludedPaths,
+          forceRescan,
+          deepScan,
+          isPro,
+        })
+        if (!started) throw new Error('The scanner could not start.')
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        setScanProgress({
+          status: 'error',
+          currentPath: drive.path,
+          scannedFiles: 0,
+          scannedBytes: 0,
+          percentage: 0,
+          error: message,
+        })
+      }
+    }
+  }, [setRootNode, setScanProgress])
+
   const loadDrives = useCallback(async () => {
     setIsLoadingDrives(true)
     setDriveError(null)
@@ -80,24 +153,28 @@ export const App: React.FC = () => {
           setQuickFolders(detectedQuickFolders)
         }
 
-        // Warm startup: auto-load cached tree for user home or primary drive
-        const userFolder = detectedQuickFolders?.find((f) => f.category === 'user') || detectedQuickFolders?.[0]
-        const targetForInitial = userFolder?.path || detectedDrives[0]?.path
-        if (targetForInitial && !useScanStore.getState().rootNode && window.electronAPI.getCachedScan) {
+        // Primary drive discovery
+        const primaryDrive = detectedDrives.find((d) => d.isSystem) || detectedDrives[0]
+        const targetForInitial = primaryDrive?.path || 'C:\\'
+        const initialDrive: DriveInfo = primaryDrive || {
+          id: 'C:',
+          name: 'Local Disk (C:)',
+          path: 'C:\\',
+          totalBytes: 0,
+          freeBytes: 0,
+          usedBytes: 0,
+          isSystem: true,
+        }
+        setSelectedDrive(initialDrive)
+
+        // Part 1: Warm cache check or automatic background scan
+        let loadedCache = false
+        const isPro = useSettingsStore.getState().isPro || useLicenseStore.getState().isPro
+        if (window.electronAPI.getCachedScan) {
           try {
             const cached = await window.electronAPI.getCachedScan(targetForInitial)
-            if (cached && !useScanStore.getState().rootNode) {
-              const primaryDrive = detectedDrives[0]
-              const initialDrive: DriveInfo = {
-                id: primaryDrive ? primaryDrive.id : 'C:',
-                name: userFolder?.name || 'User Home',
-                path: targetForInitial,
-                totalBytes: primaryDrive?.totalBytes || 0,
-                freeBytes: primaryDrive?.freeBytes || 0,
-                usedBytes: primaryDrive?.usedBytes || 0,
-                isSystem: false,
-              }
-              setSelectedDrive(initialDrive)
+            if (cached && !(isPro && cached.capped)) {
+              loadedCache = true
               setRootNode(cached)
               setScanProgress({
                 status: 'completed',
@@ -105,11 +182,18 @@ export const App: React.FC = () => {
                 scannedFiles: cached.children?.length || 0,
                 scannedBytes: cached.size,
                 percentage: 100,
+                capped: cached.capped,
+                cappedAtBytes: cached.cappedAtBytes,
               })
             }
           } catch {
             // Ignored on initial warm load
           }
+        }
+
+        // Automatic background scan: kick off primary drive scan if not cached and idle
+        if (!loadedCache && useScanStore.getState().scanProgress.status === 'idle') {
+          handleStartScan(initialDrive, false, false)
         }
       } else {
         setDriveError('Desktop integration bridge (electronAPI) is disconnected. Unable to query system drives.')
@@ -121,7 +205,7 @@ export const App: React.FC = () => {
     } finally {
       setIsLoadingDrives(false)
     }
-  }, [setDrives, setQuickFolders, setIsLoadingDrives, setRootNode, setScanProgress])
+  }, [setDrives, setQuickFolders, setIsLoadingDrives, setSelectedDrive, setRootNode, setScanProgress, handleStartScan])
 
   useEffect(() => {
     loadDrives()
@@ -144,6 +228,8 @@ export const App: React.FC = () => {
           scannedFiles: root.children?.length || 0,
           scannedBytes: root.size,
           percentage: 100,
+          capped: root.capped,
+          cappedAtBytes: root.cappedAtBytes,
         })
       })
 
@@ -227,66 +313,6 @@ export const App: React.FC = () => {
     }
   }
 
-  const handleStartScan = async (drive: DriveInfo, forceRescan = false, deepScan = false) => {
-    if (window.electronAPI) {
-      let hasWarmCached = false
-
-      if (!forceRescan && !deepScan && window.electronAPI.getCachedScan) {
-        try {
-          const cached = await window.electronAPI.getCachedScan(drive.path)
-          if (cached) {
-            hasWarmCached = true
-            setRootNode(cached)
-            setScanProgress({
-              status: 'completed',
-              currentPath: drive.path,
-              scannedFiles: cached.children?.length || 0,
-              scannedBytes: cached.size,
-              percentage: 100,
-            })
-          }
-        } catch {
-          // Fall back to standard scan UI
-        }
-      }
-
-      if (!hasWarmCached) {
-        // Initialize rootNode with empty directory so canvas is mounted and renders progressive partial updates
-        setRootNode({
-          id: drive.path,
-          name: drive.name || drive.path,
-          path: drive.path,
-          size: 0,
-          type: 'directory',
-          category: 'other',
-          children: [],
-        })
-        setScanProgress({
-          status: 'scanning',
-          currentPath: drive.path,
-          scannedFiles: 0,
-          scannedBytes: 0,
-          percentage: 0,
-        })
-      }
-
-      const { excludedPaths } = useSettingsStore.getState()
-      try {
-        const started = await window.electronAPI.startScan({
-          targetPath: drive.path,
-          excludePaths: deepScan ? [] : excludedPaths,
-          forceRescan,
-          deepScan,
-        })
-        if (!started) throw new Error('The scanner could not start.')
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err)
-        setScanProgress({
-          status: 'error', currentPath: drive.path, scannedFiles: 0, scannedBytes: 0, percentage: 0, error: message,
-        })
-      }
-    }
-  }
 
   const handleSelectCustomFolder = async () => {
     if (window.electronAPI?.selectFolder) {

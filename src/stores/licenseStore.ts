@@ -58,6 +58,7 @@ export const useLicenseStore = create<LicenseState>((set) => ({
     try {
       localStorage.setItem(STORAGE_TIER_KEY, 'premium')
       localStorage.setItem(STORAGE_KEY_KEY, effectiveKey)
+      localStorage.setItem('fernum_is_pro', 'true')
     } catch {
       // Ignore
     }
@@ -77,6 +78,7 @@ export const useLicenseStore = create<LicenseState>((set) => ({
     try {
       localStorage.setItem(STORAGE_TIER_KEY, 'free')
       localStorage.removeItem(STORAGE_KEY_KEY)
+      localStorage.setItem('fernum_is_pro', 'false')
     } catch {
       // Ignore
     }

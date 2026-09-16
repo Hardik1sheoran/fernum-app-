@@ -1,7 +1,7 @@
 import { parentPort, workerData } from 'node:worker_threads'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import type { ScanOptions, ScanProgress, FileNode, FileCategory } from '../../shared/types'
+import { FREE_TIER_BYTE_CAP, type ScanOptions, type ScanProgress, type FileNode, type FileCategory } from '../../shared/types'
 
 let isCancelled = false
 
@@ -122,6 +122,9 @@ export interface ScanContext {
   onPartialUpdate?: (node: FileNode) => void
   onProgressUpdate?: (progress: ScanProgress) => void
   deepScan?: boolean
+  isPro?: boolean
+  maxBytes?: number
+  isCapped?: boolean
 }
 
 export function buildDirMtimeMap(rootNode: FileNode): Map<string, { mtimeMs: number; node: FileNode }> {
@@ -145,11 +148,17 @@ export function buildDirMtimeMap(rootNode: FileNode): Map<string, { mtimeMs: num
 }
 
 export function accumulateSubtreeStats(node: FileNode, ctx: ScanContext): void {
+  if (ctx.isCapped) return
   if (node.type === 'file') {
     ctx.totalFiles++
     ctx.totalBytes += node.size || 0
+    const cap = ctx.maxBytes ?? FREE_TIER_BYTE_CAP
+    if (!ctx.isPro && ctx.totalBytes >= cap) {
+      ctx.isCapped = true
+    }
   } else if (node.children) {
     for (const child of node.children) {
+      if (ctx.isCapped) break
       accumulateSubtreeStats(child, ctx)
     }
   }
@@ -161,7 +170,7 @@ export async function scanDirectory(
   ctx: ScanContext,
   opaqueDepth = 0
 ): Promise<FileNode | null> {
-  if (isCancelled) return null
+  if (isCancelled || ctx.isCapped) return null
 
   const baseName = path.basename(dirPath) || dirPath
   const lowerName = baseName.toLowerCase()
@@ -209,7 +218,7 @@ export async function scanDirectory(
     return null
   }
 
-  if (isCancelled) return null
+  if (isCancelled || ctx.isCapped) return null
 
   const childNodes: FileNode[] = []
   const fileEntries: import('node:fs').Dirent[] = []
@@ -276,19 +285,29 @@ export async function scanDirectory(
         dirNode.size += fileNode.size
         ctx.totalFiles++
         ctx.totalBytes += fileNode.size
+
+        const cap = ctx.maxBytes ?? FREE_TIER_BYTE_CAP
+        if (!ctx.isPro && ctx.totalBytes >= cap) {
+          ctx.isCapped = true
+          dirNode.capped = true
+          dirNode.cappedAtBytes = cap
+          break
+        }
       }
     }
 
-    // Throttle progress updates every ~150ms
+    // Throttle progress updates every ~150ms or immediately on cap
     const now = Date.now()
-    if (now - ctx.lastReportTime > 150) {
+    if (now - ctx.lastReportTime > 150 || ctx.isCapped) {
       ctx.lastReportTime = now
       const progressData: ScanProgress = {
-        status: 'scanning',
+        status: ctx.isCapped ? 'completed' : 'scanning',
         currentPath: dirPath,
         scannedFiles: ctx.totalFiles,
         scannedBytes: ctx.totalBytes,
-        percentage: 0,
+        percentage: ctx.isCapped ? 100 : 0,
+        capped: ctx.isCapped,
+        cappedAtBytes: ctx.isCapped ? (ctx.maxBytes ?? FREE_TIER_BYTE_CAP) : undefined,
       }
       parentPort?.postMessage({
         type: 'progress',
@@ -296,10 +315,12 @@ export async function scanDirectory(
       })
       ctx.onProgressUpdate?.(progressData)
     }
+
+    if (ctx.isCapped) break
   }
 
   // Parallel traversal of child directories through bounded semaphore
-  if (dirEntries.length > 0) {
+  if (dirEntries.length > 0 && !ctx.isCapped) {
     if (ctx.maxDepth > 0 && depth >= ctx.maxDepth) {
       // Depth cap reached: surface cutoff rather than silently omitting
       dirNode.truncatedAtDepth = true
@@ -356,7 +377,7 @@ export async function scanDirectory(
       // Progressive streaming for root directory children
       await Promise.all(
         dirEntries.map(async (entry) => {
-          if (isCancelled) return
+          if (isCancelled || ctx.isCapped) return
           const fullPath = path.join(dirPath, entry.name)
           if (ctx.excludedSet.has(fullPath.toLowerCase())) return
 
@@ -376,6 +397,10 @@ export async function scanDirectory(
             dirNode.size += subDirNode.size
             if (subDirNode.truncatedAtDepth) {
               dirNode.truncatedAtDepth = true
+            }
+            if (subDirNode.capped) {
+              dirNode.capped = true
+              dirNode.cappedAtBytes = subDirNode.cappedAtBytes
             }
             childNodes.sort((a, b) => b.size - a.size)
 
@@ -422,7 +447,7 @@ export async function scanDirectory(
       )
     } else {
       const subDirPromises = dirEntries.map(async (entry) => {
-        if (isCancelled) return null
+        if (isCancelled || ctx.isCapped) return null
         const fullPath = path.join(dirPath, entry.name)
         if (ctx.excludedSet.has(fullPath.toLowerCase())) return null
 
@@ -435,16 +460,26 @@ export async function scanDirectory(
           subDirNode &&
           (subDirNode.size > 0 ||
             (subDirNode.children && subDirNode.children.length > 0) ||
-            subDirNode.truncatedAtDepth)
+            subDirNode.truncatedAtDepth ||
+            subDirNode.capped)
         ) {
           childNodes.push(subDirNode)
           dirNode.size += subDirNode.size
           if (subDirNode.truncatedAtDepth) {
             dirNode.truncatedAtDepth = true
           }
+          if (subDirNode.capped) {
+            dirNode.capped = true
+            dirNode.cappedAtBytes = subDirNode.cappedAtBytes
+          }
         }
       }
     }
+  }
+
+  if (ctx.isCapped) {
+    dirNode.capped = true
+    dirNode.cappedAtBytes = ctx.maxBytes ?? FREE_TIER_BYTE_CAP
   }
 
   // Sort child nodes descending by size for optimal treemap packing
@@ -473,9 +508,16 @@ export async function performScan(options: ScanOptions): Promise<FileNode | null
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
     deepScan: Boolean(options.deepScan),
+    isPro: Boolean(options.isPro),
+    maxBytes: options.maxBytes,
   }
 
-  return scanDirectory(targetPath, 0, ctx)
+  const root = await scanDirectory(targetPath, 0, ctx)
+  if (root && ctx.isCapped) {
+    root.capped = true
+    root.cappedAtBytes = ctx.maxBytes ?? FREE_TIER_BYTE_CAP
+  }
+  return root
 }
 
 async function runScan(options: ScanOptions): Promise<void> {
@@ -496,6 +538,8 @@ async function runScan(options: ScanOptions): Promise<void> {
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
     deepScan: Boolean(options.deepScan),
+    isPro: Boolean(options.isPro),
+    maxBytes: options.maxBytes,
   }
 
   parentPort?.postMessage({
@@ -506,6 +550,7 @@ async function runScan(options: ScanOptions): Promise<void> {
       scannedFiles: 0,
       scannedBytes: 0,
       percentage: 0,
+      capped: false,
     } as ScanProgress,
   })
 
@@ -534,6 +579,11 @@ async function runScan(options: ScanOptions): Promise<void> {
       return
     }
 
+    if (ctx.isCapped) {
+      rootNode.capped = true
+      rootNode.cappedAtBytes = ctx.maxBytes ?? FREE_TIER_BYTE_CAP
+    }
+
     // Emit final progress then complete with tree
     parentPort?.postMessage({
       type: 'progress',
@@ -543,6 +593,8 @@ async function runScan(options: ScanOptions): Promise<void> {
         scannedFiles: ctx.totalFiles,
         scannedBytes: ctx.totalBytes,
         percentage: 100,
+        capped: ctx.isCapped,
+        cappedAtBytes: ctx.isCapped ? (ctx.maxBytes ?? FREE_TIER_BYTE_CAP) : undefined,
       } as ScanProgress,
     })
 
@@ -589,6 +641,8 @@ export async function runScanDirectly(
     onPartialUpdate: callbacks?.onPartial,
     onProgressUpdate: callbacks?.onProgress,
     deepScan: Boolean(options.deepScan),
+    isPro: Boolean(options.isPro),
+    maxBytes: options.maxBytes,
   }
 
   callbacks?.onProgress?.({
@@ -597,6 +651,7 @@ export async function runScanDirectly(
     scannedFiles: 0,
     scannedBytes: 0,
     percentage: 0,
+    capped: false,
   })
 
   const rootNode = await scanDirectory(targetPath, 0, ctx)
@@ -616,12 +671,19 @@ export async function runScanDirectly(
     throw new Error(`Failed to access target path: ${targetPath}`)
   }
 
+  if (ctx.isCapped) {
+    rootNode.capped = true
+    rootNode.cappedAtBytes = ctx.maxBytes ?? FREE_TIER_BYTE_CAP
+  }
+
   callbacks?.onProgress?.({
     status: 'completed',
     currentPath: targetPath,
     scannedFiles: ctx.totalFiles,
     scannedBytes: ctx.totalBytes,
     percentage: 100,
+    capped: ctx.isCapped,
+    cappedAtBytes: ctx.isCapped ? (ctx.maxBytes ?? FREE_TIER_BYTE_CAP) : undefined,
   })
 
   return rootNode

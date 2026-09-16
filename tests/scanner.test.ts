@@ -9,7 +9,7 @@ import {
   CONCURRENT_DIR_SCANS,
   type ScanContext,
 } from '../electron/workers/scanner.worker'
-import type { FileNode } from '../shared/types'
+import { FREE_TIER_BYTE_CAP, type FileNode } from '../shared/types'
 
 describe('Drive Scanner Engine: Concurrency, Depth & Accuracy', () => {
   it('AsyncSemaphore properly restricts maximum concurrent operations', async () => {
@@ -150,3 +150,71 @@ describe('Drive Scanner Engine: Concurrency, Depth & Accuracy', () => {
     }
   })
 })
+
+describe('Free Tier 70GB Scan Capping & Pro Tier Uncapped Scanning', () => {
+  it('FREE_TIER_BYTE_CAP is set to exactly 70GB', () => {
+    expect(FREE_TIER_BYTE_CAP).toBe(70 * 1024 * 1024 * 1024)
+  })
+
+  it('stops scanning and marks result as capped when cumulative bytes cross the cap in free tier', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fernum-cap-test-'))
+    try {
+      // Create 25 directories, each with a 1KB file (25KB total)
+      const totalDirs = 25
+      for (let i = 0; i < totalDirs; i++) {
+        const subDir = path.join(tempDir, `dir_${i}`)
+        fs.mkdirSync(subDir, { recursive: true })
+        fs.writeFileSync(path.join(subDir, `payload_${i}.bin`), Buffer.alloc(1024, 0x41))
+      }
+
+      // Free tier scan with a 3,000-byte cap (well below the 25KB total)
+      const cappedRoot = await performScan({
+        targetPath: tempDir,
+        isPro: false,
+        maxBytes: 3000,
+      })
+
+      expect(cappedRoot).not.toBeNull()
+      expect(cappedRoot?.capped).toBe(true)
+      expect(cappedRoot?.cappedAtBytes).toBe(3000)
+
+      // The capped scan stops accumulating once threshold is reached
+      // Full scan would have 25,600 bytes; capped scan must be less than full tree
+      expect(cappedRoot?.size).toBeLessThan(totalDirs * 1024)
+
+      // Pro tier scan with same tree should scan everything and not be capped
+      const uncappedRoot = await performScan({
+        targetPath: tempDir,
+        isPro: true,
+        maxBytes: 3000,
+      })
+
+      expect(uncappedRoot).not.toBeNull()
+      expect(uncappedRoot?.capped).toBeUndefined()
+      expect(uncappedRoot?.size).toBe(totalDirs * 1024)
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+
+  it('preserves uncapped state when scanned data is below the free cap', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'fernum-below-cap-'))
+    try {
+      fs.writeFileSync(path.join(tempDir, 'small.txt'), 'hello world')
+
+      const result = await performScan({
+        targetPath: tempDir,
+        isPro: false,
+        maxBytes: 50000,
+      })
+
+      expect(result).not.toBeNull()
+      expect(result?.capped).toBeUndefined()
+      expect(result?.cappedAtBytes).toBeUndefined()
+      expect(result?.size).toBe(11)
+    } finally {
+      fs.rmSync(tempDir, { recursive: true, force: true })
+    }
+  })
+})
+
