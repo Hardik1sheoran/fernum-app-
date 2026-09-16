@@ -139,6 +139,14 @@ export const App: React.FC = () => {
     }
   }, [setRootNode, setScanProgress])
 
+  const isPro = useSettingsStore((s) => s.isPro) || useLicenseStore((s) => s.isPro)
+
+  useEffect(() => {
+    if (isPro && rootNode?.capped && selectedDrive && scanProgress.status === 'completed') {
+      handleStartScan(selectedDrive, true, false)
+    }
+  }, [isPro, rootNode?.capped, selectedDrive, scanProgress.status, handleStartScan])
+
   const loadDrives = useCallback(async () => {
     setIsLoadingDrives(true)
     setDriveError(null)

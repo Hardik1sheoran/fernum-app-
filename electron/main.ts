@@ -8,6 +8,7 @@ import { registerAppsIpc } from './ipc/apps'
 import { registerSearchIpc } from './ipc/search'
 import { registerMonitorIpc, stopMonitorIpc } from './ipc/monitor'
 import { registerCleanerIpc } from './ipc/cleaner'
+import { registerLicenseIpc } from './ipc/license'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -128,6 +129,7 @@ app.whenReady().then(() => {
   registerSearchIpc()
   registerMonitorIpc(() => mainWindow)
   registerCleanerIpc()
+  registerLicenseIpc()
 
   // Handle dynamic theme overlay updates for Windows
   ipcMain.handle('app:set-theme', (_event, theme: 'dark' | 'light') => {

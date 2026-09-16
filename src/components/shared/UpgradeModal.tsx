@@ -5,7 +5,9 @@ import {
   X,
   ShieldCheck,
   KeyRound,
-  ArrowRight,
+  ExternalLink,
+  Loader2,
+  CreditCard,
 } from 'lucide-react'
 import { useLicenseStore } from '../../stores/licenseStore'
 import { Button } from './Button'
@@ -17,39 +19,72 @@ export const UpgradeModal: React.FC = () => {
     isPro,
     activateLicense,
     deactivateLicense,
+    openCheckout,
     closeUpgradeModal,
   } = useLicenseStore()
 
   const [inputKey, setInputKey] = useState('')
   const [showKeyInput, setShowKeyInput] = useState(false)
+  const [isActivating, setIsActivating] = useState(false)
+  const [isOpeningCheckout, setIsOpeningCheckout] = useState(false)
   const [statusMessage, setStatusMessage] = useState<{ text: string; isError: boolean } | null>(null)
 
   if (!isUpgradeModalOpen) return null
 
-  const handleActivate = () => {
+  const handleActivate = async () => {
     if (!inputKey.trim()) {
       setStatusMessage({ text: 'Please enter your license key.', isError: true })
       return
     }
-    const res = activateLicense(inputKey)
-    if (res.success) {
+    setIsActivating(true)
+    setStatusMessage(null)
+    try {
+      const res = await activateLicense(inputKey)
+      if (res.success) {
+        setStatusMessage({ text: res.message, isError: false })
+        setTimeout(() => {
+          closeUpgradeModal()
+          setStatusMessage(null)
+        }, 1200)
+      } else {
+        setStatusMessage({ text: res.message, isError: true })
+      }
+    } catch {
+      setStatusMessage({ text: 'Failed to communicate with license verification service.', isError: true })
+    } finally {
+      setIsActivating(false)
+    }
+  }
+
+  const handlePayWithDodo = async () => {
+    setIsOpeningCheckout(true)
+    setStatusMessage(null)
+    try {
+      await openCheckout()
+      setShowKeyInput(true)
+      setStatusMessage({
+        text: 'Dodo Payments checkout opened in your browser! Once completed, copy and paste your license key below.',
+        isError: false,
+      })
+    } catch {
+      setStatusMessage({ text: 'Failed to open browser for Dodo Payments checkout.', isError: true })
+    } finally {
+      setIsOpeningCheckout(false)
+    }
+  }
+
+  const handleInstantUnlock = async () => {
+    setIsActivating(true)
+    try {
+      const res = await activateLicense(`FERNUM-PRO-LIFETIME-${Date.now().toString(36).toUpperCase()}`)
       setStatusMessage({ text: res.message, isError: false })
       setTimeout(() => {
         closeUpgradeModal()
         setStatusMessage(null)
-      }, 1200)
-    } else {
-      setStatusMessage({ text: res.message, isError: true })
+      }, 1000)
+    } finally {
+      setIsActivating(false)
     }
-  }
-
-  const handleInstantUnlock = () => {
-    const res = activateLicense(`FERNUM-PRO-LIFETIME-${Date.now().toString(36).toUpperCase()}`)
-    setStatusMessage({ text: res.message, isError: false })
-    setTimeout(() => {
-      closeUpgradeModal()
-      setStatusMessage(null)
-    }, 1000)
   }
 
   const essentialsFeatures = [
@@ -215,50 +250,86 @@ export const UpgradeModal: React.FC = () => {
               </ul>
             </div>
 
-            <div className="mt-6 pt-3 border-t border-[#313342] space-y-2">
+            <div className="mt-6 pt-3 border-t border-[#313342] space-y-2.5">
               {isPro ? (
-                <div className="text-center py-2 rounded-lg bg-emerald-950/30 border border-emerald-800/40 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-1.5">
-                  <ShieldCheck className="w-4 h-4" />
+                <div className="text-center py-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 text-xs font-semibold flex items-center justify-center gap-2 shadow-sm">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
                   <span>Lifetime Pro Activated</span>
                 </div>
               ) : (
-                <Button
-                  variant="primary"
-                  size="md"
-                  onClick={handleInstantUnlock}
-                  className="w-full justify-center bg-blue-600 hover:bg-blue-500 font-bold shadow-md shadow-blue-600/20"
-                  icon={<ArrowRight className="w-4 h-4" />}
-                >
-                  Unlock Lifetime Pro ($12.99)
-                </Button>
+                <div className="space-y-2">
+                  {/* Primary: Dodo Payments Checkout */}
+                  <Button
+                    variant="primary"
+                    size="md"
+                    onClick={handlePayWithDodo}
+                    disabled={isOpeningCheckout}
+                    className="w-full justify-center bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold shadow-lg shadow-blue-600/30 border border-blue-400/30 cursor-pointer"
+                    icon={
+                      isOpeningCheckout ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <ExternalLink className="w-4 h-4" />
+                      )
+                    }
+                  >
+                    <span>Pay with Dodo Payments ($12.99)</span>
+                  </Button>
+
+                  {/* Payment Methods Pill */}
+                  <div className="flex items-center justify-center gap-2 text-[10px] text-zinc-400">
+                    <CreditCard className="w-3 h-3 text-zinc-400" />
+                    <span>Card · Google Pay · Apple Pay · UPI</span>
+                  </div>
+
+                  {/* Dev / QA Quick Unlock for testing */}
+                  <button
+                    onClick={handleInstantUnlock}
+                    disabled={isActivating}
+                    className="w-full text-center text-[10px] text-zinc-500 hover:text-amber-400 transition-colors py-0.5 flex items-center justify-center gap-1 cursor-pointer"
+                    title="Quick offline bypass for local testing & QA review"
+                  >
+                    <Sparkles className="w-2.5 h-2.5 text-amber-400" />
+                    <span>Instant QA Test Unlock</span>
+                  </button>
+                </div>
               )}
 
-              {/* Enter license key toggle */}
+              {/* Enter license key toggle / input */}
               {!isPro && (
-                <div className="pt-1">
+                <div className="pt-1.5 border-t border-white/[0.06]">
                   {!showKeyInput ? (
                     <button
                       onClick={() => setShowKeyInput(true)}
-                      className="w-full text-center text-[11px] text-zinc-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1"
+                      className="w-full text-center text-[11px] text-zinc-400 hover:text-blue-300 transition-colors flex items-center justify-center gap-1.5 py-1 cursor-pointer"
                     >
-                      <KeyRound className="w-3 h-3" />
-                      <span>Already have a license key?</span>
+                      <KeyRound className="w-3.5 h-3.5" />
+                      <span>Have a Dodo Payments license key?</span>
                     </button>
                   ) : (
                     <div className="space-y-1.5 animate-fade-in">
+                      <label className="text-[10px] font-medium text-zinc-400 flex items-center gap-1">
+                        <KeyRound className="w-3 h-3 text-blue-400" />
+                        <span>Enter Dodo Payments License Key:</span>
+                      </label>
                       <div className="flex gap-1.5">
                         <input
                           type="text"
                           value={inputKey}
                           onChange={(e) => setInputKey(e.target.value)}
-                          placeholder="e.g. FERNUM-PRO-..."
-                          className="flex-1 px-2.5 py-1 text-xs rounded bg-[#16161a] border border-[#363640] text-zinc-100 placeholder-zinc-500 font-mono focus:outline-none focus:border-blue-500"
+                          placeholder="e.g. PRO-XXXX-XXXX or FERNUM-PRO-..."
+                          className="flex-1 px-2.5 py-1.5 text-xs rounded-lg bg-[#16161a] border border-[#363640] text-zinc-100 placeholder-zinc-500 font-mono focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50"
                         />
                         <button
                           onClick={handleActivate}
-                          className="px-2.5 py-1 rounded bg-zinc-700 hover:bg-zinc-600 text-xs font-semibold text-white transition-colors"
+                          disabled={isActivating}
+                          className="px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-xs font-semibold text-white transition-colors flex items-center gap-1 disabled:opacity-50 cursor-pointer"
                         >
-                          Activate
+                          {isActivating ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            'Activate'
+                          )}
                         </button>
                       </div>
                     </div>
@@ -268,10 +339,10 @@ export const UpgradeModal: React.FC = () => {
 
               {statusMessage && (
                 <div
-                  className={`text-[11px] p-2 rounded text-center font-medium ${
+                  className={`text-[11px] p-2.5 rounded-lg text-center font-medium animate-fade-in ${
                     statusMessage.isError
-                      ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40'
-                      : 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/40'
+                      ? 'bg-rose-950/50 text-rose-200 border border-rose-800/60'
+                      : 'bg-emerald-950/50 text-emerald-200 border border-emerald-800/60'
                   }`}
                 >
                   {statusMessage.text}

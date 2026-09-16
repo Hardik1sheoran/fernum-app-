@@ -293,4 +293,24 @@ export interface ElectronAPI {
 
   // System & Window IPC
   setTheme: (theme: 'dark' | 'light') => Promise<boolean>
+
+  // Dodo Payments & Licensing IPC
+  openExternal?: (url: string) => Promise<boolean>
+  openCheckout?: (checkoutUrl?: string) => Promise<boolean>
+  activateDodoLicense?: (key: string) => Promise<DodoActivationResult>
+  validateDodoLicense?: (key: string) => Promise<DodoValidationResult>
+  deactivateDodoLicense?: (key: string) => Promise<{ success: boolean; message?: string }>
 }
+
+export interface DodoActivationResult {
+  success: boolean
+  message: string
+  licenseId?: string
+  status?: string
+}
+
+export interface DodoValidationResult {
+  valid: boolean
+  message?: string
+}
+

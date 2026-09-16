@@ -148,6 +148,23 @@ const api: ElectronAPI = {
   setTheme: (theme: 'dark' | 'light'): Promise<boolean> => {
     return ipcRenderer.invoke('app:set-theme', theme)
   },
+
+  // Dodo Payments & Licensing IPC
+  openExternal: (url: string): Promise<boolean> => {
+    return ipcRenderer.invoke('app:open-external', url)
+  },
+  openCheckout: (checkoutUrl?: string): Promise<boolean> => {
+    return ipcRenderer.invoke('dodo:open-checkout', checkoutUrl)
+  },
+  activateDodoLicense: (key: string) => {
+    return ipcRenderer.invoke('dodo:activate-license', key)
+  },
+  validateDodoLicense: (key: string) => {
+    return ipcRenderer.invoke('dodo:validate-license', key)
+  },
+  deactivateDodoLicense: (key: string) => {
+    return ipcRenderer.invoke('dodo:deactivate-license', key)
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)
