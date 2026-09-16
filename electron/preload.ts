@@ -95,8 +95,8 @@ const api: ElectronAPI = {
   },
 
   // Applications IPC
-  listInstalledApps: (): Promise<InstalledApp[]> => {
-    return ipcRenderer.invoke('apps:list')
+  listInstalledApps: (forceRefresh?: boolean): Promise<InstalledApp[]> => {
+    return ipcRenderer.invoke('apps:list', forceRefresh)
   },
   uninstallApp: (appId: string): Promise<{ success: boolean; message?: string }> => {
     return ipcRenderer.invoke('apps:uninstall', appId)
@@ -109,8 +109,8 @@ const api: ElectronAPI = {
   },
 
   // System Junk Cleaner IPC
-  scanJunk: (categories?: JunkCategoryType[]): Promise<JunkScanResult> => {
-    return ipcRenderer.invoke('cleaner:scan', categories)
+  scanJunk: (categories?: JunkCategoryType[], forceRescan?: boolean): Promise<JunkScanResult> => {
+    return ipcRenderer.invoke('cleaner:scan', categories, forceRescan)
   },
   cleanJunk: (categoryIds: JunkCategoryType[]): Promise<JunkCleanResult> => {
     return ipcRenderer.invoke('cleaner:clean', categoryIds)

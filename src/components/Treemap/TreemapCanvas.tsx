@@ -67,7 +67,8 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
 
   const [layoutRects, setLayoutRects] = useState<NestedTreemapRect[]>([])
   const [hoveredRect, setHoveredRect] = useState<NestedTreemapRect | null>(null)
-  const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
+  const hoveredRectRef = useRef<NestedTreemapRect | null>(null)
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({
     visible: false,
     x: 0,
@@ -255,14 +256,21 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
     const mx = e.clientX - rect.left
     const my = e.clientY - rect.top
 
-    setMousePos({ x: e.clientX, y: e.clientY })
-
-    const found = findInnermostRect(layoutRects, mx, my)
-    setHoveredRect(found || null)
+    const found = findInnermostRect(layoutRects, mx, my) || null
+    if (found?.node.id !== hoveredRectRef.current?.node.id) {
+      hoveredRectRef.current = found
+      setHoveredRect(found)
+      if (found) {
+        setTooltipPos({ x: e.clientX, y: e.clientY })
+      }
+    }
   }
 
   const handleMouseLeave = () => {
-    setHoveredRect(null)
+    if (hoveredRectRef.current !== null) {
+      hoveredRectRef.current = null
+      setHoveredRect(null)
+    }
   }
 
   const handleClick = () => {
@@ -567,8 +575,8 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
           <div
             className="fixed z-50 pointer-events-none p-3 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 text-white shadow-2xl text-xs space-y-1.5 max-w-xs transition-all transform -translate-y-full -translate-x-1/2"
             style={{
-              left: `${mousePos.x}px`,
-              top: `${mousePos.y - 12}px`,
+              left: `${tooltipPos.x}px`,
+              top: `${tooltipPos.y - 12}px`,
             }}
           >
             <div className="flex items-center gap-2">

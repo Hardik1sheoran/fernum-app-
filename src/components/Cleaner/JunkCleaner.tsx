@@ -43,7 +43,7 @@ export const JunkCleaner: React.FC = () => {
   const [cleanResult, setCleanResult] = useState<JunkCleanResult | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
-  const loadJunkScan = useCallback(async () => {
+  const loadJunkScan = useCallback(async (forceRescan = false) => {
     if (!window.electronAPI) {
       setErrorMessage('Desktop integration bridge (electronAPI) is disconnected.')
       return
@@ -54,7 +54,7 @@ export const JunkCleaner: React.FC = () => {
     setCleanResult(null)
 
     try {
-      const res = await window.electronAPI.scanJunk()
+      const res = await window.electronAPI.scanJunk(undefined, forceRescan)
       setCategories(res.categories || [])
 
       // By default, select all categories with detected junk
@@ -72,7 +72,7 @@ export const JunkCleaner: React.FC = () => {
   }, [])
 
   useEffect(() => {
-    loadJunkScan()
+    loadJunkScan(false)
   }, [loadJunkScan])
 
   // Total reclaimable stats
@@ -166,7 +166,7 @@ export const JunkCleaner: React.FC = () => {
               variant="secondary"
               size="md"
               icon={<RefreshCw className={`w-3.5 h-3.5 ${isScanning ? 'animate-spin text-blue-400' : ''}`} />}
-              onClick={loadJunkScan}
+              onClick={() => loadJunkScan(true)}
               disabled={isScanning || isCleaning}
               className="bg-[#28282e] hover:bg-[#303038] border border-[#32323a] text-zinc-200 text-xs py-1.5"
             >
@@ -279,7 +279,7 @@ export const JunkCleaner: React.FC = () => {
             title="No Junk Data Found"
             description="All system temporary folders, caches, and recycle bins are clean."
             action={
-              <Button variant="secondary" size="sm" onClick={loadJunkScan}>
+              <Button variant="secondary" size="sm" onClick={() => loadJunkScan(true)}>
                 Scan Again
               </Button>
             }

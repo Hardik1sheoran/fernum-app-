@@ -266,13 +266,13 @@ export interface ElectronAPI {
   searchFiles: (options: SearchQueryOptions) => Promise<SearchResultItem[] | SearchResultResponse>
 
   // Applications IPC
-  listInstalledApps: () => Promise<InstalledApp[]>
+  listInstalledApps: (forceRefresh?: boolean) => Promise<InstalledApp[]>
   uninstallApp: (appId: string) => Promise<{ success: boolean; message?: string }>
   scanLeftovers: (appName: string, publisher?: string) => Promise<ScanLeftoversResult>
   cleanLeftovers: (paths: string[]) => Promise<CleanLeftoversResult>
 
   // System Junk Cleaner IPC
-  scanJunk: (categories?: JunkCategoryType[]) => Promise<JunkScanResult>
+  scanJunk: (categories?: JunkCategoryType[], forceRescan?: boolean) => Promise<JunkScanResult>
   cleanJunk: (categoryIds: JunkCategoryType[]) => Promise<JunkCleanResult>
 
   // Monitor IPC

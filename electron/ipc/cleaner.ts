@@ -5,7 +5,6 @@ import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type {
   JunkCategoryType,
-  JunkCategoryItem,
   JunkScanResult,
   JunkCleanResult,
 } from '../../shared/types'
@@ -258,66 +257,91 @@ async function inspectRecycleBin(): Promise<{ sizeBytes: number; fileCount: numb
   }
 }
 
+let cachedJunkScan: { result: JunkScanResult; timestamp: number } | null = null
+
+export function invalidateJunkScanCache(): void {
+  cachedJunkScan = null
+}
+
 /**
  * Scans system junk categories.
  */
 export async function scanSystemJunk(
-  categoriesFilter?: JunkCategoryType[]
+  categoriesFilter?: JunkCategoryType[],
+  forceRescan = false
 ): Promise<JunkScanResult> {
+  if (!categoriesFilter && !forceRescan && cachedJunkScan && (Date.now() - cachedJunkScan.timestamp < 30000)) {
+    return cachedJunkScan.result
+  }
+
   const allConfigs = getCategoryConfigs()
   const activeConfigs = categoriesFilter && categoriesFilter.length > 0
     ? allConfigs.filter((c) => categoriesFilter.includes(c.id))
     : allConfigs
 
-  const categories: JunkCategoryItem[] = []
-  let totalSizeBytes = 0
-  let totalFileCount = 0
+  // Run all categories concurrently
+  const categories = await Promise.all(
+    activeConfigs.map(async (cfg) => {
+      let catSize = 0
+      let catFiles = 0
+      const existingPaths: string[] = []
 
-  for (const cfg of activeConfigs) {
-    let catSize = 0
-    let catFiles = 0
-    const existingPaths: string[] = []
+      if (cfg.id === 'recycleBin') {
+        const rbInfo = await inspectRecycleBin()
+        catSize = rbInfo.sizeBytes
+        catFiles = rbInfo.fileCount
+        existingPaths.push('C:\\$Recycle.Bin')
+      } else {
+        const pathResults = await Promise.all(
+          cfg.getPaths().map(async (p) => {
+            try {
+              if (fs.existsSync(p)) {
+                const res = await inspectDirectoryJunk(p)
+                return { path: p, sizeBytes: res.sizeBytes, fileCount: res.fileCount }
+              }
+            } catch {
+              // Ignore path inspect failures
+            }
+            return null
+          })
+        )
 
-    if (cfg.id === 'recycleBin') {
-      const rbInfo = await inspectRecycleBin()
-      catSize = rbInfo.sizeBytes
-      catFiles = rbInfo.fileCount
-      existingPaths.push('C:\\$Recycle.Bin')
-    } else {
-      for (const p of cfg.getPaths()) {
-        try {
-          if (fs.existsSync(p)) {
-            existingPaths.push(p)
-            const res = await inspectDirectoryJunk(p)
-            catSize += res.sizeBytes
-            catFiles += res.fileCount
+        for (const pr of pathResults) {
+          if (pr) {
+            existingPaths.push(pr.path)
+            catSize += pr.sizeBytes
+            catFiles += pr.fileCount
           }
-        } catch {
-          // Ignore path inspect failures
         }
       }
-    }
 
-    totalSizeBytes += catSize
-    totalFileCount += catFiles
-
-    categories.push({
-      id: cfg.id,
-      name: cfg.name,
-      description: cfg.description,
-      icon: cfg.icon,
-      sizeBytes: catSize,
-      fileCount: catFiles,
-      safeToClean: cfg.safeToClean,
-      paths: existingPaths,
+      return {
+        id: cfg.id,
+        name: cfg.name,
+        description: cfg.description,
+        icon: cfg.icon,
+        sizeBytes: catSize,
+        fileCount: catFiles,
+        safeToClean: cfg.safeToClean,
+        paths: existingPaths,
+      }
     })
-  }
+  )
 
-  return {
+  const totalSizeBytes = categories.reduce((acc, c) => acc + c.sizeBytes, 0)
+  const totalFileCount = categories.reduce((acc, c) => acc + c.fileCount, 0)
+
+  const result: JunkScanResult = {
     totalSizeBytes,
     totalFileCount,
     categories,
   }
+
+  if (!categoriesFilter) {
+    cachedJunkScan = { result, timestamp: Date.now() }
+  }
+
+  return result
 }
 
 /**
@@ -443,6 +467,8 @@ export async function cleanSystemJunk(
     }
   }
 
+  invalidateJunkScanCache()
+
   return {
     success: failed.length === 0,
     reclaimedBytes,
@@ -456,8 +482,8 @@ export async function cleanSystemJunk(
  * Registers Cleaner IPC handlers.
  */
 export function registerCleanerIpc(): void {
-  ipcMain.handle('cleaner:scan', async (_event, categories?: JunkCategoryType[]) => {
-    return scanSystemJunk(categories)
+  ipcMain.handle('cleaner:scan', async (_event, categories?: JunkCategoryType[], forceRescan?: boolean) => {
+    return scanSystemJunk(categories, forceRescan)
   })
 
   ipcMain.handle('cleaner:clean', async (_event, categoryIds: JunkCategoryType[]) => {

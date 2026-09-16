@@ -380,8 +380,27 @@ export async function scanDirectory(
             childNodes.sort((a, b) => b.size - a.size)
 
             const now = Date.now()
-            if (now - (ctx.lastPartialTime || 0) > 150) {
+            if (now - (ctx.lastPartialTime || 0) > 800) {
               ctx.lastPartialTime = now
+              const snapshotChildren = childNodes.map((c) => ({
+                id: c.id,
+                name: c.name,
+                path: c.path,
+                size: c.size,
+                type: c.type,
+                category: c.category,
+                truncatedAtDepth: c.truncatedAtDepth,
+                children: (c.children || []).slice(0, 30).map((sub) => ({
+                  id: sub.id,
+                  name: sub.name,
+                  path: sub.path,
+                  size: sub.size,
+                  type: sub.type,
+                  category: sub.category,
+                  children: [],
+                })),
+              }))
+
               const snapshot: FileNode = {
                 id: dirNode.id,
                 name: dirNode.name,
@@ -389,7 +408,7 @@ export async function scanDirectory(
                 size: dirNode.size,
                 type: 'directory',
                 category: 'other',
-                children: [...childNodes],
+                children: snapshotChildren,
                 lastModified: dirNode.lastModified,
               }
               parentPort?.postMessage({

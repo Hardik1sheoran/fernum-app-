@@ -44,7 +44,24 @@ export async function searchDiskFiles(
   let queueHead = 0
   const visitedDirs = new Set<string>()
   let searchedDirs = 0
-  const MAX_DIRS = options.maxDirs ?? 50000 // Guard against infinite crawling
+  const MAX_DIRS = options.maxDirs ?? 25000 // Guard against infinite crawling
+
+  const SKIP_DIRS_DEFAULT = new Set([
+    '$recycle.bin',
+    'system volume information',
+    'node_modules',
+    '.git',
+    '.cache',
+    '.cargo',
+    '.rustup',
+    '.nuget',
+    '.gradle',
+    'winsxs',
+    '__pycache__',
+    'site-packages',
+    '.pnpm',
+    'npm-cache',
+  ])
 
   while (queueHead < queue.length && searchedDirs < MAX_DIRS && results.length < limit * 2) {
     const currentDir = queue[queueHead++]
@@ -68,18 +85,15 @@ export async function searchDiskFiles(
     const candidateFiles: { fullPath: string; name: string; ext: string; category: import('../../shared/types').FileCategory }[] = []
 
     for (const entry of entries) {
-      // Skip symlinks and junctions to prevent infinite cycles
       if (entry.isSymbolicLink()) continue
 
       const fullPath = path.join(currentDir, entry.name)
 
       if (entry.isDirectory()) {
         const lowerName = entry.name.toLowerCase()
-        // Skip hidden/junk/volume metadata directories
         if (
           lowerName.startsWith('.') ||
-          lowerName === '$recycle.bin' ||
-          lowerName === 'system volume information'
+          (SKIP_DIRS_DEFAULT.has(lowerName) && (!query || !query.includes(lowerName)))
         ) {
           continue
         }
@@ -88,13 +102,9 @@ export async function searchDiskFiles(
         const ext = path.extname(entry.name).replace(/^\./, '').toLowerCase()
         const category = getCategoryFromExtension(ext)
 
-        // Filter category
         if (targetCategory && category !== targetCategory) continue
-
-        // Filter extension
         if (targetExt && ext !== targetExt) continue
 
-        // Check query match
         if (query.length > 0) {
           const nameLower = entry.name.toLowerCase()
           const matchesName = nameLower.includes(query)
@@ -108,7 +118,6 @@ export async function searchDiskFiles(
       }
     }
 
-    // Process candidate files concurrently in parallel batches
     if (candidateFiles.length > 0) {
       const statsList = await Promise.all(
         candidateFiles.map(async (f) => {

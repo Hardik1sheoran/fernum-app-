@@ -22,7 +22,10 @@ let cachedApps: InstalledApp[] = []
 /**
  * Queries Windows registry for installed applications across 32-bit, 64-bit, and user scopes.
  */
-export async function queryInstalledApps(): Promise<InstalledApp[]> {
+export async function queryInstalledApps(forceRefresh = false): Promise<InstalledApp[]> {
+  if (!forceRefresh && cachedApps.length > 0) {
+    return cachedApps
+  }
   const psScript = `
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 $keys = @(
@@ -372,8 +375,8 @@ export async function launchNativeUninstaller(
  * Registers all application management IPC channels.
  */
 export function registerAppsIpc(): void {
-  ipcMain.handle('apps:list', async (): Promise<InstalledApp[]> => {
-    return queryInstalledApps()
+  ipcMain.handle('apps:list', async (_event, forceRefresh?: boolean): Promise<InstalledApp[]> => {
+    return queryInstalledApps(forceRefresh)
   })
 
   ipcMain.handle(

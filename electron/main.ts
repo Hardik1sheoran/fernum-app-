@@ -12,6 +12,8 @@ import { registerCleanerIpc } from './ipc/cleaner'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+const appLaunchStart = Date.now()
+
 process.env.DIST_ELECTRON = path.join(__dirname, '../dist-electron')
 process.env.DIST = path.join(__dirname, '../dist')
 process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL
@@ -31,6 +33,7 @@ function createWindow(): void {
     height: 800,
     minWidth: 1000,
     minHeight: 650,
+    show: false,
     backgroundColor: '#0f1115',
     backgroundMaterial: 'acrylic',
     vibrancy: 'under-window',
@@ -46,6 +49,21 @@ function createWindow(): void {
       nodeIntegration: false,
       sandbox: true,
     },
+  })
+
+  mainWindow.once('ready-to-show', () => {
+    console.log(`[PERF] App launch to ready-to-show: ${Date.now() - appLaunchStart} ms`)
+    mainWindow?.show()
+  })
+
+  mainWindow.webContents.on('did-finish-load', () => {
+    console.log(`[PERF] App launch to did-finish-load: ${Date.now() - appLaunchStart} ms`)
+  })
+
+  mainWindow.webContents.on('console-message', (_event, _level, message) => {
+    if (message.startsWith('[PERF]')) {
+      console.log(`[Renderer] ${message}`)
+    }
   })
 
   // Surface any preload errors clearly in console/logs
@@ -65,6 +83,27 @@ function createWindow(): void {
 
   if (process.env.FERNUM_DEBUG === '1') {
     mainWindow.webContents.openDevTools()
+  }
+
+  if (process.env.FERNUM_AUTOMATE_TABS === '1') {
+    mainWindow.webContents.on('did-finish-load', () => {
+      mainWindow?.webContents.executeJavaScript(`
+        (async () => {
+          const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+          await wait(1200);
+          console.log('[PERF] Tab automation starting...');
+          const tabs = ['cleaner', 'apps', 'search', 'monitor', 'storage'];
+          for (const tab of tabs) {
+            const btn = document.getElementById('tab-' + tab);
+            if (btn) {
+              btn.click();
+              await wait(1500);
+            }
+          }
+          console.log('[PERF] All tab switches completed');
+        })();
+      `)
+    })
   }
 
   if (process.env.VITE_DEV_SERVER_URL) {

@@ -18,9 +18,34 @@ import type { DriveInfo, QuickFolderInfo, ScanProgress, FileNode } from '@shared
 export const App: React.FC = () => {
   useTheme() // Initialize theme class on documentElement
   const [activeTab, setActiveTab] = useState<TabKey>('storage')
+  const [visitedTabs, setVisitedTabs] = useState<Set<TabKey>>(new Set(['storage']))
   const [isExclusionsOpen, setIsExclusionsOpen] = useState(false)
   const [isPrivacyOpen, setIsPrivacyOpen] = useState(false)
   const [driveError, setDriveError] = useState<string | null>(null)
+
+  useEffect(() => {
+    setVisitedTabs((prev) => {
+      if (prev.has(activeTab)) return prev
+      const next = new Set(prev)
+      next.add(activeTab)
+      return next
+    })
+  }, [activeTab])
+
+  useEffect(() => {
+    console.log(`[PERF] App interactive: ${performance.now().toFixed(1)} ms`)
+  }, [])
+
+  const handleSelectTab = useCallback((tab: TabKey) => {
+    const t0 = performance.now()
+    const fromTab = activeTab
+    setActiveTab(tab)
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        console.log(`[PERF] Tab switch ${fromTab} -> ${tab}: ${(performance.now() - t0).toFixed(1)} ms`)
+      })
+    })
+  }, [activeTab])
 
   const {
     drives,
@@ -351,7 +376,7 @@ export const App: React.FC = () => {
 
       <div className="flex min-h-0 flex-1">
         <aside className="flex w-64 shrink-0 flex-col glass-sidebar">
-          <TabNavigation activeTab={activeTab} onSelectTab={setActiveTab} />
+          <TabNavigation activeTab={activeTab} onSelectTab={handleSelectTab} />
           {activeTab === 'storage' ? (
             <DrivePicker
               drives={drives}
@@ -414,48 +439,46 @@ export const App: React.FC = () => {
 
         {/* Main Content Area */}
         <main className="min-w-0 flex-1 overflow-hidden bg-[#18181b] p-3">
-          {activeTab === 'storage' && (
-            <div className="h-full">
-              <div className="h-full min-h-[420px]">
-                <TreemapCanvas
-                  rootNode={rootNode}
-                  currentViewNode={currentViewNode}
-                  breadcrumbs={breadcrumbs}
-                  isScanning={scanProgress.status === 'scanning'}
-                  scanProgressPercentage={scanProgress.percentage}
-                  currentScanPath={scanProgress.currentPath}
-                  scannedFiles={scanProgress.scannedFiles}
-                  scannedBytes={scanProgress.scannedBytes}
-                  onCancelScan={handleCancelScan}
-                  onDrillDown={drillDown}
-                  onDrillUp={drillUp}
-                  onResetView={resetView}
-                />
-              </div>
+          <div className={activeTab === 'storage' ? 'h-full' : 'hidden'}>
+            <div className="h-full min-h-[420px]">
+              <TreemapCanvas
+                rootNode={rootNode}
+                currentViewNode={currentViewNode}
+                breadcrumbs={breadcrumbs}
+                isScanning={scanProgress.status === 'scanning'}
+                scanProgressPercentage={scanProgress.percentage}
+                currentScanPath={scanProgress.currentPath}
+                scannedFiles={scanProgress.scannedFiles}
+                scannedBytes={scanProgress.scannedBytes}
+                onCancelScan={handleCancelScan}
+                onDrillDown={drillDown}
+                onDrillUp={drillUp}
+                onResetView={resetView}
+              />
             </div>
-          )}
+          </div>
 
-          {activeTab === 'cleaner' && (
-            <div className="h-full overflow-y-auto p-2">
+          {visitedTabs.has('cleaner') && (
+            <div className={activeTab === 'cleaner' ? 'h-full overflow-y-auto p-2' : 'hidden'}>
               <JunkCleaner />
             </div>
           )}
 
-          {activeTab === 'apps' && (
-            <div className="h-full overflow-y-auto p-2">
+          {visitedTabs.has('apps') && (
+            <div className={activeTab === 'apps' ? 'h-full overflow-y-auto p-2' : 'hidden'}>
               <AppsList />
             </div>
           )}
 
-          {activeTab === 'search' && (
-            <div className="h-full overflow-y-auto p-2">
+          {visitedTabs.has('search') && (
+            <div className={activeTab === 'search' ? 'h-full overflow-y-auto p-2' : 'hidden'}>
               <SearchPanel />
             </div>
           )}
 
-          {activeTab === 'monitor' && (
-            <div className="h-full overflow-y-auto p-2">
-              <MonitorDashboard />
+          {visitedTabs.has('monitor') && (
+            <div className={activeTab === 'monitor' ? 'h-full overflow-y-auto p-2' : 'hidden'}>
+              <MonitorDashboard isActive={activeTab === 'monitor'} />
             </div>
           )}
         </main>

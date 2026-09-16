@@ -41,13 +41,13 @@ export const AppsList: React.FC = () => {
   const [uninstallConfirmApp, setUninstallConfirmApp] = useState<InstalledApp | null>(null)
   const [isLaunchingUninstall, setIsLaunchingUninstall] = useState(false)
 
-  const loadApps = async () => {
+  const loadApps = async (forceRefresh = false) => {
     setIsLoading(true)
     setStatusMessage(null)
     setLoadError(null)
     try {
       if (window.electronAPI) {
-        const list = await window.electronAPI.listInstalledApps()
+        const list = await window.electronAPI.listInstalledApps(forceRefresh)
         setApps(list)
       } else {
         const errMsg = 'Desktop integration bridge (electronAPI) is disconnected. Unable to query Windows registry.'
@@ -65,7 +65,7 @@ export const AppsList: React.FC = () => {
   }
 
   useEffect(() => {
-    loadApps()
+    loadApps(false)
   }, [])
 
   const filteredAndSortedApps = useMemo(() => {
@@ -206,6 +206,14 @@ export const AppsList: React.FC = () => {
                 <ArrowUpDown className={`w-3 h-3 ${sortAsc ? 'rotate-180' : ''}`} />
               )}
             </button>
+            <button
+              onClick={() => loadApps(true)}
+              title="Refresh installed software from Windows registry"
+              disabled={isLoading}
+              className="p-1 rounded text-zinc-400 hover:text-zinc-200 hover:bg-[#32323a] transition-colors disabled:opacity-50 ml-0.5"
+            >
+              <RefreshCw className={`w-3 h-3 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
           </div>
         </div>
       </div>
@@ -260,7 +268,7 @@ export const AppsList: React.FC = () => {
                 variant="secondary"
                 size="sm"
                 icon={<RefreshCw className="w-3.5 h-3.5" />}
-                onClick={loadApps}
+                onClick={() => loadApps(true)}
               >
                 Retry Registry Scan
               </Button>

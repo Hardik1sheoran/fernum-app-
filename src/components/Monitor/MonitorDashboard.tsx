@@ -18,7 +18,11 @@ import type { SystemStats, SystemSpecs } from '@shared/types'
 import { formatSpeed, formatMemoryBytes, appendRollingHistory } from '@shared/monitorUtils'
 import { useLicenseStore } from '../../stores/licenseStore'
 
-export const MonitorDashboard: React.FC = () => {
+interface MonitorDashboardProps {
+  isActive?: boolean
+}
+
+export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = true }) => {
   const { isPro, openUpgradeModal } = useLicenseStore()
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [specs, setSpecs] = useState<SystemSpecs | null>(null)
@@ -29,6 +33,8 @@ export const MonitorDashboard: React.FC = () => {
   const [processSortBy, setProcessSortBy] = useState<'memory' | 'cpu'>('memory')
 
   useEffect(() => {
+    if (!isActive) return
+
     let unsubscribeStats: (() => void) | undefined
     let unsubscribeProcesses: (() => void) | undefined
 
@@ -70,7 +76,7 @@ export const MonitorDashboard: React.FC = () => {
         window.electronAPI.stopMonitoring().catch(() => {})
       }
     }
-  }, [])
+  }, [isActive])
 
   const cpuPercent = stats?.cpu.usagePercent ?? 0
   const memPercent = stats?.memory.usagePercent ?? 0

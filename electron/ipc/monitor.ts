@@ -125,6 +125,9 @@ function timeoutPromise<T>(promise: Promise<T>, ms: number, fallback: T): Promis
   })
 }
 
+let lastKnownNetRx = 0
+let lastKnownNetTx = 0
+
 /**
  * Collects lightweight, fast hardware metrics (CPU, Memory, Disk, Network)
  * without enumerating running processes. Executes in milliseconds.
@@ -134,10 +137,10 @@ export async function collectFastMetrics(): Promise<Omit<SystemStats, 'topProces
 
   try {
     const [loadRes, memRes, diskRes, netRes] = await Promise.allSettled([
-      timeoutPromise(si.currentLoad(), 4000, { currentLoad: 0 } as any),
-      timeoutPromise(si.mem(), 4000, null as any),
-      timeoutPromise(si.disksIO(), 4000, null as any),
-      timeoutPromise(si.networkStats(), 4000, [] as any),
+      timeoutPromise(si.currentLoad(), 1200, { currentLoad: 0 } as any),
+      timeoutPromise(si.mem(), 600, null as any),
+      timeoutPromise(si.disksIO(), 400, null as any),
+      timeoutPromise(si.networkStats(), 450, [] as any),
     ])
 
     // 1. CPU Usage
@@ -180,13 +183,19 @@ export async function collectFastMetrics(): Promise<Omit<SystemStats, 'topProces
     }
 
     // 4. Network Throughput (bytes/sec)
-    let netRxSpeed = 0
-    let netTxSpeed = 0
-    if (netRes.status === 'fulfilled' && Array.isArray(netRes.value)) {
+    let netRxSpeed = lastKnownNetRx
+    let netTxSpeed = lastKnownNetTx
+    if (netRes.status === 'fulfilled' && Array.isArray(netRes.value) && netRes.value.length > 0) {
+      let currentRx = 0
+      let currentTx = 0
       for (const iface of netRes.value) {
-        netRxSpeed += Math.max(0, Math.round(iface.rx_sec || 0))
-        netTxSpeed += Math.max(0, Math.round(iface.tx_sec || 0))
+        currentRx += Math.max(0, Math.round(iface.rx_sec || 0))
+        currentTx += Math.max(0, Math.round(iface.tx_sec || 0))
       }
+      lastKnownNetRx = currentRx
+      lastKnownNetTx = currentTx
+      netRxSpeed = currentRx
+      netTxSpeed = currentTx
     }
 
     return {
