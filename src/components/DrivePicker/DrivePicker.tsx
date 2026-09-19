@@ -226,7 +226,7 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
             { label: 'Archive', color: 'bg-cyan-500' },
           ].map((cat) => (
             <div
-              key={cat.label}
+              key={`legend-${cat.label}`}
               className="flex items-center gap-2 px-2 py-1 rounded bg-[#242429] border border-[#2f2f36] text-zinc-300 text-[11px]"
             >
               <span className={`w-2 h-2 rounded-full ${cat.color} shrink-0`} />
@@ -240,12 +240,12 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
       <div className="p-3 space-y-1.5">
         <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Drives</p>
         <div className="space-y-1">
-          {drives.map((drive) => {
+          {drives.map((drive, driveIdx) => {
             const driveUsage = drive.totalBytes ? Math.round((drive.usedBytes / drive.totalBytes) * 100) : 0
             const isSelected = selectedDrive?.id === drive.id
             return (
               <button
-                key={drive.id}
+                key={`drive-entry-${drive.id || drive.path || driveIdx}-${driveIdx}`}
                 onClick={() => onSelectDrive(drive)}
                 className={`group flex w-full flex-col gap-1 rounded-md p-2 text-left text-xs transition-colors border ${
                   isSelected
@@ -295,9 +295,9 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
         <div className="p-3 space-y-1.5">
           <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">Quick Access</p>
           <div className="grid grid-cols-2 gap-1">
-            {quickFolders.slice(1).map((folder) => (
+            {quickFolders.slice(1).map((folder, folderIdx) => (
               <button
-                key={folder.id}
+                key={`quick-folder-${folder.id || folder.path || folderIdx}-${folderIdx}`}
                 disabled={isScanning}
                 onClick={() => onSelectQuickFolder?.(folder)}
                 className="flex items-center gap-1.5 rounded px-2 py-1 text-left text-xs text-zinc-300 bg-[#242429] hover:bg-[#28282e] border border-[#2f2f36] transition-colors disabled:opacity-40"

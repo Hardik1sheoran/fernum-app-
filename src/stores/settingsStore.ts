@@ -14,15 +14,25 @@ interface SettingsState {
   togglePro: () => void
 }
 
-const savedTheme = (localStorage.getItem('theme') as ThemeMode) || 'dark'
-const savedIsPro = localStorage.getItem('fernum_is_pro') === 'true'
+function getSafeItem(key: string): string | null {
+  try {
+    return typeof window !== 'undefined' && window.localStorage ? localStorage.getItem(key) : null
+  } catch {
+    return null
+  }
+}
+
+const savedTheme = (getSafeItem('theme') as ThemeMode) || 'dark'
+const savedIsPro = getSafeItem('fernum_is_pro') === 'true'
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   theme: savedTheme,
   excludedPaths: ['C:\\Windows\\WinSxS', 'C:\\$Recycle.Bin'],
   isPro: savedIsPro,
   setTheme: (theme) => {
-    localStorage.setItem('theme', theme)
+    try {
+      localStorage.setItem('theme', theme)
+    } catch {}
     set({ theme })
   },
   toggleTheme: () => {
@@ -30,7 +40,9 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       const themes: ThemeMode[] = ['dark', 'light', 'forest', 'ocean', 'aurora']
       const currentIndex = themes.indexOf(state.theme)
       const nextTheme = themes[(currentIndex + 1) % themes.length]
-      localStorage.setItem('theme', nextTheme)
+      try {
+        localStorage.setItem('theme', nextTheme)
+      } catch {}
       return { theme: nextTheme }
     })
   },

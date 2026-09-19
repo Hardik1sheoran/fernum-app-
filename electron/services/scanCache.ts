@@ -140,7 +140,13 @@ export async function saveScanCache(targetPath: string, rootNode: FileNode): Pro
     const jsonStr = JSON.stringify(payload)
     const tmpPath = `${filePath}.${Date.now()}.tmp`
     await fsPromises.writeFile(tmpPath, jsonStr, 'utf-8')
-    await fsPromises.rename(tmpPath, filePath)
+    try {
+      await fsPromises.rename(tmpPath, filePath)
+    } catch {
+      // On Windows rename can fail with EPERM/EEXIST if destination exists or is locked
+      await fsPromises.copyFile(tmpPath, filePath)
+      await fsPromises.unlink(tmpPath).catch(() => {})
+    }
   } catch (err) {
     console.error(`[ScanCache] Failed to write scan cache to ${filePath}:`, err)
   }

@@ -73,7 +73,11 @@ export function initBrowserFallback(): void {
     },
     cancelScan: async () => {
       stopPolling()
-      await api<{ success: boolean }>('/api/scan/cancel')
+      try {
+        await api<{ success: boolean }>('/api/scan/cancel')
+      } catch {
+        // Ignored if mock server or dev server is disconnected
+      }
       return true
     },
     getCachedScan: async () => null,
@@ -127,12 +131,30 @@ export function initBrowserFallback(): void {
     uninstallApp: (appId: string) => api<{ success: boolean; message?: string }>('/api/apps/uninstall', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appId }),
     }),
-    scanLeftovers: async (): Promise<ScanLeftoversResult> => {
-      throw new Error('Leftover cleanup requires the Electron desktop app.')
-    },
-    cleanLeftovers: async (): Promise<CleanLeftoversResult> => {
-      throw new Error('Leftover cleanup requires the Electron desktop app.')
-    },
+    scanLeftovers: async (appName: string, _publisher?: string): Promise<ScanLeftoversResult> => ({
+      appName,
+      totalSizeBytes: 340000000,
+      residues: [
+        {
+          path: `C:\\Users\\Default\\AppData\\Local\\${appName.replace(/\s+/g, '')}`,
+          sizeBytes: 250000000,
+          category: 'localappdata',
+          description: 'Local AppData caches & user settings',
+        },
+        {
+          path: `C:\\ProgramData\\${appName.replace(/\s+/g, '')}`,
+          sizeBytes: 90000000,
+          category: 'programdata',
+          description: 'Shared machine caches & installation residue',
+        },
+      ],
+    }),
+    cleanLeftovers: async (pathsToClean: string[]): Promise<CleanLeftoversResult> => ({
+      success: true,
+      cleanedBytes: 340000000,
+      paths: pathsToClean || [],
+      failed: [],
+    }),
     scanJunk: async () => ({
       totalSizeBytes: 1250000000,
       totalFileCount: 420,

@@ -172,22 +172,28 @@ export async function scanDirectory(
 ): Promise<FileNode | null> {
   if (isCancelled || ctx.isCapped) return null
 
-  const baseName = path.basename(dirPath) || dirPath
+  // Normalize bare drive roots like "C:" -> "C:\"
+  let normalizedPath = dirPath
+  if (/^[a-zA-Z]:$/.test(normalizedPath)) {
+    normalizedPath = `${normalizedPath}\\`
+  }
+
+  const baseName = path.basename(normalizedPath) || normalizedPath
   const lowerName = baseName.toLowerCase()
 
-  if (DEFAULT_IGNORED_DIRS.has(lowerName) || ctx.excludedSet.has(dirPath.toLowerCase())) {
+  if (DEFAULT_IGNORED_DIRS.has(lowerName) || ctx.excludedSet.has(normalizedPath.toLowerCase())) {
     return null
   }
 
   const isOpaque = !ctx.deepScan && (OPAQUE_BUNDLE_DIRS.has(lowerName) || opaqueDepth > 0)
   const nextOpaqueDepth = isOpaque ? opaqueDepth + 1 : 0
 
-  // Incremental scan fast-path: ONLY stat dirPath if cachedDirMap actually contains this directory!
-  const normDirPath = dirPath.toLowerCase()
+  // Incremental scan fast-path: ONLY stat normalizedPath if cachedDirMap actually contains this directory!
+  const normDirPath = normalizedPath.toLowerCase()
   let dirStats: import('node:fs').Stats | null = null
   if (ctx.cachedDirMap && ctx.cachedDirMap.has(normDirPath)) {
     try {
-      dirStats = await fs.stat(dirPath)
+      dirStats = await fs.stat(normalizedPath)
       const cached = ctx.cachedDirMap.get(normDirPath)
       if (cached && cached.mtimeMs === dirStats.mtimeMs && cached.node && cached.node.children) {
         accumulateSubtreeStats(cached.node, ctx)
@@ -199,9 +205,9 @@ export async function scanDirectory(
   }
 
   const dirNode: FileNode = {
-    id: dirPath,
+    id: normalizedPath,
     name: baseName,
-    path: dirPath,
+    path: normalizedPath,
     size: 0,
     type: 'directory',
     category: 'other',
@@ -209,127 +215,123 @@ export async function scanDirectory(
     children: [],
   }
 
-  let entries: import('node:fs').Dirent[] = []
+  let entryNames: string[] = []
   try {
-    // Bounded concurrent readdir using semaphore pool
-    entries = await ctx.dirSemaphore.run(() => fs.readdir(dirPath, { withFileTypes: true }))
+    // Read names only (bounded semaphore pool) to avoid whole-directory EPERM on Windows junctions/reparse points
+    entryNames = await ctx.dirSemaphore.run(() => fs.readdir(normalizedPath))
   } catch {
-    // Inaccessible directory (permissions, locked, reparse point)
+    // Inaccessible directory (permissions, locked)
     return null
   }
 
   if (isCancelled || ctx.isCapped) return null
 
   const childNodes: FileNode[] = []
-  const fileEntries: import('node:fs').Dirent[] = []
-  const dirEntries: import('node:fs').Dirent[] = []
+  const dirNames: string[] = []
+  const fileItems: { name: string; size: number; mtimeMs?: number }[] = []
 
-  for (const entry of entries) {
-    if (entry.isSymbolicLink()) continue
-    const lower = entry.name.toLowerCase()
-    // Skip swapfile, pagefile, hiberfil, dumpstack
-    if (
-      lower === 'pagefile.sys' ||
-      lower === 'hiberfil.sys' ||
-      lower === 'swapfile.sys' ||
-      lower === 'dumpstack.log.tmp'
-    ) {
-      continue
-    }
-    if (entry.isDirectory()) {
-      dirEntries.push(entry)
-    } else if (entry.isFile()) {
-      fileEntries.push(entry)
-    }
-  }
+  // Concurrently inspect entries with lstat, catching errors per-entry so a single junction doesn't abort the folder
+  const LSTAT_BATCH_SIZE = 64
+  for (let i = 0; i < entryNames.length; i += LSTAT_BATCH_SIZE) {
+    if (isCancelled || ctx.isCapped) return null
+    const batch = entryNames.slice(i, i + LSTAT_BATCH_SIZE)
+    await Promise.all(
+      batch.map(async (name) => {
+        const lower = name.toLowerCase()
+        if (
+          lower === 'pagefile.sys' ||
+          lower === 'hiberfil.sys' ||
+          lower === 'swapfile.sys' ||
+          lower === 'dumpstack.log.tmp'
+        ) {
+          return
+        }
 
-  // Process files in fast concurrent batches (64 files per batch)
-  const BATCH_SIZE = 64
-  for (let i = 0; i < fileEntries.length; i += BATCH_SIZE) {
-    if (isCancelled) return null
-    const batch = fileEntries.slice(i, i + BATCH_SIZE)
-    const statsResults = await Promise.all(
-      batch.map(async (entry) => {
-        const fullPath = path.join(dirPath, entry.name)
-        if (ctx.excludedSet.has(fullPath.toLowerCase())) return null
+        const fullPath = path.join(normalizedPath, name)
+        if (ctx.excludedSet.has(fullPath.toLowerCase())) return
 
         try {
-          const stats = await fs.stat(fullPath)
-          const fileSize = stats.size || 0
-          const ext = path.extname(entry.name)
-
-          const fileNode: FileNode = {
-            id: fullPath,
-            name: entry.name,
-            path: fullPath,
-            size: fileSize,
-            type: 'file',
-            category: getCategory(ext),
-            extension: ext,
-            lastModified: stats.mtimeMs,
+          const stats = await fs.lstat(fullPath)
+          if (stats.isSymbolicLink()) {
+            return // Skip junctions and symlinks safely (e.g. "C:\Documents and Settings")
           }
-          return fileNode
+          if (stats.isDirectory()) {
+            dirNames.push(name)
+          } else if (stats.isFile()) {
+            fileItems.push({ name, size: stats.size || 0, mtimeMs: stats.mtimeMs })
+          }
         } catch {
-          return null
+          // Inaccessible entry (EPERM, EACCES, locked) - skip individually without aborting directory
         }
       })
     )
+  }
 
-    for (const fileNode of statsResults) {
-      if (fileNode) {
-        // Retain individual leaf file objects only for visual depths (< 5 or < 15 in deepScan) outside opaque bundles
-        const maxLeafDepth = ctx.deepScan ? 15 : 5
-        if ((ctx.deepScan || opaqueDepth < 2) && depth < maxLeafDepth) {
-          childNodes.push(fileNode)
-        }
-        dirNode.size += fileNode.size
-        ctx.totalFiles++
-        ctx.totalBytes += fileNode.size
-
-        const cap = ctx.maxBytes ?? FREE_TIER_BYTE_CAP
-        if (!ctx.isPro && ctx.totalBytes >= cap) {
-          ctx.isCapped = true
-          dirNode.capped = true
-          dirNode.cappedAtBytes = cap
-          break
-        }
-      }
-    }
-
-    // Throttle progress updates every ~150ms or immediately on cap
-    const now = Date.now()
-    if (now - ctx.lastReportTime > 150 || ctx.isCapped) {
-      ctx.lastReportTime = now
-      const progressData: ScanProgress = {
-        status: ctx.isCapped ? 'completed' : 'scanning',
-        currentPath: dirPath,
-        scannedFiles: ctx.totalFiles,
-        scannedBytes: ctx.totalBytes,
-        percentage: ctx.isCapped ? 100 : 0,
-        capped: ctx.isCapped,
-        cappedAtBytes: ctx.isCapped ? (ctx.maxBytes ?? FREE_TIER_BYTE_CAP) : undefined,
-      }
-      parentPort?.postMessage({
-        type: 'progress',
-        data: progressData,
-      })
-      ctx.onProgressUpdate?.(progressData)
-    }
-
+  // Process files
+  for (const file of fileItems) {
     if (ctx.isCapped) break
+    const fullPath = path.join(normalizedPath, file.name)
+    const ext = path.extname(file.name)
+
+    const fileNode: FileNode = {
+      id: fullPath,
+      name: file.name,
+      path: fullPath,
+      size: file.size,
+      type: 'file',
+      category: getCategory(ext),
+      extension: ext,
+      lastModified: file.mtimeMs,
+    }
+
+    const maxLeafDepth = ctx.deepScan ? 15 : 5
+    if ((ctx.deepScan || opaqueDepth < 2) && depth < maxLeafDepth) {
+      childNodes.push(fileNode)
+    }
+    dirNode.size += fileNode.size
+    ctx.totalFiles++
+    ctx.totalBytes += fileNode.size
+
+    const cap = ctx.maxBytes ?? FREE_TIER_BYTE_CAP
+    if (!ctx.isPro && ctx.totalBytes >= cap) {
+      ctx.isCapped = true
+      dirNode.capped = true
+      dirNode.cappedAtBytes = cap
+      break
+    }
+  }
+
+  // Throttle progress updates every ~150ms or immediately on cap
+  const now = Date.now()
+  if (now - ctx.lastReportTime > 150 || ctx.isCapped) {
+    ctx.lastReportTime = now
+    const progressData: ScanProgress = {
+      status: ctx.isCapped ? 'completed' : 'scanning',
+      currentPath: normalizedPath,
+      scannedFiles: ctx.totalFiles,
+      scannedBytes: ctx.totalBytes,
+      percentage: ctx.isCapped ? 100 : 0,
+      capped: ctx.isCapped,
+      cappedAtBytes: ctx.isCapped ? (ctx.maxBytes ?? FREE_TIER_BYTE_CAP) : undefined,
+    }
+    parentPort?.postMessage({
+      type: 'progress',
+      data: progressData,
+    })
+    ctx.onProgressUpdate?.(progressData)
   }
 
   // Parallel traversal of child directories through bounded semaphore
-  if (dirEntries.length > 0 && !ctx.isCapped) {
+  if (dirNames.length > 0 && !ctx.isCapped) {
     if (ctx.maxDepth > 0 && depth >= ctx.maxDepth) {
       // Depth cap reached: surface cutoff rather than silently omitting
       dirNode.truncatedAtDepth = true
-      for (const entry of dirEntries) {
-        const fullPath = path.join(dirPath, entry.name)
+      for (const name of dirNames) {
+        const fullPath = path.join(normalizedPath, name)
         if (ctx.excludedSet.has(fullPath.toLowerCase())) continue
         childNodes.push({
           id: fullPath,
-          name: entry.name,
+          name,
           path: fullPath,
           size: 0,
           type: 'directory',
@@ -342,11 +344,11 @@ export async function scanDirectory(
       // 1. Instant initial frame in < 15ms so treemap blocks appear on screen immediately
       const initialChildren: FileNode[] = [
         ...childNodes,
-        ...dirEntries.map((entry) => {
-          const fullPath = path.join(dirPath, entry.name)
+        ...dirNames.map((name) => {
+          const fullPath = path.join(normalizedPath, name)
           return {
             id: fullPath,
-            name: entry.name,
+            name,
             path: fullPath,
             size: 1024 * 1024,
             type: 'directory' as const,
@@ -376,9 +378,9 @@ export async function scanDirectory(
 
       // Progressive streaming for root directory children
       await Promise.all(
-        dirEntries.map(async (entry) => {
+        dirNames.map(async (name) => {
           if (isCancelled || ctx.isCapped) return
-          const fullPath = path.join(dirPath, entry.name)
+          const fullPath = path.join(normalizedPath, name)
           if (ctx.excludedSet.has(fullPath.toLowerCase())) return
 
           const subDirNode = await scanDirectory(fullPath, depth + 1, ctx, nextOpaqueDepth)
@@ -446,9 +448,9 @@ export async function scanDirectory(
         })
       )
     } else {
-      const subDirPromises = dirEntries.map(async (entry) => {
+      const subDirPromises = dirNames.map(async (name) => {
         if (isCancelled || ctx.isCapped) return null
-        const fullPath = path.join(dirPath, entry.name)
+        const fullPath = path.join(normalizedPath, name)
         if (ctx.excludedSet.has(fullPath.toLowerCase())) return null
 
         return scanDirectory(fullPath, depth + 1, ctx, nextOpaqueDepth)
@@ -494,7 +496,10 @@ export async function scanDirectory(
 
 export async function performScan(options: ScanOptions): Promise<FileNode | null> {
   isCancelled = false
-  const targetPath = options.targetPath || 'C:\\'
+  let targetPath = options.targetPath || 'C:\\'
+  if (/^[a-zA-Z]:$/.test(targetPath)) {
+    targetPath = `${targetPath}\\`
+  }
   const excludedSet = new Set((options.excludePaths || []).map((p) => p.toLowerCase()))
 
   const ctx: ScanContext = {
@@ -522,7 +527,10 @@ export async function performScan(options: ScanOptions): Promise<FileNode | null
 
 async function runScan(options: ScanOptions): Promise<void> {
   isCancelled = false
-  const targetPath = options.targetPath || workerData?.targetPath || 'C:\\'
+  let targetPath = options.targetPath || workerData?.targetPath || 'C:\\'
+  if (/^[a-zA-Z]:$/.test(targetPath)) {
+    targetPath = `${targetPath}\\`
+  }
   const excludedSet = new Set(
     (options.excludePaths || []).map((p) => p.toLowerCase())
   )
@@ -623,7 +631,10 @@ export async function runScanDirectly(
   }
 ): Promise<FileNode> {
   isCancelled = false
-  const targetPath = options.targetPath || 'C:\\'
+  let targetPath = options.targetPath || 'C:\\'
+  if (/^[a-zA-Z]:$/.test(targetPath)) {
+    targetPath = `${targetPath}\\`
+  }
   const excludedSet = new Set(
     (options.excludePaths || []).map((p) => p.toLowerCase())
   )

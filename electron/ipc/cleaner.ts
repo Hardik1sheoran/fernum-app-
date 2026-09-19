@@ -186,40 +186,30 @@ export async function inspectDirectoryJunk(dirPath: string): Promise<{ sizeBytes
     const current = stack.pop()!
     inspectedDirs++
 
-    let entries: fs.Dirent[]
+    let names: string[]
     try {
-      entries = await fs.promises.readdir(current, { withFileTypes: true })
+      names = await fs.promises.readdir(current)
     } catch {
       continue
     }
 
-    const files: string[] = []
-
-    for (const entry of entries) {
-      if (entry.isSymbolicLink()) continue
+    for (const name of names) {
       const fullPath =
         process.platform === 'win32' || /^[a-zA-Z]:/.test(current) || current.includes('\\')
-          ? path.win32.join(current, entry.name)
-          : path.join(current, entry.name)
+          ? path.win32.join(current, name)
+          : path.join(current, name)
 
-      if (entry.isDirectory()) {
-        stack.push(fullPath)
-      } else if (entry.isFile()) {
-        files.push(fullPath)
-      }
-    }
-
-    if (files.length > 0) {
-      const BATCH_SIZE = 64
-      for (let i = 0; i < files.length; i += BATCH_SIZE) {
-        const batch = files.slice(i, i + BATCH_SIZE)
-        const stats = await Promise.allSettled(batch.map((f) => fs.promises.stat(f)))
-        for (const st of stats) {
-          if (st.status === 'fulfilled' && st.value) {
-            sizeBytes += st.value.size
-            fileCount++
-          }
+      try {
+        const st = await fs.promises.lstat(fullPath)
+        if (st.isSymbolicLink()) continue
+        if (st.isDirectory()) {
+          stack.push(fullPath)
+        } else if (st.isFile()) {
+          sizeBytes += st.size
+          fileCount++
         }
+      } catch {
+        // Skip inaccessible item individually
       }
     }
   }

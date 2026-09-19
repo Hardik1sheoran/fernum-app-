@@ -68,18 +68,19 @@ $items | ConvertTo-Json -Compress
 export async function getDirectorySizeBytes(dirPath: string): Promise<number> {
   let totalBytes = 0
   try {
-    const entries = await fs.promises.readdir(dirPath, { withFileTypes: true })
-    for (const entry of entries) {
-      const fullPath = path.join(dirPath, entry.name)
-      if (entry.isDirectory()) {
-        totalBytes += await getDirectorySizeBytes(fullPath)
-      } else if (entry.isFile()) {
-        try {
-          const stats = await fs.promises.stat(fullPath)
+    const entries = await fs.promises.readdir(dirPath)
+    for (const name of entries) {
+      const fullPath = path.join(dirPath, name)
+      try {
+        const stats = await fs.promises.lstat(fullPath)
+        if (stats.isSymbolicLink()) continue
+        if (stats.isDirectory()) {
+          totalBytes += await getDirectorySizeBytes(fullPath)
+        } else if (stats.isFile()) {
           totalBytes += stats.size
-        } catch {
-          // Ignore individual file stat failures (locked files)
         }
+      } catch {
+        // Ignore individual file stat failures (locked files / access denied)
       }
     }
   } catch {
@@ -150,11 +151,10 @@ export async function scanLeftoverCandidates(
 
     try {
       if (!fs.existsSync(target.root)) continue
-      const entries = await fs.promises.readdir(target.root, { withFileTypes: true })
+      const entries = await fs.promises.readdir(target.root)
 
-      for (const entry of entries) {
-        if (!entry.isDirectory()) continue
-        const fullPath = path.join(target.root, entry.name)
+      for (const name of entries) {
+        const fullPath = path.join(target.root, name)
         const normalized = fullPath.toLowerCase()
 
         if (checkedPaths.has(normalized)) continue
@@ -163,7 +163,14 @@ export async function scanLeftoverCandidates(
         // Ensure path is not protected or root
         if (isProtectedSystemPath(fullPath)) continue
 
-        if (isResidueMatch(entry.name, keywords)) {
+        try {
+          const stats = await fs.promises.lstat(fullPath)
+          if (stats.isSymbolicLink() || !stats.isDirectory()) continue
+        } catch {
+          continue
+        }
+
+        if (isResidueMatch(name, keywords)) {
           const sizeBytes = await getDirectorySizeBytes(fullPath)
           residues.push({
             path: fullPath,
