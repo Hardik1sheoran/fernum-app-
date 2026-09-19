@@ -1,6 +1,7 @@
 process.env.UV_THREADPOOL_SIZE = '64'
 import { app, BrowserWindow, ipcMain } from 'electron'
 import path from 'node:path'
+import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import { registerScanIpc, cleanupScanIpc } from './ipc/scan'
 import { registerFsOpsIpc } from './ipc/fs-ops'
@@ -22,7 +23,8 @@ process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL
 
 let mainWindow: BrowserWindow | null = null
 
-const preloadPath = path.join(__dirname, 'preload.js')
+const preloadCjsPath = path.join(__dirname, 'preload.cjs')
+const preloadPath = fs.existsSync(preloadCjsPath) ? preloadCjsPath : path.join(__dirname, 'preload.js')
 
 function createWindow(): void {
   const iconPath = path.join(process.env.VITE_PUBLIC || path.join(__dirname, '../dist'), 'icon.ico')

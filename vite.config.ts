@@ -30,23 +30,18 @@ export default defineConfig({
         },
       },
       {
-        entry: 'electron/preload.ts',
         onstart(options) {
           options.reload()
         },
         vite: {
           build: {
-            lib: {
-              entry: 'electron/preload.ts',
-              formats: ['cjs'],
-              fileName: () => '[name].js',
-            },
             outDir: 'dist-electron',
             rollupOptions: {
+              input: path.resolve(__dirname, 'electron/preload.ts'),
               external: ['electron'],
               output: {
                 format: 'cjs',
-                entryFileNames: '[name].js',
+                entryFileNames: 'preload.cjs',
                 inlineDynamicImports: true,
               },
             },
@@ -82,5 +77,8 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    watch: {
+      ignored: ['**/release/**', '**/dist/**', '**/dist-electron/**'],
+    },
   },
 })
