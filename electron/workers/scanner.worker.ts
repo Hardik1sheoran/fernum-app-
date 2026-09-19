@@ -284,8 +284,8 @@ export async function scanDirectory(
       lastModified: file.mtimeMs,
     }
 
-    const maxLeafDepth = ctx.deepScan ? 15 : 5
-    if ((ctx.deepScan || opaqueDepth < 2) && depth < maxLeafDepth) {
+    // Retain files for all normal folders. Only omit leaf files deep inside opaque bundle directories (e.g. >1 level inside node_modules)
+    if (ctx.deepScan || opaqueDepth <= 1) {
       childNodes.push(fileNode)
     }
     dirNode.size += fileNode.size
@@ -509,7 +509,7 @@ export async function performScan(options: ScanOptions): Promise<FileNode | null
     lastPartialTime: Date.now(),
     targetPath,
     excludedSet,
-    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 6),
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 20),
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
     deepScan: Boolean(options.deepScan),
@@ -542,7 +542,7 @@ async function runScan(options: ScanOptions): Promise<void> {
     lastPartialTime: Date.now(),
     targetPath,
     excludedSet,
-    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 6),
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 20),
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
     deepScan: Boolean(options.deepScan),
@@ -646,7 +646,7 @@ export async function runScanDirectly(
     lastPartialTime: Date.now(),
     targetPath,
     excludedSet,
-    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 6),
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 20),
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
     onPartialUpdate: callbacks?.onPartial,

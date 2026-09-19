@@ -31,6 +31,7 @@ export function initBrowserFallback(): void {
   if (typeof window === 'undefined' || window.electronAPI) return
 
   let progressListeners: Array<(progress: ScanProgress) => void> = []
+  let partialListeners: Array<(root: FileNode) => void> = []
   let completeListeners: Array<(root: FileNode) => void> = []
   let errorListeners: Array<(error: string) => void> = []
   let scanTimer: ReturnType<typeof setInterval> | null = null
@@ -44,8 +45,11 @@ export function initBrowserFallback(): void {
     stopPolling()
     scanTimer = setInterval(async () => {
       try {
-        const state = await api<{ progress: ScanProgress; result: FileNode | null }>('/api/scan/status')
+        const state = await api<{ progress: ScanProgress; result: FileNode | null; partial?: FileNode | null }>('/api/scan/status')
         progressListeners.forEach((listener) => listener(state.progress))
+        if (state.partial) {
+          partialListeners.forEach((listener) => listener(state.partial!))
+        }
         if (state.progress.status === 'completed' && state.result) {
           stopPolling()
           completeListeners.forEach((listener) => listener(state.result!))
@@ -89,7 +93,10 @@ export function initBrowserFallback(): void {
       completeListeners.push(listener)
       return () => { completeListeners = completeListeners.filter((item) => item !== listener) }
     },
-    onScanPartial: () => () => {},
+    onScanPartial: (listener) => {
+      partialListeners.push(listener)
+      return () => { partialListeners = partialListeners.filter((item) => item !== listener) }
+    },
     onScanError: (listener) => {
       errorListeners.push(listener)
       return () => { errorListeners = errorListeners.filter((item) => item !== listener) }

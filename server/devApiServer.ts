@@ -17,6 +17,7 @@ import type {
   SystemStats,
 } from '../shared/types'
 import { isProtectedSystemPath } from '../shared/pathSecurity'
+import { runScanDirectly, cancelDirectScan } from '../electron/workers/scanner.worker'
 
 const execAsync = promisify(exec)
 
@@ -45,6 +46,7 @@ let activeScanProgress: ScanProgress = {
   percentage: 0,
 }
 let activeScanResult: FileNode | null = null
+let activePartialResult: FileNode | null = null
 let scanListeners: Array<(event: string, data: unknown) => void> = []
 
 function broadcastScanEvent(event: string, data: unknown) {
@@ -55,129 +57,6 @@ function broadcastScanEvent(event: string, data: unknown) {
       // ignore
     }
   })
-}
-
-async function scanDirectory(
-  dirPath: string,
-  depth: number,
-  maxDepth: number,
-  excludedSet: Set<string>,
-  onProgress: (scannedFiles: number, scannedBytes: number, current: string) => void,
-  counters: { totalFiles: number; totalBytes: number; lastReport: number }
-): Promise<FileNode | null> {
-  if (activeScanCancelled) return null
-
-  const baseName = path.basename(dirPath) || dirPath
-  const lowerName = baseName.toLowerCase()
-
-  if (['$recycle.bin', 'system volume information', 'config.msi', 'recovery'].includes(lowerName)) {
-    return null
-  }
-  if (excludedSet.has(dirPath.toLowerCase())) return null
-
-  const dirNode: FileNode = {
-    id: dirPath,
-    name: baseName,
-    path: dirPath,
-    size: 0,
-    type: 'directory',
-    category: 'other',
-    children: [],
-  }
-
-  let entries: fs.Dirent[] = []
-  try {
-    entries = await fsPromises.readdir(dirPath, { withFileTypes: true })
-  } catch {
-    return null
-  }
-
-  const childNodes: FileNode[] = []
-  const fileEntries: fs.Dirent[] = []
-  const dirEntries: fs.Dirent[] = []
-
-  for (const entry of entries) {
-    if (entry.isSymbolicLink()) continue
-    const lower = entry.name.toLowerCase()
-    if (['pagefile.sys', 'hiberfil.sys', 'swapfile.sys', 'dumpstack.log.tmp'].includes(lower)) continue
-
-    if (entry.isDirectory()) {
-      dirEntries.push(entry)
-    } else if (entry.isFile()) {
-      fileEntries.push(entry)
-    }
-  }
-
-  // Concurrent stats in batches of 32
-  const BATCH_SIZE = 32
-  for (let i = 0; i < fileEntries.length; i += BATCH_SIZE) {
-    if (activeScanCancelled) return null
-    const batch = fileEntries.slice(i, i + BATCH_SIZE)
-    const statsResults = await Promise.all(
-      batch.map(async (entry) => {
-        const fullPath = path.join(dirPath, entry.name)
-        if (excludedSet.has(fullPath.toLowerCase())) return null
-        try {
-          const stats = await fsPromises.stat(fullPath)
-          const fileSize = stats.size || 0
-          const ext = path.extname(entry.name)
-          const fileNode: FileNode = {
-            id: fullPath,
-            name: entry.name,
-            path: fullPath,
-            size: fileSize,
-            type: 'file',
-            category: getCategory(ext),
-            extension: ext,
-            lastModified: stats.mtimeMs,
-          }
-          return fileNode
-        } catch {
-          return null
-        }
-      })
-    )
-
-    for (const node of statsResults) {
-      if (node) {
-        childNodes.push(node)
-        dirNode.size += node.size
-        counters.totalFiles++
-        counters.totalBytes += node.size
-      }
-    }
-
-    const now = Date.now()
-    if (now - counters.lastReport > 150) {
-      counters.lastReport = now
-      onProgress(counters.totalFiles, counters.totalBytes, dirPath)
-    }
-  }
-
-  for (const entry of dirEntries) {
-    if (activeScanCancelled) return null
-    const fullPath = path.join(dirPath, entry.name)
-    if (excludedSet.has(fullPath.toLowerCase())) continue
-    if (maxDepth > 0 && depth >= maxDepth) continue
-
-    const subDirNode = await scanDirectory(
-      fullPath,
-      depth + 1,
-      maxDepth,
-      excludedSet,
-      onProgress,
-      counters
-    )
-    if (subDirNode && (subDirNode.size > 0 || (subDirNode.children && subDirNode.children.length > 0))) {
-      childNodes.push(subDirNode)
-      dirNode.size += subDirNode.size
-    }
-  }
-
-  childNodes.sort((a, b) => b.size - a.size)
-  dirNode.children = childNodes
-
-  return dirNode
 }
 
 export function devApiServerPlugin(): Plugin {
@@ -438,13 +317,17 @@ $items | ConvertTo-Json -Compress -Depth 2
           })
           req.on('end', async () => {
             try {
-              const options: ScanOptions = body ? JSON.parse(body) : { targetPath: 'C:\\Users\\hardi' }
-              const targetPath = options.targetPath || process.env.USERPROFILE || 'C:\\Users\\hardi'
+              const options: ScanOptions = body ? JSON.parse(body) : { targetPath: 'C:\\' }
+              let targetPath = options.targetPath || process.env.USERPROFILE || 'C:\\'
+              if (/^[a-zA-Z]:$/.test(targetPath)) {
+                targetPath = `${targetPath}\\`
+              }
               const excludedSet = new Set((options.excludePaths || []).map((p) => p.toLowerCase()))
-              const maxDepth = options.maxDepth || 20
+              const maxDepth = options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 6)
 
               activeScanCancelled = false
               activeScanResult = null
+              activePartialResult = null
               activeScanProgress = {
                 status: 'scanning',
                 currentPath: targetPath,
@@ -457,46 +340,60 @@ $items | ConvertTo-Json -Compress -Depth 2
               res.writeHead(200, { 'Content-Type': 'application/json' })
               res.end(JSON.stringify({ success: true, targetPath }))
 
-              // Run scan asynchronously in background
-              const counters = { totalFiles: 0, totalBytes: 0, lastReport: Date.now() }
-              const rootNode = await scanDirectory(
-                targetPath,
-                0,
-                maxDepth,
-                excludedSet,
-                (scannedFiles, scannedBytes, current) => {
+              // Run robust scanner engine asynchronously in background
+              try {
+                const rootNode = await runScanDirectly(
+                  {
+                    targetPath,
+                    excludePaths: Array.from(excludedSet),
+                    maxDepth,
+                    deepScan: Boolean(options.deepScan),
+                    isPro: Boolean(options.isPro),
+                    maxBytes: options.maxBytes,
+                  },
+                  {
+                    onProgress: (progress) => {
+                      activeScanProgress = progress
+                      broadcastScanEvent('progress', progress)
+                    },
+                    onPartial: (partialNode) => {
+                      activePartialResult = partialNode
+                      broadcastScanEvent('partial', partialNode)
+                    },
+                  }
+                )
+
+                if (activeScanCancelled) {
+                  activeScanProgress.status = 'cancelled'
+                  broadcastScanEvent('progress', activeScanProgress)
+                  return
+                }
+
+                if (rootNode) {
+                  activeScanResult = rootNode
+                  activePartialResult = rootNode
                   activeScanProgress = {
-                    status: 'scanning',
-                    currentPath: current,
-                    scannedFiles,
-                    scannedBytes,
-                    percentage: 0,
+                    status: 'completed',
+                    currentPath: targetPath,
+                    scannedFiles: activeScanProgress.scannedFiles || 1,
+                    scannedBytes: rootNode.size,
+                    percentage: 100,
                   }
                   broadcastScanEvent('progress', activeScanProgress)
-                },
-                counters
-              )
-
-              if (activeScanCancelled) {
-                activeScanProgress.status = 'cancelled'
-                broadcastScanEvent('progress', activeScanProgress)
-                return
-              }
-
-              if (rootNode) {
-                activeScanResult = rootNode
-                activeScanProgress = {
-                  status: 'completed',
-                  currentPath: targetPath,
-                  scannedFiles: counters.totalFiles,
-                  scannedBytes: counters.totalBytes,
-                  percentage: 100,
+                  broadcastScanEvent('complete', rootNode)
+                } else {
+                  activeScanProgress.status = 'error'
+                  broadcastScanEvent('error', `Could not access ${targetPath}`)
                 }
-                broadcastScanEvent('progress', activeScanProgress)
-                broadcastScanEvent('complete', rootNode)
-              } else {
-                activeScanProgress.status = 'error'
-                broadcastScanEvent('error', `Could not access ${targetPath}`)
+              } catch (err: unknown) {
+                const errMsg = err instanceof Error ? err.message : String(err)
+                if (errMsg.includes('cancelled')) {
+                  activeScanProgress.status = 'cancelled'
+                  broadcastScanEvent('progress', activeScanProgress)
+                } else {
+                  activeScanProgress.status = 'error'
+                  broadcastScanEvent('error', errMsg)
+                }
               }
             } catch (err) {
               broadcastScanEvent('error', String(err))
@@ -507,6 +404,7 @@ $items | ConvertTo-Json -Compress -Depth 2
 
         // Cancel Scan
         if (pathname === '/api/scan/cancel') {
+          cancelDirectScan()
           activeScanCancelled = true
           activeScanProgress.status = 'cancelled'
           broadcastScanEvent('progress', activeScanProgress)
@@ -522,6 +420,7 @@ $items | ConvertTo-Json -Compress -Depth 2
             JSON.stringify({
               progress: activeScanProgress,
               result: activeScanProgress.status === 'completed' ? activeScanResult : null,
+              partial: activePartialResult,
             })
           )
           return

@@ -95,16 +95,7 @@ export const App: React.FC = () => {
       }
 
       if (!hasWarmCached) {
-        // Initialize rootNode with empty directory so canvas is mounted and renders progressive partial updates
-        setRootNode({
-          id: drive.path,
-          name: drive.name || drive.path,
-          path: drive.path,
-          size: 0,
-          type: 'directory',
-          category: 'other',
-          children: [],
-        })
+        setRootNode(null)
         setScanProgress({
           status: 'scanning',
           currentPath: drive.path,
@@ -304,7 +295,7 @@ export const App: React.FC = () => {
       setDrives([homeDrive, ...drives])
     }
     setSelectedDrive(homeDrive)
-    handleStartScan(homeDrive)
+    handleStartScan(homeDrive, true, false)
   }
 
   const handleRevealInExplorer = (targetPath: string) => {
@@ -336,7 +327,7 @@ export const App: React.FC = () => {
           setDrives([customFolderDrive, ...drives])
         }
         setSelectedDrive(customFolderDrive)
-        handleStartScan(customFolderDrive)
+        handleStartScan(customFolderDrive, true, false)
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err)
         setDriveError(message)
@@ -360,7 +351,7 @@ export const App: React.FC = () => {
       setDrives([folderDrive, ...drives])
     }
     setSelectedDrive(folderDrive)
-    handleStartScan(folderDrive)
+    handleStartScan(folderDrive, true, false)
   }
 
   const handleCancelScan = async () => {
@@ -411,7 +402,7 @@ export const App: React.FC = () => {
               currentViewNode={currentViewNode}
               errorMessage={driveError}
               onSelectDrive={setSelectedDrive}
-              onStartScan={(drive) => handleStartScan(drive, false, false)}
+              onStartScan={(drive) => handleStartScan(drive, true, false)}
               onStartDeepScan={(drive) => handleStartScan(drive, true, true)}
               onScanHome={handleScanHome}
               onSelectQuickFolder={handleSelectQuickFolder}
