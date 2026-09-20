@@ -15,6 +15,7 @@ import { useSettingsStore } from './stores/settingsStore'
 import { useLicenseStore } from './stores/licenseStore'
 import { useTheme } from './hooks/useTheme'
 import { RainbowMarblingCanvas } from './components/RainbowMarbling/RainbowMarblingCanvas'
+import { AuroraCanvas } from './components/Aurora/AuroraCanvas'
 import type { DriveInfo, QuickFolderInfo, ScanProgress, FileNode } from '@shared/types'
 
 export const App: React.FC = () => {
@@ -388,6 +389,9 @@ export const App: React.FC = () => {
     <div className="app-root relative flex h-screen w-screen flex-col overflow-hidden bg-[#18181b] text-zinc-100 font-sans select-none">
       {/* Living Liquid Marbling Canvas for Rainbow Theme */}
       <RainbowMarblingCanvas active={theme === 'rainbow'} />
+
+      {/* Living Aurora Borealis Canvas with Falling Stars for Aurora Theme */}
+      <AuroraCanvas active={theme === 'aurora'} />
 
       {/* Top Title Bar */}
       <Header

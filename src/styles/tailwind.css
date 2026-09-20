@@ -228,22 +228,26 @@
    AURORA THEME: Velvet Midnight, Cosmic Amethyst, and Violet
    ========================================================================== */
 .theme-aurora {
-  --app-bg: #0d091a;
-  --panel-bg: #150f28;
-  --card-bg: #1e163a;
-  --border-color: #3e2e74;
+  --app-bg: transparent;
+  --panel-bg: rgba(13, 9, 26, 0.65);
+  --card-bg: rgba(22, 15, 44, 0.55);
+  --border-color: rgba(192, 132, 252, 0.22);
   --text-primary: #faf5ff;
   --text-secondary: #d8b4fe;
-  --accent-color: #9333ea;
+  --accent-color: #00ff87;
 }
 
 .theme-aurora,
 .theme-aurora body,
 .theme-aurora main,
-.theme-aurora .app-root,
+.theme-aurora .app-root {
+  background-color: transparent !important;
+}
+
 .theme-aurora .bg-\[\#18181b\],
 .theme-aurora .dark\:bg-\[\#18181b\] {
-  background-color: #0d091a !important;
+  background-color: rgba(9, 6, 20, 0.45) !important;
+  backdrop-filter: blur(20px) saturate(170%);
 }
 
 .theme-aurora header,
@@ -257,7 +261,8 @@
 .theme-aurora .bg-\[\#1f242d\],
 .theme-aurora .dark\:bg-\[\#191d24\],
 .theme-aurora .dark\:bg-\[\#1c2028\] {
-  background-color: #150f28 !important;
+  background-color: rgba(12, 8, 26, 0.62) !important;
+  backdrop-filter: blur(24px) saturate(180%);
 }
 
 .theme-aurora .bg-\[\#28282e\],
@@ -277,17 +282,19 @@
 .theme-aurora .bg-slate-800,
 .theme-aurora .dark\:bg-\[\#14171d\],
 .theme-aurora .dark\:bg-\[\#15181f\] {
-  background-color: #1e163a !important;
+  background-color: rgba(22, 14, 46, 0.55) !important;
+  backdrop-filter: blur(18px);
 }
 
 .theme-aurora .bg-slate-950 {
-  background-color: #0b0717 !important;
+  background-color: rgba(8, 5, 18, 0.40) !important;
+  backdrop-filter: blur(20px);
 }
 
 .theme-aurora .hover\:bg-\[\#25252b\]:hover,
 .theme-aurora .hover\:bg-\[\#303038\]:hover,
 .theme-aurora .hover\:bg-white\/\[0\.03\]:hover {
-  background-color: #2b1f52 !important;
+  background-color: rgba(192, 132, 252, 0.12) !important;
 }
 
 .theme-aurora .border-\[\#2d2d33\],
@@ -661,8 +668,8 @@
 
 .theme-rainbow .bg-\[\#18181b\],
 .theme-rainbow .dark\:bg-\[\#18181b\] {
-  background-color: rgba(14, 12, 22, 0.60) !important;
-  backdrop-filter: blur(28px) saturate(190%);
+  background-color: rgba(14, 11, 24, 0.42) !important;
+  backdrop-filter: blur(20px) saturate(180%);
 }
 
 .theme-rainbow header,
@@ -676,8 +683,8 @@
 .theme-rainbow .bg-\[\#1f242d\],
 .theme-rainbow .dark\:bg-\[\#191d24\],
 .theme-rainbow .dark\:bg-\[\#1c2028\] {
-  background-color: rgba(18, 15, 28, 0.72) !important;
-  backdrop-filter: blur(24px) saturate(180%);
+  background-color: rgba(18, 14, 30, 0.58) !important;
+  backdrop-filter: blur(22px) saturate(180%);
 }
 
 .theme-rainbow .bg-\[\#28282e\],
@@ -697,13 +704,13 @@
 .theme-rainbow .bg-slate-800,
 .theme-rainbow .dark\:bg-\[\#14171d\],
 .theme-rainbow .dark\:bg-\[\#15181f\] {
-  background-color: rgba(28, 22, 42, 0.65) !important;
-  backdrop-filter: blur(20px);
+  background-color: rgba(28, 20, 46, 0.48) !important;
+  backdrop-filter: blur(16px);
 }
 
 .theme-rainbow .bg-slate-950 {
-  background-color: rgba(12, 10, 18, 0.8) !important;
-  backdrop-filter: blur(24px);
+  background-color: rgba(12, 9, 22, 0.36) !important;
+  backdrop-filter: blur(16px);
 }
 
 .theme-rainbow .hover\:bg-\[\#25252b\]:hover,

@@ -63,12 +63,12 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
         vec2 swirl(vec2 p, float t) {
           for (int i = 1; i <= 5; i++) {
             float fi = float(i);
-            float speed = t * 0.14;
+            float speed = t * 0.42;
             vec2 offset = vec2(
-              sin(p.y * 1.65 * fi + speed * (0.8 + fi * 0.18) + fi * 1.618),
-              cos(p.x * 1.65 * fi + speed * (0.75 + fi * 0.18) + fi * 2.718)
+              sin(p.y * 1.35 * fi + speed * (0.85 + fi * 0.15) + fi * 1.618),
+              cos(p.x * 1.35 * fi + speed * (0.80 + fi * 0.15) + fi * 2.718)
             );
-            p += offset * (0.42 / fi);
+            p += offset * (0.55 / fi);
           }
           return p;
         }
@@ -76,19 +76,20 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
         void main() {
           vec2 uv = gl_FragCoord.xy / u_resolution.xy;
           float aspect = u_resolution.x / u_resolution.y;
-          vec2 p = (uv - 0.5) * vec2(aspect, 1.0) * 2.6;
+          // Widen the viewing area so waves and ribbons span broadly across the entire screen
+          vec2 p = (uv - 0.5) * vec2(aspect, 1.0) * 1.35;
 
-          // Organic, continuous liquid motion with phase shift
+          // Organic, continuous liquid motion with energetic fluid flow
           float t = u_time;
           vec2 w1 = swirl(p, t);
-          vec2 w2 = swirl(w1 * 1.15 + vec2(sin(t * 0.07) * 0.4, cos(t * 0.08) * 0.4), t * 1.1);
+          vec2 w2 = swirl(w1 * 1.1 + vec2(sin(t * 0.25) * 0.5, cos(t * 0.28) * 0.5), t * 1.15);
 
-          // Liquid ribbon folding and subtle waves
-          float ribbon = sin(w2.x * 2.4 + w2.y * 2.1 + t * 0.22) * 0.5 + 0.5;
-          float fold = cos(w1.x * 2.8 - w1.y * 2.6 - t * 0.16) * 0.5 + 0.5;
+          // Liquid ribbon folding and fluid wave transitions
+          float ribbon = sin(w2.x * 1.8 + w2.y * 1.5 + t * 0.65) * 0.5 + 0.5;
+          float fold = cos(w1.x * 2.0 - w1.y * 1.8 - t * 0.52) * 0.5 + 0.5;
           
-          // Phase-shifted seamless cyclic scalar in [0, 1]
-          float val = fract(ribbon * 0.55 + fold * 0.45 + t * 0.035);
+          // Phase-shifted seamless cyclic scalar in [0, 1] with active continuous motion
+          float val = fract(ribbon * 0.52 + fold * 0.48 + t * 0.14);
 
           // Smooth 7-color continuous spectral blending
           vec3 col;
@@ -101,7 +102,7 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
             float f = smoothstep(step, step * 2.0, val);
             col = mix(c_orange, c_yellow, f);
           } else if (val < step * 3.0) {
-            float f = smoothstep(step * 2.0, step * 3.0, val);
+            float f = smoothstep(step, step * 2.0, val);
             col = mix(c_yellow, c_green, f);
           } else if (val < step * 4.0) {
             float f = smoothstep(step * 3.0, step * 4.0, val);
@@ -118,8 +119,8 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
           }
 
           // Soft acrylic highlight sheen along the swirling fluid contours
-          float sheen = smoothstep(0.35, 0.65, abs(fract(ribbon * 2.5) - 0.5) * 2.0);
-          col += vec3(0.08, 0.08, 0.10) * sheen;
+          float sheen = smoothstep(0.35, 0.65, abs(fract(ribbon * 2.0) - 0.5) * 2.0);
+          col += vec3(0.09, 0.09, 0.11) * sheen;
 
           gl_FragColor = vec4(col, 1.0);
         }
@@ -240,19 +241,19 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
 
       const render2D = () => {
         if (isDisposed || !ctx || !canvas) return
-        phase += 0.008
+        phase += 0.025
         const w = canvas.width
         const h = canvas.height
 
         ctx.clearRect(0, 0, w, h)
 
-        // Draw overlapping organic fluid waves
+        // Draw overlapping organic fluid waves across wide screen area
         for (let i = 0; i < colors.length; i++) {
           const color = colors[i]
           const offsetPhase = phase + (i * Math.PI * 2) / colors.length
-          const cx = w * 0.5 + Math.sin(offsetPhase * 0.6) * (w * 0.35)
-          const cy = h * 0.5 + Math.cos(offsetPhase * 0.7) * (h * 0.35)
-          const radius = Math.max(w, h) * (0.45 + 0.15 * Math.sin(offsetPhase * 0.9))
+          const cx = w * 0.5 + Math.sin(offsetPhase * 0.7) * (w * 0.45)
+          const cy = h * 0.5 + Math.cos(offsetPhase * 0.8) * (h * 0.45)
+          const radius = Math.max(w, h) * (0.65 + 0.25 * Math.sin(offsetPhase * 0.9))
 
           const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, radius)
           grad.addColorStop(0, color)
