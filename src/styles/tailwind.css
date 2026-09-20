@@ -637,3 +637,145 @@
   box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.8) !important;
 }
 
+/* ==========================================================================
+   RAINBOW THEME: Living Liquid Marbling with Frosted Acrylic Glassmorphism
+   Colors from Reference: #E93E8F (Pink), #FF6A1C (Orange), #FFD940 (Yellow),
+   #44D46E (Green), #227BFF (Blue), #7B2CBF (Violet), #06B6D4 (Cyan)
+   ========================================================================== */
+.theme-rainbow {
+  --app-bg: transparent;
+  --panel-bg: rgba(18, 16, 26, 0.72);
+  --card-bg: rgba(26, 22, 38, 0.65);
+  --border-color: rgba(255, 255, 255, 0.12);
+  --text-primary: #ffffff;
+  --text-secondary: #f3e8ff;
+  --accent-color: #e93e8f;
+}
+
+.theme-rainbow,
+.theme-rainbow body,
+.theme-rainbow main,
+.theme-rainbow .app-root {
+  background-color: transparent !important;
+}
+
+.theme-rainbow .bg-\[\#18181b\],
+.theme-rainbow .dark\:bg-\[\#18181b\] {
+  background-color: rgba(14, 12, 22, 0.60) !important;
+  backdrop-filter: blur(28px) saturate(190%);
+}
+
+.theme-rainbow header,
+.theme-rainbow aside,
+.theme-rainbow .bg-\[\#1c1c20\],
+.theme-rainbow .bg-\[\#202024\],
+.theme-rainbow .bg-\[\#1c2028\],
+.theme-rainbow .bg-\[\#191d24\],
+.theme-rainbow .bg-\[\#1a1a1f\],
+.theme-rainbow .bg-\[\#1e1e24\],
+.theme-rainbow .bg-\[\#1f242d\],
+.theme-rainbow .dark\:bg-\[\#191d24\],
+.theme-rainbow .dark\:bg-\[\#1c2028\] {
+  background-color: rgba(18, 15, 28, 0.72) !important;
+  backdrop-filter: blur(24px) saturate(180%);
+}
+
+.theme-rainbow .bg-\[\#28282e\],
+.theme-rainbow .bg-\[\#282830\],
+.theme-rainbow .bg-\[\#242429\],
+.theme-rainbow .bg-\[\#27272d\],
+.theme-rainbow .bg-\[\#25252b\],
+.theme-rainbow .bg-\[\#15181f\],
+.theme-rainbow .bg-\[\#14171d\],
+.theme-rainbow .bg-\[\#19191d\],
+.theme-rainbow .bg-\[\#16161a\],
+.theme-rainbow .bg-\[\#2b2b32\],
+.theme-rainbow .bg-\[\#21232d\],
+.theme-rainbow .bg-\[\#252932\],
+.theme-rainbow .bg-\[\#141418\],
+.theme-rainbow .bg-slate-900,
+.theme-rainbow .bg-slate-800,
+.theme-rainbow .dark\:bg-\[\#14171d\],
+.theme-rainbow .dark\:bg-\[\#15181f\] {
+  background-color: rgba(28, 22, 42, 0.65) !important;
+  backdrop-filter: blur(20px);
+}
+
+.theme-rainbow .bg-slate-950 {
+  background-color: rgba(12, 10, 18, 0.8) !important;
+  backdrop-filter: blur(24px);
+}
+
+.theme-rainbow .hover\:bg-\[\#25252b\]:hover,
+.theme-rainbow .hover\:bg-\[\#303038\]:hover,
+.theme-rainbow .hover\:bg-white\/\[0\.03\]:hover {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.theme-rainbow .border-\[\#2d2d33\],
+.theme-rainbow .border-\[\#32323a\],
+.theme-rainbow .border-\[\#2c2c32\],
+.theme-rainbow .border-\[\#2f2f36\],
+.theme-rainbow .border-\[\#2e2e36\],
+.theme-rainbow .border-\[\#2a2a32\],
+.theme-rainbow .border-\[\#2b2b34\],
+.theme-rainbow .border-\[\#27272d\],
+.theme-rainbow .border-\[\#26262d\],
+.theme-rainbow .border-\[\#33333d\],
+.theme-rainbow .border-\[\#363640\],
+.theme-rainbow .border-slate-800,
+.theme-rainbow .border-slate-700,
+.theme-rainbow .dark\:border-slate-800 {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+}
+
+.theme-rainbow .text-blue-400,
+.theme-rainbow .text-blue-500 {
+  color: #ff6a1c !important;
+}
+
+.theme-rainbow .bg-blue-600 {
+  background: linear-gradient(135deg, #e93e8f, #ff6a1c, #ffd940, #44d46e, #227bff) !important;
+  background-size: 200% 200% !important;
+  animation: rainbow-shimmer 6s ease infinite !important;
+}
+
+.theme-rainbow .hover\:bg-blue-500:hover {
+  background: linear-gradient(135deg, #ff6a1c, #ffd940, #44d46e, #227bff, #e93e8f) !important;
+}
+
+.theme-rainbow .border-blue-500,
+.theme-rainbow .border-blue-600 {
+  border-color: #ffd940 !important;
+}
+
+@keyframes rainbow-shimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Rainbow Theme Glassmorphism */
+.theme-rainbow .glass-header {
+  background: rgba(18, 14, 28, 0.7) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+}
+.theme-rainbow .glass-sidebar {
+  background: rgba(16, 12, 24, 0.75) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  border-right: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+.theme-rainbow .glass-panel {
+  background: rgba(22, 18, 34, 0.72) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45) !important;
+}
+.theme-rainbow .glass-card {
+  background: rgba(30, 24, 46, 0.6) !important;
+  backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+

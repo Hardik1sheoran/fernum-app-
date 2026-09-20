@@ -18,7 +18,7 @@ export const Header: React.FC<HeaderProps> = ({ onRefreshDrives, onOpenExclusion
   const { isPro, openUpgradeModal } = useLicenseStore()
 
   const handleThemeChange = (newTheme: ThemeMode) => {
-    if (!isPro && (newTheme === 'forest' || newTheme === 'ocean' || newTheme === 'aurora')) {
+    if (!isPro && (newTheme === 'forest' || newTheme === 'ocean' || newTheme === 'aurora' || newTheme === 'rainbow')) {
       openUpgradeModal('Premium themes customisation')
       return
     }
@@ -130,6 +130,9 @@ export const Header: React.FC<HeaderProps> = ({ onRefreshDrives, onOpenExclusion
           </option>
           <option value="aurora" className="bg-[#110d1f] text-purple-200">
             {isPro ? 'Aurora' : 'Aurora (Pro)'}
+          </option>
+          <option value="rainbow" className="bg-[#1e102f] text-pink-300">
+            {isPro ? '🌈 Rainbow' : '🌈 Rainbow (Pro)'}
           </option>
         </select>
       </div>

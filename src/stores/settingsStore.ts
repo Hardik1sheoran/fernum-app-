@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type ThemeMode = 'dark' | 'light' | 'forest' | 'ocean' | 'aurora'
+export type ThemeMode = 'dark' | 'light' | 'forest' | 'ocean' | 'aurora' | 'rainbow'
 
 interface SettingsState {
   theme: ThemeMode
@@ -37,7 +37,7 @@ export const useSettingsStore = create<SettingsState>((set) => ({
   },
   toggleTheme: () => {
     set((state) => {
-      const themes: ThemeMode[] = ['dark', 'light', 'forest', 'ocean', 'aurora']
+      const themes: ThemeMode[] = ['dark', 'light', 'forest', 'ocean', 'aurora', 'rainbow']
       const currentIndex = themes.indexOf(state.theme)
       const nextTheme = themes[(currentIndex + 1) % themes.length]
       try {

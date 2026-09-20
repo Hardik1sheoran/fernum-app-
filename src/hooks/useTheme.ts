@@ -7,7 +7,7 @@ export function useTheme() {
   useEffect(() => {
     const root = document.documentElement
     const body = document.body
-    const classesToRemove = ['dark', 'light', 'theme-forest', 'theme-ocean', 'theme-aurora', 'theme-light']
+    const classesToRemove = ['dark', 'light', 'theme-forest', 'theme-ocean', 'theme-aurora', 'theme-rainbow', 'theme-light']
     root.classList.remove(...classesToRemove)
     if (body) body.classList.remove(...classesToRemove)
 
@@ -23,6 +23,9 @@ export function useTheme() {
     } else if (theme === 'aurora') {
       root.classList.add('dark', 'theme-aurora')
       if (body) body.classList.add('dark', 'theme-aurora')
+    } else if (theme === 'rainbow') {
+      root.classList.add('dark', 'theme-rainbow')
+      if (body) body.classList.add('dark', 'theme-rainbow')
     } else if (theme === 'light') {
       root.classList.add('light', 'theme-light')
       if (body) body.classList.add('light', 'theme-light')

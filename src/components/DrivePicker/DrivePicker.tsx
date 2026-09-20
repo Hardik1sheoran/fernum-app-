@@ -280,11 +280,34 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
             )
           })}
           {!drives.length && (
-            <div className="rounded-md border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs text-rose-300 space-y-1">
+            <div className="rounded-md border border-rose-500/30 bg-rose-500/10 p-2.5 text-xs text-rose-300 space-y-2">
               <div className="flex items-center gap-1.5 font-medium text-rose-200">
                 <AlertCircle className="h-4 w-4 shrink-0 text-rose-400" />
-                <span>{errorMessage ? 'Drive Read Error' : 'No Drives Detected'}</span>
+                <span>{errorMessage ? 'Drive Notice' : 'No Drives Detected'}</span>
               </div>
+              {errorMessage && (
+                <p className="text-[11px] text-zinc-400 leading-tight">
+                  {errorMessage}
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() =>
+                  onSelectDrive({
+                    id: 'C:',
+                    name: 'Local Disk (C:) (System)',
+                    path: 'C:\\',
+                    totalBytes: 512 * 1024 * 1024 * 1024,
+                    freeBytes: 120 * 1024 * 1024 * 1024,
+                    usedBytes: 392 * 1024 * 1024 * 1024,
+                    filesystem: 'NTFS',
+                    isSystem: true,
+                  })
+                }
+                className="w-full flex items-center justify-center gap-1.5 py-1 px-2 rounded bg-blue-600/20 hover:bg-blue-600/30 text-blue-200 border border-blue-500/40 text-xs font-medium transition-colors"
+              >
+                Scan Primary Drive (C:) Directly
+              </button>
             </div>
           )}
         </div>

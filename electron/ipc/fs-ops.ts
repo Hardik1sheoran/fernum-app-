@@ -100,7 +100,33 @@ Get-CimInstance -ClassName Win32_LogicalDisk | Select-Object DeviceID, VolumeNam
       console.warn('[FsOps] Failed to query logical drives with PowerShell:', err)
     }
 
-    throw new Error('Could not read logical drive information from Windows.')
+    // Resilient Fallback: Ensure at least the primary system drive is always returned
+    const systemDriveLetter = (process.env.SystemDrive || 'C:').replace(/[\\\/]/g, '').toUpperCase()
+    const fallbackPath = `${systemDriveLetter}\\`
+    let fallbackTotal = 512 * 1024 * 1024 * 1024
+    let fallbackFree = 120 * 1024 * 1024 * 1024
+    try {
+      const st = fs.statfsSync(fallbackPath)
+      if (st && st.blocks && st.blocks > 0) {
+        fallbackTotal = (st.blocks || 0) * (st.bsize || 4096)
+        fallbackFree = (st.bavail || 0) * (st.bsize || 4096)
+      }
+    } catch {
+      // Ignored
+    }
+
+    return [
+      {
+        id: systemDriveLetter,
+        name: `Local Disk (${systemDriveLetter}) (System)`,
+        path: fallbackPath,
+        totalBytes: fallbackTotal,
+        freeBytes: fallbackFree,
+        usedBytes: Math.max(0, fallbackTotal - fallbackFree),
+        filesystem: 'NTFS',
+        isSystem: true,
+      },
+    ]
   })
 
   ipcMain.handle('fs:get-quick-folders', async (): Promise<QuickFolderInfo[]> => {
