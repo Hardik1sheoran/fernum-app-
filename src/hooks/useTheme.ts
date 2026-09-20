@@ -15,11 +15,11 @@ export function useTheme() {
       root.classList.add('dark')
       if (body) body.classList.add('dark')
     } else if (theme === 'forest') {
-      root.classList.add('dark', 'theme-forest')
-      if (body) body.classList.add('dark', 'theme-forest')
+      root.classList.add('light', 'theme-forest')
+      if (body) body.classList.add('light', 'theme-forest')
     } else if (theme === 'ocean') {
-      root.classList.add('dark', 'theme-ocean')
-      if (body) body.classList.add('dark', 'theme-ocean')
+      root.classList.add('light', 'theme-ocean')
+      if (body) body.classList.add('light', 'theme-ocean')
     } else if (theme === 'aurora') {
       root.classList.add('dark', 'theme-aurora')
       if (body) body.classList.add('dark', 'theme-aurora')
@@ -35,9 +35,11 @@ export function useTheme() {
     if (body) body.setAttribute('data-theme', theme)
 
     if (window.electronAPI?.setTheme) {
-      window.electronAPI.setTheme(theme === 'light' ? 'light' : 'dark').catch(() => {})
+      const electronTheme = (theme === 'light' || theme === 'ocean' || theme === 'forest') ? 'light' : 'dark'
+      window.electronAPI.setTheme(electronTheme).catch(() => {})
     }
   }, [theme])
 
-  return { theme, toggleTheme, setTheme, isDark: theme !== 'light' }
+  const isDark = theme === 'dark' || theme === 'aurora' || theme === 'rainbow'
+  return { theme, toggleTheme, setTheme, isDark }
 }

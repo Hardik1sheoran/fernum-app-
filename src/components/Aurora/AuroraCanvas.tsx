@@ -4,16 +4,17 @@ interface AuroraCanvasProps {
   active: boolean
 }
 
-interface Star {
+interface TwinkleStar {
   x: number
   y: number
-  size: number
+  radius: number
   baseAlpha: number
   twinkleSpeed: number
-  twinkleOffset: number
+  twinklePhase: number
+  hasSpikes: boolean
 }
 
-interface ShootingStar {
+interface Meteor {
   x: number
   y: number
   speed: number
@@ -21,20 +22,9 @@ interface ShootingStar {
   length: number
   thickness: number
   opacity: number
-  color: string
-  tailColor: string
-  active: boolean
-  delay: number
-}
-
-interface StardustParticle {
-  x: number
-  y: number
-  vx: number
-  vy: number
-  alpha: number
-  decay: number
-  color: string
+  headColor: string
+  tailColorRgb: string
+  stardust: Array<{ x: number; y: number; vx: number; vy: number; alpha: number; decay: number }>
 }
 
 export const AuroraCanvas: React.FC<AuroraCanvasProps> = ({ active }) => {
@@ -56,278 +46,256 @@ export const AuroraCanvas: React.FC<AuroraCanvasProps> = ({ active }) => {
     if (!ctx) return
 
     let isDisposed = false
+    let width = window.innerWidth
+    let height = window.innerHeight
 
-    // Resize handler
     const handleResize = () => {
       if (!canvas) return
-      const dpr = Math.min(window.devicePixelRatio || 1, 1.25)
-      canvas.width = Math.floor(window.innerWidth * dpr)
-      canvas.height = Math.floor(window.innerHeight * dpr)
+      width = window.innerWidth
+      height = window.innerHeight
+      const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
+      canvas.width = Math.floor(width * dpr)
+      canvas.height = Math.floor(height * dpr)
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     }
 
     handleResize()
     window.addEventListener('resize', handleResize)
 
-    // ---------------- BACKGROUND TWINKLING STARS ----------------
-    const stars: Star[] = []
-    const STAR_COUNT = 160
+    // ---------------- 1. BACKGROUND TWINKLING STARS ----------------
+    const stars: TwinkleStar[] = []
+    const STAR_COUNT = 180
     for (let i = 0; i < STAR_COUNT; i++) {
       stars.push({
-        x: Math.random(),
-        y: Math.random(),
-        size: Math.random() < 0.85 ? Math.random() * 1.2 + 0.5 : Math.random() * 2.2 + 1.2,
-        baseAlpha: Math.random() * 0.5 + 0.25,
-        twinkleSpeed: Math.random() * 0.03 + 0.01,
-        twinkleOffset: Math.random() * Math.PI * 2,
+        x: Math.random() * width,
+        y: Math.random() * height,
+        radius: Math.random() < 0.8 ? Math.random() * 1.2 + 0.5 : Math.random() * 2.0 + 1.2,
+        baseAlpha: Math.random() * 0.5 + 0.35,
+        twinkleSpeed: Math.random() * 0.04 + 0.015,
+        twinklePhase: Math.random() * Math.PI * 2,
+        hasSpikes: Math.random() < 0.08,
       })
     }
 
-    // ---------------- CONTINUOUS FALLING SHOOTING STARS ----------------
-    // Meteors with glowing heads, long fading trails, and lingering stardust
-    const SHOOTING_STAR_COUNT = 9
-    const shootingStars: ShootingStar[] = []
-    const stardust: StardustParticle[] = []
+    // ---------------- 2. CONTINUOUS FALLING SHOOTING STARS / METEORS ----------------
+    // Authentic celestial shooting stars: bright heads, long luminous fading back-trails, and trailing ember dust
+    const METEOR_COUNT = 12
+    const meteors: Meteor[] = []
 
-    const STAR_COLORS = [
-      { head: '#ffffff', tail: 'rgba(56, 189, 248, ' },   // Ice Blue Trail
-      { head: '#ffffff', tail: 'rgba(52, 211, 153, ' },   // Emerald Mint Trail
-      { head: '#fffbe8', tail: 'rgba(251, 191, 36, ' },   // Starlight Gold Trail
-      { head: '#ffffff', tail: 'rgba(192, 132, 252, ' },  // Violet Ray Trail
-      { head: '#ffffff', tail: 'rgba(0, 242, 254, ' },    // Neon Cyan Trail
+    const METEOR_PALETTES = [
+      { head: '#ffffff', rgb: '255, 255, 255' },    // Pure Starlight White
+      { head: '#e0f2fe', rgb: '56, 189, 248' },     // Glacial Ice Blue
+      { head: '#f0fdf4', rgb: '52, 211, 153' },     // Emerald Mint
+      { head: '#ecfeff', rgb: '6, 182, 212' },      // Polar Cyan
+      { head: '#faf5ff', rgb: '192, 132, 252' },    // Cosmic Violet
     ]
 
-    const initShootingStar = (idx: number, isInitial = false): ShootingStar => {
-      const palette = STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)]
-      const angle = (Math.PI / 180) * (48 + Math.random() * 14) // 48 - 62 degrees downward angle
-      const speed = Math.random() * 12 + 10 // Rapid, fluid shooting speed
-      const length = Math.random() * 130 + 90 // Generous tail length for visible back-falling trail
+    const createMeteor = (isInitial = false): Meteor => {
+      const palette = METEOR_PALETTES[Math.floor(Math.random() * METEOR_PALETTES.length)]
+      // Falling diagonally across the sky: 55° - 65° from horizontal
+      const angle = (Math.PI / 180) * (58 + Math.random() * 10)
+      const speed = Math.random() * 9 + 8 // Graceful, visible falling pace
+      const length = Math.random() * 120 + 90 // Long, visible trailing tail
+
+      // Spawn across the top and slightly to the right so they streak across
+      const startX = Math.random() * (width * 1.25) - width * 0.1
+      const startY = isInitial ? Math.random() * (height * 0.75) - 80 : -Math.random() * 150 - 40
 
       return {
-        x: Math.random() * (window.innerWidth * 1.3) - window.innerWidth * 0.15,
-        y: isInitial ? Math.random() * (window.innerHeight * 0.6) - 100 : -Math.random() * 250 - 50,
+        x: startX,
+        y: startY,
         speed,
         angle,
         length,
-        thickness: Math.random() * 1.6 + 1.2,
-        opacity: Math.random() * 0.4 + 0.6,
-        color: palette.head,
-        tailColor: palette.tail,
-        active: true,
-        delay: isInitial ? idx * 25 : Math.random() * 120 + 20,
+        thickness: Math.random() * 1.8 + 1.2,
+        opacity: Math.random() * 0.35 + 0.65,
+        headColor: palette.head,
+        tailColorRgb: palette.rgb,
+        stardust: [],
       }
     }
 
-    for (let i = 0; i < SHOOTING_STAR_COUNT; i++) {
-      shootingStars.push(initShootingStar(i, true))
+    for (let i = 0; i < METEOR_COUNT; i++) {
+      meteors.push(createMeteor(true))
     }
 
-    // ---------------- AURORA CURTAINS: 24+ CONTINUOUS MULTI-SPECTRAL COLORS ----------------
-    // Rich gradient ribbons representing the full atmospheric ionization spectrum:
-    // Nitrogen purples, ionized oxygen greens, celestial cyans, and deep cosmic dark bedrock
-    const AURORA_RIBBONS = [
-      {
-        baseY: 0.18,
-        amplitude: 65,
-        frequency: 0.0018,
-        speed: 0.008,
-        height: 0.48,
-        colors: [
-          'rgba(0, 255, 135, 0.42)',   // #00FF87 (Neon Green)
-          'rgba(16, 185, 129, 0.35)',  // #10B981 (Emerald Glow)
-          'rgba(6, 182, 212, 0.32)',   // #06B6D4 (Turquoise)
-          'rgba(0, 242, 254, 0.28)',   // #00F2FE (Cyan Ion)
-          'rgba(124, 58, 237, 0.25)',  // #7C3AED (Cosmic Violet)
-          'rgba(217, 70, 239, 0.20)',  // #D946EF (Neon Fuchsia)
-        ],
-      },
-      {
-        baseY: 0.28,
-        amplitude: 85,
-        frequency: 0.0014,
-        speed: 0.0065,
-        height: 0.52,
-        colors: [
-          'rgba(52, 211, 153, 0.38)',  // #34D399 (Mint Corona)
-          'rgba(56, 189, 248, 0.34)',  // #38BDF8 (Glacial Sky Blue)
-          'rgba(37, 99, 235, 0.28)',   // #2563EB (Sapphire Ray)
-          'rgba(147, 51, 234, 0.32)',  // #9333EA (Electric Purple)
-          'rgba(236, 72, 153, 0.22)',  // #EC4899 (High-Altitude Pink)
-          'rgba(251, 191, 36, 0.16)',  // #FBBF24 (Solar Gold Flare)
-        ],
-      },
-      {
-        baseY: 0.38,
-        amplitude: 70,
-        frequency: 0.0022,
-        speed: 0.009,
-        height: 0.45,
-        colors: [
-          'rgba(139, 92, 246, 0.30)',  // #8B5CF6 (Royal Violet)
-          'rgba(192, 132, 252, 0.26)', // #C084FC (Radiant Orchid)
-          'rgba(74, 222, 128, 0.30)',  // #4ADE80 (Spring Green)
-          'rgba(5, 150, 105, 0.25)',   // #059669 (Deep Jade)
-          'rgba(30, 58, 138, 0.25)',   // #1E3A8A (Deep Twilight Abyss)
-          'rgba(244, 63, 94, 0.18)',   // #F43F5E (Solar Rose)
-        ],
-      },
-    ]
-
+    // ---------------- 3. REAL AURORA BOREALIS (PURE POLAR EMERALD, CYAN & VIOLET) ----------------
+    // NO rainbow, NO orange, NO yellow! Pure authentic polar curtain ribbons!
     let time = 0
 
-    // ---------------- MAIN ANIMATION LOOP ----------------
     const render = () => {
       if (isDisposed || !ctx || !canvas) return
-      time += 1
+      time += 0.016
 
-      const w = canvas.width
-      const h = canvas.height
-
-      // 1. Render Deep Cosmic Space Dark Bedrock (incorporating dark theme colors)
-      const skyGrad = ctx.createLinearGradient(0, 0, 0, h)
-      skyGrad.addColorStop(0, '#030208')     // Deepest Space Obsidian
-      skyGrad.addColorStop(0.35, '#060416')  // Dark Void Navy
-      skyGrad.addColorStop(0.7, '#080520')   // Cosmic Amethyst Midnight
-      skyGrad.addColorStop(1, '#020106')     // Ground Horizon Shadow
+      // 1. Clear with Deep Cosmic Night Sky Gradient (Dark Obsidian Space)
+      const skyGrad = ctx.createLinearGradient(0, 0, 0, height)
+      skyGrad.addColorStop(0, '#020108')     // Pure Space Obsidian
+      skyGrad.addColorStop(0.35, '#040312')  // Deepest Navy Void
+      skyGrad.addColorStop(0.7, '#070520')   // Polar Midnight Indigo
+      skyGrad.addColorStop(1, '#020107')     // Deep Ground Horizon
       ctx.fillStyle = skyGrad
-      ctx.fillRect(0, 0, w, h)
+      ctx.fillRect(0, 0, width, height)
 
-      // 2. Render Twinkling Background Stars
+      // 2. Render Twinkling Cosmic Starfield
       ctx.save()
-      for (const star of stars) {
-        const twinkle = Math.sin(time * star.twinkleSpeed + star.twinkleOffset)
-        const alpha = Math.max(0.1, Math.min(1.0, star.baseAlpha + twinkle * 0.35))
+      for (const s of stars) {
+        const twinkle = Math.sin(time * 3.5 * s.twinkleSpeed * 20 + s.twinklePhase)
+        const alpha = Math.max(0.15, Math.min(1.0, s.baseAlpha + twinkle * 0.4))
+
         ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`
         ctx.beginPath()
-        ctx.arc(star.x * w, star.y * h, star.size, 0, Math.PI * 2)
+        ctx.arc(s.x, s.y, s.radius, 0, Math.PI * 2)
         ctx.fill()
+
+        // Occasional diffraction spike for bright stars
+        if (s.hasSpikes && alpha > 0.6) {
+          ctx.strokeStyle = `rgba(224, 242, 254, ${alpha * 0.45})`
+          ctx.lineWidth = 0.75
+          ctx.beginPath()
+          ctx.moveTo(s.x - s.radius * 3.5, s.y)
+          ctx.lineTo(s.x + s.radius * 3.5, s.y)
+          ctx.moveTo(s.x, s.y - s.radius * 3.5)
+          ctx.lineTo(s.x, s.y + s.radius * 3.5)
+          ctx.stroke()
+        }
       }
       ctx.restore()
 
-      // 3. Render Floating Waving Aurora Curtains (Additive Light Blend)
+      // 3. Render Real Aurora Borealis Waving Curtains (Emerald, Cyan & Violet Rays)
       ctx.save()
       ctx.globalCompositeOperation = 'screen'
 
-      AURORA_RIBBONS.forEach((ribbon, rIdx) => {
-        const segments = 45
-        const segWidth = w / segments
-        const ribbonTime = time * ribbon.speed + rIdx * 1.5
+      // Layer 1: High-Altitude Atmospheric Violet/Indigo Shimmer
+      drawAuroraCurtain(
+        ctx,
+        width,
+        height * 0.15,
+        height * 0.35,
+        time * 0.35,
+        0.002,
+        60,
+        [
+          { stop: 0.0, color: 'rgba(124, 58, 237, 0.0)' },
+          { stop: 0.4, color: 'rgba(139, 92, 246, 0.22)' }, // Violet
+          { stop: 0.8, color: 'rgba(56, 189, 248, 0.18)' },  // Glacial Blue
+          { stop: 1.0, color: 'rgba(16, 185, 129, 0.0)' },
+        ]
+      )
 
-        ctx.beginPath()
-        ctx.moveTo(0, h)
+      // Layer 2: Iconic Polar Emerald Oxygen Curtain (The signature Green Aurora)
+      drawAuroraCurtain(
+        ctx,
+        width,
+        height * 0.22,
+        height * 0.42,
+        time * 0.45 + 1.2,
+        0.0025,
+        85,
+        [
+          { stop: 0.0, color: 'rgba(0, 255, 127, 0.0)' },
+          { stop: 0.3, color: 'rgba(0, 255, 135, 0.38)' },   // #00FF87 Neon Green
+          { stop: 0.65, color: 'rgba(16, 185, 129, 0.32)' }, // Emerald
+          { stop: 1.0, color: 'rgba(6, 182, 212, 0.0)' },
+        ]
+      )
 
-        // Wave top curve
-        for (let i = 0; i <= segments; i++) {
-          const x = i * segWidth
-          const wave1 = Math.sin(x * ribbon.frequency + ribbonTime) * ribbon.amplitude
-          const wave2 = Math.cos(x * (ribbon.frequency * 1.8) - ribbonTime * 0.8) * (ribbon.amplitude * 0.45)
-          const wave3 = Math.sin(x * (ribbon.frequency * 3.2) + ribbonTime * 1.2) * (ribbon.amplitude * 0.25)
-          const y = h * ribbon.baseY + wave1 + wave2 + wave3
+      // Layer 3: Ionized Cyan & Turquoise Dancing Ribbons
+      drawAuroraCurtain(
+        ctx,
+        width,
+        height * 0.32,
+        height * 0.38,
+        time * 0.52 + 2.5,
+        0.003,
+        70,
+        [
+          { stop: 0.0, color: 'rgba(0, 242, 254, 0.0)' },
+          { stop: 0.4, color: 'rgba(6, 182, 212, 0.32)' },   // Electric Cyan
+          { stop: 0.7, color: 'rgba(52, 211, 153, 0.28)' },  // Mint Aurora
+          { stop: 1.0, color: 'rgba(37, 99, 235, 0.0)' },
+        ]
+      )
 
-          if (i === 0) ctx.lineTo(x, y)
-          else ctx.lineTo(x, y)
-        }
-
-        ctx.lineTo(w, h)
-        ctx.closePath()
-
-        // Multi-color vertical linear gradient for this curtain
-        const ribbonGrad = ctx.createLinearGradient(0, h * (ribbon.baseY - 0.1), 0, h * (ribbon.baseY + ribbon.height))
-        ribbon.colors.forEach((colorStop, cIdx) => {
-          ribbonGrad.addColorStop(cIdx / (ribbon.colors.length - 1), colorStop)
-        })
-
-        ctx.fillStyle = ribbonGrad
-        ctx.fill()
-      })
       ctx.restore()
 
-      // 4. Update & Render Stardust Embers from Falling Stars
-      ctx.save()
-      ctx.globalCompositeOperation = 'screen'
-      for (let i = stardust.length - 1; i >= 0; i--) {
-        const p = stardust[i]
-        p.x += p.vx
-        p.y += p.vy
-        p.alpha -= p.decay
-
-        if (p.alpha <= 0) {
-          stardust.splice(i, 1)
-          continue
-        }
-
-        ctx.fillStyle = p.color.replace('{A}', String(p.alpha))
-        ctx.beginPath()
-        ctx.arc(p.x, p.y, Math.random() * 1.2 + 0.8, 0, Math.PI * 2)
-        ctx.fill()
-      }
-      ctx.restore()
-
-      // 5. Update & Render Falling Shooting Stars with Luminous Back Trails
+      // 4. Update & Render Continuous Falling Stars with Luminous Back Trails
       ctx.save()
       ctx.globalCompositeOperation = 'screen'
 
-      shootingStars.forEach((star, idx) => {
-        if (star.delay > 0) {
-          star.delay--
-          return
-        }
+      for (let i = 0; i < meteors.length; i++) {
+        const m = meteors[i]
 
-        // Move head along diagonal vector
-        const dx = Math.cos(star.angle) * star.speed
-        const dy = Math.sin(star.angle) * star.speed
-        star.x += dx
-        star.y += dy
+        // Move head forward
+        const vx = Math.cos(m.angle) * m.speed
+        const vy = Math.sin(m.angle) * m.speed
+        m.x += vx
+        m.y += vy
 
-        // Spawn occasional glowing stardust particles along the tail
-        if (Math.random() < 0.4) {
-          stardust.push({
-            x: star.x - dx * (Math.random() * 1.5),
-            y: star.y - dy * (Math.random() * 1.5),
-            vx: (Math.random() - 0.5) * 0.8,
-            vy: (Math.random() - 0.5) * 0.8,
-            alpha: star.opacity * 0.7,
-            decay: Math.random() * 0.03 + 0.02,
-            color: star.tailColor + '{A})',
+        // Spawn falling stardust sparks along the back-trail
+        if (Math.random() < 0.5) {
+          m.stardust.push({
+            x: m.x - vx * (Math.random() * 2),
+            y: m.y - vy * (Math.random() * 2),
+            vx: (Math.random() - 0.5) * 0.6,
+            vy: (Math.random() - 0.5) * 0.6,
+            alpha: m.opacity * 0.85,
+            decay: Math.random() * 0.035 + 0.02,
           })
         }
 
-        // Tail coordinates (pointing backward along trajectory)
-        const tailX = star.x - Math.cos(star.angle) * star.length
-        const tailY = star.y - Math.sin(star.angle) * star.length
+        // Render lingering stardust embers
+        for (let sIdx = m.stardust.length - 1; sIdx >= 0; sIdx--) {
+          const spark = m.stardust[sIdx]
+          spark.x += spark.vx
+          spark.y += spark.vy
+          spark.alpha -= spark.decay
+          if (spark.alpha <= 0) {
+            m.stardust.splice(sIdx, 1)
+            continue
+          }
+          ctx.fillStyle = `rgba(${m.tailColorRgb}, ${spark.alpha})`
+          ctx.beginPath()
+          ctx.arc(spark.x, spark.y, Math.random() * 1.2 + 0.6, 0, Math.PI * 2)
+          ctx.fill()
+        }
 
-        // Multi-stop trail gradient: glowing white head -> vibrant tint -> fading tail
-        const tailGrad = ctx.createLinearGradient(star.x, star.y, tailX, tailY)
-        tailGrad.addColorStop(0, `rgba(255, 255, 255, ${star.opacity})`)
-        tailGrad.addColorStop(0.18, `${star.tailColor}${star.opacity * 0.85})`)
-        tailGrad.addColorStop(0.55, `${star.tailColor}${star.opacity * 0.45})`)
-        tailGrad.addColorStop(1, `${star.tailColor}0)`)
+        // Calculate tail endpoint trailing behind the head
+        const tailX = m.x - Math.cos(m.angle) * m.length
+        const tailY = m.y - Math.sin(m.angle) * m.length
 
-        // Draw luminous tapered trailing tail
-        ctx.strokeStyle = tailGrad
-        ctx.lineWidth = star.thickness
+        // Luminous fading back-trail gradient: Glowing White Head -> Tinted Aurora Ray -> Transparent
+        const trailGrad = ctx.createLinearGradient(m.x, m.y, tailX, tailY)
+        trailGrad.addColorStop(0, `rgba(255, 255, 255, ${m.opacity})`)
+        trailGrad.addColorStop(0.12, `rgba(${m.tailColorRgb}, ${m.opacity * 0.95})`)
+        trailGrad.addColorStop(0.45, `rgba(${m.tailColorRgb}, ${m.opacity * 0.55})`)
+        trailGrad.addColorStop(0.85, `rgba(${m.tailColorRgb}, ${m.opacity * 0.18})`)
+        trailGrad.addColorStop(1, `rgba(${m.tailColorRgb}, 0)`)
+
+        ctx.strokeStyle = trailGrad
+        ctx.lineWidth = m.thickness
         ctx.lineCap = 'round'
         ctx.beginPath()
-        ctx.moveTo(star.x, star.y)
+        ctx.moveTo(m.x, m.y)
         ctx.lineTo(tailX, tailY)
         ctx.stroke()
 
-        // Draw brilliant glowing head with halo
-        const haloRadius = star.thickness * 4.5
-        const headGrad = ctx.createRadialGradient(star.x, star.y, 0, star.x, star.y, haloRadius)
+        // Brilliant glowing meteor head with radiant halo
+        const halo = m.thickness * 4.0
+        const headGrad = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, halo)
         headGrad.addColorStop(0, '#ffffff')
-        headGrad.addColorStop(0.35, `${star.tailColor}${star.opacity * 0.9})`)
-        headGrad.addColorStop(1, `${star.tailColor}0)`)
+        headGrad.addColorStop(0.35, `rgba(${m.tailColorRgb}, ${m.opacity * 0.9})`)
+        headGrad.addColorStop(1, `rgba(${m.tailColorRgb}, 0)`)
 
         ctx.fillStyle = headGrad
         ctx.beginPath()
-        ctx.arc(star.x, star.y, haloRadius, 0, Math.PI * 2)
+        ctx.arc(m.x, m.y, halo, 0, Math.PI * 2)
         ctx.fill()
 
-        // Recycle star once it travels past screen bounds
-        if (star.y > h + 150 || star.x > w + 200 || star.x < -200) {
-          shootingStars[idx] = initShootingStar(idx, false)
+        // Respawn immediately once out of view so star shower never breaks
+        if (m.y > height + 100 || m.x > width + 150 || m.x < -150) {
+          meteors[i] = createMeteor(false)
         }
-      })
+      }
 
       ctx.restore()
 
@@ -357,4 +325,49 @@ export const AuroraCanvas: React.FC<AuroraCanvasProps> = ({ active }) => {
       />
     </div>
   )
+}
+
+/**
+ * Draws an organic sinusoidal waving aurora curtain ribbon with vertical ray lines
+ */
+function drawAuroraCurtain(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  baseY: number,
+  bandHeight: number,
+  timeVal: number,
+  freq: number,
+  amp: number,
+  colorStops: Array<{ stop: number; color: string }>
+) {
+  const steps = 40
+  const dx = w / steps
+
+  ctx.beginPath()
+  // Top wavy edge
+  for (let i = 0; i <= steps; i++) {
+    const x = i * dx
+    const wave1 = Math.sin(x * freq + timeVal) * amp
+    const wave2 = Math.cos(x * (freq * 1.6) - timeVal * 0.7) * (amp * 0.4)
+    const y = baseY + wave1 + wave2
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+
+  // Bottom wavy edge
+  for (let i = steps; i >= 0; i--) {
+    const x = i * dx
+    const wave1 = Math.sin(x * freq + timeVal + 0.8) * amp
+    const wave2 = Math.cos(x * (freq * 1.6) - timeVal * 0.7 + 0.8) * (amp * 0.4)
+    const y = baseY + bandHeight + wave1 + wave2
+    ctx.lineTo(x, y)
+  }
+  ctx.closePath()
+
+  const grad = ctx.createLinearGradient(0, baseY - amp, 0, baseY + bandHeight + amp)
+  for (const cs of colorStops) {
+    grad.addColorStop(cs.stop, cs.color)
+  }
+  ctx.fillStyle = grad
+  ctx.fill()
 }

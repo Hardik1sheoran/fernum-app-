@@ -23,16 +23,17 @@
 }
 
 /* ==========================================================================
-   FOREST THEME: Lush Deep Emerald, Pine, and Mint
+   FOREST THEME: Fresh Spring Leaf, Crisp Mint, and Cool New Green (#00FF7F)
    ========================================================================== */
 .theme-forest {
-  --app-bg: #081410;
-  --panel-bg: #0d1f19;
-  --card-bg: #132a22;
-  --border-color: #204a3c;
-  --text-primary: #ecfdf5;
-  --text-secondary: #6ee7b7;
-  --accent-color: #10b981;
+  --app-bg: #f0fdf4;
+  --panel-bg: #ffffff;
+  --card-bg: #f7fef9;
+  --border-color: #86efac;
+  --text-primary: #064e3b;
+  --text-secondary: #047857;
+  --accent-color: #00ff7f;
+  color-scheme: light;
 }
 
 .theme-forest,
@@ -41,7 +42,8 @@
 .theme-forest .app-root,
 .theme-forest .bg-\[\#18181b\],
 .theme-forest .dark\:bg-\[\#18181b\] {
-  background-color: #081410 !important;
+  background-color: #f0fdf4 !important;
+  color: #064e3b !important;
 }
 
 .theme-forest header,
@@ -55,7 +57,9 @@
 .theme-forest .bg-\[\#1f242d\],
 .theme-forest .dark\:bg-\[\#191d24\],
 .theme-forest .dark\:bg-\[\#1c2028\] {
-  background-color: #0d1f19 !important;
+  background-color: #ffffff !important;
+  border-color: #bbf7d0 !important;
+  color: #064e3b !important;
 }
 
 .theme-forest .bg-\[\#28282e\],
@@ -75,17 +79,33 @@
 .theme-forest .bg-slate-800,
 .theme-forest .dark\:bg-\[\#14171d\],
 .theme-forest .dark\:bg-\[\#15181f\] {
-  background-color: #132a22 !important;
+  background-color: #f7fef9 !important;
+  border-color: #bbf7d0 !important;
+  color: #064e3b !important;
 }
 
 .theme-forest .bg-slate-950 {
-  background-color: #071510 !important;
+  background-color: #e6f9ed !important;
+}
+
+.theme-forest .text-zinc-100,
+.theme-forest .text-zinc-200,
+.theme-forest .text-slate-100,
+.theme-forest .text-slate-200 {
+  color: #064e3b !important;
+}
+
+.theme-forest .text-zinc-300,
+.theme-forest .text-zinc-400,
+.theme-forest .text-slate-300,
+.theme-forest .text-slate-400 {
+  color: #047857 !important;
 }
 
 .theme-forest .hover\:bg-\[\#25252b\]:hover,
 .theme-forest .hover\:bg-\[\#303038\]:hover,
 .theme-forest .hover\:bg-white\/\[0\.03\]:hover {
-  background-color: #1a392e !important;
+  background-color: #dcfce7 !important;
 }
 
 .theme-forest .border-\[\#2d2d33\],
@@ -102,38 +122,42 @@
 .theme-forest .border-slate-800,
 .theme-forest .border-slate-700,
 .theme-forest .dark\:border-slate-800 {
-  border-color: #204a3c !important;
+  border-color: #86efac !important;
 }
 
 .theme-forest .text-blue-400,
 .theme-forest .text-blue-500 {
-  color: #34d399 !important;
+  color: #059669 !important;
 }
 
 .theme-forest .bg-blue-600 {
-  background-color: #059669 !important;
+  background-color: #00ff7f !important;
+  color: #064e3b !important;
+  font-weight: 600 !important;
 }
 
 .theme-forest .hover\:bg-blue-500:hover {
   background-color: #10b981 !important;
+  color: #ffffff !important;
 }
 
 .theme-forest .border-blue-500,
 .theme-forest .border-blue-600 {
-  border-color: #10b981 !important;
+  border-color: #00ff7f !important;
 }
 
 /* ==========================================================================
-   OCEAN THEME: Deep Marine Cobalt, Navy, and Cyan
+   OCEAN THEME: Ultra-Light Cool Sky Blue (#E6F4FF, #F0F8FF, #B4D9EF, #D7EFFF)
    ========================================================================== */
 .theme-ocean {
-  --app-bg: #06111e;
-  --panel-bg: #0b1a2c;
-  --card-bg: #10243d;
-  --border-color: #1e4472;
-  --text-primary: #f0f9ff;
-  --text-secondary: #7dd3fc;
+  --app-bg: #e6f4ff;
+  --panel-bg: #f0f8ff;
+  --card-bg: #ffffff;
+  --border-color: #b4d9ef;
+  --text-primary: #0c2d48;
+  --text-secondary: #2e6189;
   --accent-color: #0284c7;
+  color-scheme: light;
 }
 
 .theme-ocean,
@@ -142,7 +166,8 @@
 .theme-ocean .app-root,
 .theme-ocean .bg-\[\#18181b\],
 .theme-ocean .dark\:bg-\[\#18181b\] {
-  background-color: #06111e !important;
+  background-color: #e6f4ff !important;
+  color: #0c2d48 !important;
 }
 
 .theme-ocean header,
@@ -156,7 +181,9 @@
 .theme-ocean .bg-\[\#1f242d\],
 .theme-ocean .dark\:bg-\[\#191d24\],
 .theme-ocean .dark\:bg-\[\#1c2028\] {
-  background-color: #0b1a2c !important;
+  background-color: #f0f8ff !important;
+  border-color: #b4d9ef !important;
+  color: #0c2d48 !important;
 }
 
 .theme-ocean .bg-\[\#28282e\],
@@ -176,17 +203,33 @@
 .theme-ocean .bg-slate-800,
 .theme-ocean .dark\:bg-\[\#14171d\],
 .theme-ocean .dark\:bg-\[\#15181f\] {
-  background-color: #10243d !important;
+  background-color: #ffffff !important;
+  border-color: #c8e4f8 !important;
+  color: #0c2d48 !important;
 }
 
 .theme-ocean .bg-slate-950 {
-  background-color: #06111f !important;
+  background-color: #d7efff !important;
+}
+
+.theme-ocean .text-zinc-100,
+.theme-ocean .text-zinc-200,
+.theme-ocean .text-slate-100,
+.theme-ocean .text-slate-200 {
+  color: #0c2d48 !important;
+}
+
+.theme-ocean .text-zinc-300,
+.theme-ocean .text-zinc-400,
+.theme-ocean .text-slate-300,
+.theme-ocean .text-slate-400 {
+  color: #2e6189 !important;
 }
 
 .theme-ocean .hover\:bg-\[\#25252b\]:hover,
 .theme-ocean .hover\:bg-\[\#303038\]:hover,
 .theme-ocean .hover\:bg-white\/\[0\.03\]:hover {
-  background-color: #163254 !important;
+  background-color: #d7efff !important;
 }
 
 .theme-ocean .border-\[\#2d2d33\],
@@ -203,12 +246,12 @@
 .theme-ocean .border-slate-800,
 .theme-ocean .border-slate-700,
 .theme-ocean .dark\:border-slate-800 {
-  border-color: #1e4472 !important;
+  border-color: #b4d9ef !important;
 }
 
 .theme-ocean .text-blue-400,
 .theme-ocean .text-blue-500 {
-  color: #38bdf8 !important;
+  color: #0284c7 !important;
 }
 
 .theme-ocean .bg-blue-600 {
@@ -216,12 +259,12 @@
 }
 
 .theme-ocean .hover\:bg-blue-500:hover {
-  background-color: #0ea5e9 !important;
+  background-color: #0369a1 !important;
 }
 
 .theme-ocean .border-blue-500,
 .theme-ocean .border-blue-600 {
-  border-color: #0ea5e9 !important;
+  border-color: #0284c7 !important;
 }
 
 /* ==========================================================================
@@ -575,49 +618,60 @@
   border-color: rgba(255, 255, 255, 0.12);
 }
 
-/* Forest Theme Glassmorphism */
+/* Forest Theme Glassmorphism (Fresh Spring Green) */
 .theme-forest .glass-header {
-  background: rgba(13, 31, 25, 0.8) !important;
-  border-bottom: 1px solid rgba(110, 231, 183, 0.15) !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  border-bottom: 1px solid #86efac !important;
 }
 .theme-forest .glass-sidebar {
-  background: rgba(13, 31, 25, 0.85) !important;
-  border-right: 1px solid rgba(110, 231, 183, 0.12) !important;
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-right: 1px solid #86efac !important;
 }
 .theme-forest .glass-panel {
-  background: rgba(19, 42, 34, 0.82) !important;
-  border: 1px solid rgba(110, 231, 183, 0.2) !important;
-  box-shadow: 0 8px 32px 0 rgba(4, 20, 14, 0.5) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid #86efac !important;
+  box-shadow: 0 8px 30px rgba(0, 255, 127, 0.08) !important;
+}
+.theme-forest .glass-card {
+  background: #ffffff !important;
+  border: 1px solid #bbf7d0 !important;
 }
 
-/* Ocean Theme Glassmorphism */
+/* Ocean Theme Glassmorphism (Cool Sky Blue) */
 .theme-ocean .glass-header {
-  background: rgba(16, 36, 61, 0.8) !important;
-  border-bottom: 1px solid rgba(96, 165, 250, 0.15) !important;
+  background: rgba(240, 248, 255, 0.92) !important;
+  border-bottom: 1px solid #b4d9ef !important;
 }
 .theme-ocean .glass-sidebar {
-  background: rgba(16, 36, 61, 0.85) !important;
-  border-right: 1px solid rgba(96, 165, 250, 0.12) !important;
+  background: rgba(240, 248, 255, 0.95) !important;
+  border-right: 1px solid #b4d9ef !important;
 }
 .theme-ocean .glass-panel {
-  background: rgba(22, 51, 86, 0.82) !important;
-  border: 1px solid rgba(96, 165, 250, 0.2) !important;
-  box-shadow: 0 8px 32px 0 rgba(5, 17, 34, 0.5) !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid #b4d9ef !important;
+  box-shadow: 0 8px 30px rgba(2, 132, 199, 0.08) !important;
+}
+.theme-ocean .glass-card {
+  background: #ffffff !important;
+  border: 1px solid #c8e4f8 !important;
 }
 
-/* Aurora Theme Glassmorphism */
+/* Aurora Theme Glassmorphism (Celestial Night Frosted Glass) */
 .theme-aurora .glass-header {
-  background: rgba(30, 22, 58, 0.8) !important;
-  border-bottom: 1px solid rgba(192, 132, 252, 0.15) !important;
+  background: rgba(12, 8, 24, 0.65) !important;
+  backdrop-filter: blur(20px) !important;
+  border-bottom: 1px solid rgba(192, 132, 252, 0.2) !important;
 }
 .theme-aurora .glass-sidebar {
-  background: rgba(30, 22, 58, 0.85) !important;
-  border-right: 1px solid rgba(192, 132, 252, 0.12) !important;
+  background: rgba(10, 6, 20, 0.70) !important;
+  backdrop-filter: blur(20px) !important;
+  border-right: 1px solid rgba(192, 132, 252, 0.15) !important;
 }
 .theme-aurora .glass-panel {
-  background: rgba(43, 31, 82, 0.82) !important;
-  border: 1px solid rgba(192, 132, 252, 0.2) !important;
-  box-shadow: 0 8px 32px 0 rgba(11, 7, 23, 0.5) !important;
+  background: rgba(18, 12, 36, 0.55) !important;
+  backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(192, 132, 252, 0.22) !important;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5) !important;
 }
 
 /* Light Theme Glassmorphism */
