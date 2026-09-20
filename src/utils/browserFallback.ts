@@ -244,6 +244,11 @@ export function initBrowserFallback(): void {
     startMonitoring: async () => true,
     stopMonitoring: async () => true,
     setTheme: async () => true,
+    openExternalUrl: async (url: string) => {
+      window.open(url, '_blank')
+      return true
+    },
+    onDeepLinkLicense: () => () => {},
   }
 
   window.electronAPI = browserApi

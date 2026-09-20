@@ -291,6 +291,8 @@ export interface ElectronAPI {
   startMonitoring: () => Promise<boolean>
   stopMonitoring: () => Promise<boolean>
 
-  // System & Window IPC
+  // System, Licensing & Window IPC
   setTheme: (theme: 'dark' | 'light') => Promise<boolean>
+  openExternalUrl?: (url: string) => Promise<boolean>
+  onDeepLinkLicense?: (callback: (licenseKey: string) => void) => () => void
 }

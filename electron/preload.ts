@@ -148,6 +148,16 @@ const api: ElectronAPI = {
   setTheme: (theme: 'dark' | 'light'): Promise<boolean> => {
     return ipcRenderer.invoke('app:set-theme', theme)
   },
+  openExternalUrl: (url: string): Promise<boolean> => {
+    return ipcRenderer.invoke('system:open-external', url)
+  },
+  onDeepLinkLicense: (callback: (licenseKey: string) => void) => {
+    const handler = (_event: IpcRendererEvent, key: string) => callback(key)
+    ipcRenderer.on('license:activated', handler)
+    return () => {
+      ipcRenderer.removeListener('license:activated', handler)
+    }
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

@@ -66,4 +66,26 @@ describe('Licensing & Tier Management', () => {
     expect(useLicenseStore.getState().licenseKey).toBeNull()
     expect(localStorage.getItem('fernum_license_tier')).toBe('free')
   })
+
+  it('generates a valid Dodo checkout URL with redirect parameters', async () => {
+    const { getDodoCheckoutUrl } = await import('../src/services/dodoPayments')
+    const url = getDodoCheckoutUrl({ userEmail: 'test@example.com', discountCode: 'EARLYBIRD' })
+    expect(url).toContain('dodopayments.com')
+    expect(url).toContain('email=test%40example.com')
+    expect(url).toContain('discount_code=EARLYBIRD')
+    expect(url).toContain('redirect_url=fernum%3A%2F%2Flicense-callback')
+  })
+
+  it('activates Pro via online Dodo license flow with recognized format', async () => {
+    const res = await useLicenseStore.getState().activateOnlineLicense('DODO-PRO-9876-5432-1000')
+    expect(res.success).toBe(true)
+    expect(useLicenseStore.getState().isPro).toBe(true)
+    expect(useLicenseStore.getState().licenseKey).toBe('DODO-PRO-9876-5432-1000')
+  })
+
+  it('rejects short or empty key in Dodo license activation', async () => {
+    const res = await useLicenseStore.getState().activateOnlineLicense('short')
+    expect(res.success).toBe(false)
+    expect(useLicenseStore.getState().isPro).toBe(false)
+  })
 })

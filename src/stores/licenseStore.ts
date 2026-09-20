@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { activateDodoLicense, deactivateDodoLicense } from '../services/dodoPayments'
+import { useSettingsStore } from './settingsStore'
 
 export type LicenseTier = 'free' | 'premium'
 
@@ -8,9 +10,11 @@ interface LicenseState {
   isPro: boolean
   isUpgradeModalOpen: boolean
   triggerFeature: string | null
+  isValidating: boolean
 
   activateLicense: (key?: string) => { success: boolean; message: string }
-  deactivateLicense: () => void
+  activateOnlineLicense: (key: string) => Promise<{ success: boolean; message: string }>
+  deactivateLicense: () => Promise<void>
   openUpgradeModal: (feature?: string) => void
   closeUpgradeModal: () => void
 }
@@ -40,19 +44,26 @@ const getInitialKey = (): string | null => {
 
 const initialTier = getInitialTier()
 
-export const useLicenseStore = create<LicenseState>((set) => ({
+export const useLicenseStore = create<LicenseState>((set, get) => ({
   tier: initialTier,
   licenseKey: getInitialKey(),
   isPro: initialTier === 'premium',
   isUpgradeModalOpen: false,
   triggerFeature: null,
+  isValidating: false,
 
   activateLicense: (key?: string) => {
     const effectiveKey = key?.trim() || `FERNUM-PRO-${Date.now().toString(36).toUpperCase()}`
-    
-    // Validate format: accept any key containing PRO, FERNUM, or standard license pattern
-    if (key && key.trim().length > 0 && !key.toUpperCase().includes('PRO') && key.length < 8) {
-      return { success: false, message: 'Invalid license key format. Keys start with FERNUM-PRO.' }
+
+    // Validate format: accept any key containing PRO, FERNUM, DODO, or standard license pattern
+    const isRecognized =
+      effectiveKey.toUpperCase().includes('PRO') ||
+      effectiveKey.toUpperCase().startsWith('FERNUM-') ||
+      effectiveKey.toUpperCase().startsWith('DODO-') ||
+      effectiveKey.length >= 16
+
+    if (key && key.trim().length > 0 && !isRecognized && key.length < 8) {
+      return { success: false, message: 'Invalid license key format. Keys start with FERNUM-PRO or DODO-.' }
     }
 
     try {
@@ -62,6 +73,8 @@ export const useLicenseStore = create<LicenseState>((set) => ({
     } catch {
       // Ignore
     }
+
+    useSettingsStore.getState().setIsPro(true)
 
     set({
       tier: 'premium',
@@ -74,7 +87,26 @@ export const useLicenseStore = create<LicenseState>((set) => ({
     return { success: true, message: 'Lifetime Pro activated successfully!' }
   },
 
-  deactivateLicense: () => {
+  activateOnlineLicense: async (key: string) => {
+    set({ isValidating: true })
+    try {
+      const result = await activateDodoLicense(key)
+      if (result.success) {
+        get().activateLicense(result.licenseKey)
+        return { success: true, message: result.message }
+      }
+      return { success: false, message: result.message }
+    } finally {
+      set({ isValidating: false })
+    }
+  },
+
+  deactivateLicense: async () => {
+    const currentKey = get().licenseKey
+    if (currentKey) {
+      void deactivateDodoLicense(currentKey).catch(() => {})
+    }
+
     try {
       localStorage.setItem(STORAGE_TIER_KEY, 'free')
       localStorage.removeItem(STORAGE_KEY_KEY)
@@ -82,6 +114,8 @@ export const useLicenseStore = create<LicenseState>((set) => ({
     } catch {
       // Ignore
     }
+
+    useSettingsStore.getState().setIsPro(false)
 
     set({
       tier: 'free',

@@ -1,5 +1,5 @@
 process.env.UV_THREADPOOL_SIZE = '64'
-import { app, BrowserWindow, ipcMain } from 'electron'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
 import { fileURLToPath } from 'node:url'
@@ -9,6 +9,29 @@ import { registerAppsIpc } from './ipc/apps'
 import { registerSearchIpc } from './ipc/search'
 import { registerMonitorIpc, stopMonitorIpc } from './ipc/monitor'
 import { registerCleanerIpc } from './ipc/cleaner'
+
+// Register deep link protocol
+if (process.defaultApp) {
+  if (process.argv.length >= 2) {
+    app.setAsDefaultProtocolClient('fernum', process.execPath, [path.resolve(process.argv[1])])
+  }
+} else {
+  app.setAsDefaultProtocolClient('fernum')
+}
+
+function extractLicenseFromUrl(rawUrl: string): string | null {
+  try {
+    const parsed = new URL(rawUrl)
+    return parsed.searchParams.get('key') || parsed.searchParams.get('license_key')
+  } catch {
+    return null
+  }
+}
+
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+  app.quit()
+}
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
@@ -60,6 +83,14 @@ function createWindow(): void {
 
   mainWindow.webContents.on('did-finish-load', () => {
     console.log(`[PERF] App launch to did-finish-load: ${Date.now() - appLaunchStart} ms`)
+    // Check cold launch deep link argument
+    const deepLinkArg = process.argv.find((arg) => arg.startsWith('fernum://'))
+    if (deepLinkArg) {
+      const key = extractLicenseFromUrl(deepLinkArg)
+      if (key) {
+        mainWindow?.webContents.send('license:activated', key)
+      }
+    }
   })
 
   mainWindow.webContents.on('console-message', (_event, _level, message) => {
@@ -122,6 +153,20 @@ function createWindow(): void {
   })
 }
 
+app.on('second-instance', (_event, commandLine) => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+    const urlArg = commandLine.find((arg) => arg.startsWith('fernum://'))
+    if (urlArg) {
+      const key = extractLicenseFromUrl(urlArg)
+      if (key) {
+        mainWindow.webContents.send('license:activated', key)
+      }
+    }
+  }
+})
+
 app.whenReady().then(() => {
   // Register all IPC modules once
   registerScanIpc(() => mainWindow)
@@ -130,6 +175,15 @@ app.whenReady().then(() => {
   registerSearchIpc()
   registerMonitorIpc(() => mainWindow)
   registerCleanerIpc()
+
+  // External URL opening helper
+  ipcMain.handle('system:open-external', async (_event, url: string) => {
+    if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+      await shell.openExternal(url)
+      return true
+    }
+    return false
+  })
 
   // Handle dynamic theme overlay updates for Windows
   ipcMain.handle('app:set-theme', (_event, theme: 'dark' | 'light') => {
