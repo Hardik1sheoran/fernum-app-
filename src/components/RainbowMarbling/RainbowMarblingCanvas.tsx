@@ -20,12 +20,12 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // Try WebGL first for ultra-smooth 60fps GPU acceleration
+    // Try WebGL first for smooth GPU acceleration
     let gl: WebGLRenderingContext | null = null
     try {
       gl = canvas.getContext('webgl', {
         alpha: false,
-        antialias: false,
+        antialias: true,
         depth: false,
         stencil: false,
         powerPreference: 'high-performance',
@@ -38,6 +38,7 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
 
     if (gl) {
       // ---------------- WEBGL IMPLEMENTATION ----------------
+      // Directional linear liquid marbling bands matching the reference photo
       const vsSource = `
         attribute vec2 a_position;
         void main() {
@@ -50,77 +51,59 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
         uniform vec2 u_resolution;
         uniform float u_time;
 
-        // Exact palette colors from reference screenshot
-        const vec3 c_pink   = vec3(0.914, 0.243, 0.561); // #E93E8F Vibrant Pink / Magenta
-        const vec3 c_orange = vec3(1.000, 0.416, 0.110); // #FF6A1C Vivid Orange
-        const vec3 c_yellow = vec3(1.000, 0.851, 0.251); // #FFD940 Bright Golden Yellow
-        const vec3 c_green  = vec3(0.267, 0.831, 0.431); // #44D46E Emerald Green
-        const vec3 c_cyan   = vec3(0.024, 0.714, 0.831); // #06B6D4 Electric Cyan
-        const vec3 c_blue   = vec3(0.133, 0.482, 1.000); // #227BFF Sky Blue
-        const vec3 c_violet = vec3(0.482, 0.173, 0.749); // #7B2CBF Imperial Purple
-
-        // Procedural multi-octave domain warping for liquid marbling swirls
-        vec2 swirl(vec2 p, float t) {
-          for (int i = 1; i <= 5; i++) {
-            float fi = float(i);
-            float speed = t * 0.42;
-            vec2 offset = vec2(
-              sin(p.y * 1.35 * fi + speed * (0.85 + fi * 0.15) + fi * 1.618),
-              cos(p.x * 1.35 * fi + speed * (0.80 + fi * 0.15) + fi * 2.718)
-            );
-            p += offset * (0.55 / fi);
-          }
-          return p;
-        }
+        // ONLY THE EXACT COLORS FROM REFERENCE PICTURE:
+        // Swatches: #E93E8F, #FF6A1C, #FFD940, #44D46E, #227BFF
+        // Plus the deep purple swirl base and subtle white marble veining from the photo
+        const vec3 c_pink   = vec3(0.914, 0.243, 0.561); // #E93E8F Pink / Magenta
+        const vec3 c_orange = vec3(1.000, 0.416, 0.110); // #FF6A1C Warm Orange
+        const vec3 c_yellow = vec3(1.000, 0.851, 0.251); // #FFD940 Yellow
+        const vec3 c_green  = vec3(0.267, 0.831, 0.431); // #44D46E Green
+        const vec3 c_blue   = vec3(0.133, 0.482, 1.000); // #227BFF Blue
+        const vec3 c_purple = vec3(0.345, 0.110, 0.529); // #581C87 Deep Purple (from image background)
+        const vec3 c_white  = vec3(1.000, 1.000, 1.000); // White acrylic veining
 
         void main() {
           vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-          float aspect = u_resolution.x / u_resolution.y;
-          // Widen the viewing area so waves and ribbons span broadly across the entire screen
-          vec2 p = (uv - 0.5) * vec2(aspect, 1.0) * 1.35;
-
-          // Organic, continuous liquid motion with energetic fluid flow
-          float t = u_time;
-          vec2 w1 = swirl(p, t);
-          vec2 w2 = swirl(w1 * 1.1 + vec2(sin(t * 0.25) * 0.5, cos(t * 0.28) * 0.5), t * 1.15);
-
-          // Liquid ribbon folding and fluid wave transitions
-          float ribbon = sin(w2.x * 1.8 + w2.y * 1.5 + t * 0.65) * 0.5 + 0.5;
-          float fold = cos(w1.x * 2.0 - w1.y * 1.8 - t * 0.52) * 0.5 + 0.5;
           
-          // Phase-shifted seamless cyclic scalar in [0, 1] with active continuous motion
-          float val = fract(ribbon * 0.52 + fold * 0.48 + t * 0.14);
+          // Align approximately in a diagonal line (matching the reference photo)
+          float lineAxis = uv.x * 0.72 + uv.y * 0.68;
 
-          // Smooth 7-color continuous spectral blending
+          // Organic fluid wave displacements along the line direction
+          float t = u_time * 0.45;
+          float wave1 = sin(uv.y * 4.2 - uv.x * 2.8 + t * 0.8) * 0.09;
+          float wave2 = cos(uv.x * 6.5 + uv.y * 3.5 - t * 0.6) * 0.06;
+          float wave3 = sin((lineAxis + wave1) * 5.0 + t * 0.5) * 0.04;
+
+          // Seamless cyclic parameter flowing approximately in a line
+          float param = fract(lineAxis * 1.35 + wave1 + wave2 + wave3 + t * 0.12);
+
+          // Blend bands in exact sequence from the photo
           vec3 col;
-          float step = 1.0 / 7.0;
+          float step = 1.0 / 6.0;
 
-          if (val < step) {
-            float f = smoothstep(0.0, step, val);
+          if (param < step) {
+            float f = smoothstep(0.0, step, param);
+            col = mix(c_purple, c_pink, f);
+          } else if (param < step * 2.0) {
+            float f = smoothstep(step, step * 2.0, param);
             col = mix(c_pink, c_orange, f);
-          } else if (val < step * 2.0) {
-            float f = smoothstep(step, step * 2.0, val);
+          } else if (param < step * 3.0) {
+            float f = smoothstep(step * 2.0, step * 3.0, param);
             col = mix(c_orange, c_yellow, f);
-          } else if (val < step * 3.0) {
-            float f = smoothstep(step, step * 2.0, val);
+          } else if (param < step * 4.0) {
+            float f = smoothstep(step * 3.0, step * 4.0, param);
             col = mix(c_yellow, c_green, f);
-          } else if (val < step * 4.0) {
-            float f = smoothstep(step * 3.0, step * 4.0, val);
-            col = mix(c_green, c_cyan, f);
-          } else if (val < step * 5.0) {
-            float f = smoothstep(step * 4.0, step * 5.0, val);
-            col = mix(c_cyan, c_blue, f);
-          } else if (val < step * 6.0) {
-            float f = smoothstep(step * 5.0, step * 6.0, val);
-            col = mix(c_blue, c_violet, f);
+          } else if (param < step * 5.0) {
+            float f = smoothstep(step * 4.0, step * 5.0, param);
+            col = mix(c_green, c_blue, f);
           } else {
-            float f = smoothstep(step * 6.0, 1.0, val);
-            col = mix(c_violet, c_pink, f); // Invisibly connects back to Pink
+            float f = smoothstep(step * 5.0, 1.0, param);
+            col = mix(c_blue, c_purple, f);
           }
 
-          // Soft acrylic highlight sheen along the swirling fluid contours
-          float sheen = smoothstep(0.35, 0.65, abs(fract(ribbon * 2.0) - 0.5) * 2.0);
-          col += vec3(0.09, 0.09, 0.11) * sheen;
+          // Subtle natural white marble veining along the fluid boundary (as seen in the photo)
+          float vein = smoothstep(0.015, 0.0, abs(sin((lineAxis + wave1 + wave2) * 24.0 + t * 0.3)) - 0.985);
+          col = mix(col, c_white, vein * 0.35);
 
           gl_FragColor = vec4(col, 1.0);
         }
@@ -156,7 +139,7 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
 
       gl.useProgram(program)
 
-      // Screen-filling quad
+      // Full screen quad
       const positionBuffer = gl.createBuffer()
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
       gl.bufferData(
@@ -181,7 +164,7 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
 
       const handleResize = () => {
         if (!canvas || !gl) return
-        const dpr = Math.min(window.devicePixelRatio || 1, 1.25)
+        const dpr = Math.min(window.devicePixelRatio || 1, 1.5)
         const displayWidth = Math.floor(canvas.clientWidth * dpr)
         const displayHeight = Math.floor(canvas.clientHeight * dpr)
         if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
@@ -215,17 +198,17 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
       }
     } else {
       // ---------------- 2D CANVAS FALLBACK ----------------
+      // Directional linear bands with subtle wave offsets
       const ctx = canvas.getContext('2d')
       if (!ctx) return
 
       const colors = [
+        '#581C87', // Deep Purple
         '#E93E8F', // Pink
         '#FF6A1C', // Orange
         '#FFD940', // Yellow
         '#44D46E', // Green
-        '#06B6D4', // Cyan
         '#227BFF', // Blue
-        '#7B2CBF', // Violet
       ]
 
       const handleResize2D = () => {
@@ -237,34 +220,27 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
       handleResize2D()
       window.addEventListener('resize', handleResize2D)
 
-      let phase = 0
+      let offset = 0
 
       const render2D = () => {
         if (isDisposed || !ctx || !canvas) return
-        phase += 0.025
+        offset += 0.8
         const w = canvas.width
         const h = canvas.height
 
         ctx.clearRect(0, 0, w, h)
 
-        // Draw overlapping organic fluid waves across wide screen area
-        for (let i = 0; i < colors.length; i++) {
-          const color = colors[i]
-          const offsetPhase = phase + (i * Math.PI * 2) / colors.length
-          const cx = w * 0.5 + Math.sin(offsetPhase * 0.7) * (w * 0.45)
-          const cy = h * 0.5 + Math.cos(offsetPhase * 0.8) * (h * 0.45)
-          const radius = Math.max(w, h) * (0.65 + 0.25 * Math.sin(offsetPhase * 0.9))
-
-          const grad = ctx.createRadialGradient(cx, cy, 10, cx, cy, radius)
-          grad.addColorStop(0, color)
-          grad.addColorStop(1, 'transparent')
-
-          ctx.fillStyle = grad
-          ctx.globalAlpha = 0.5
-          ctx.fillRect(0, 0, w, h)
+        // Draw flowing diagonal linear bands approximately in a line
+        const grad = ctx.createLinearGradient(0, 0, w, h)
+        for (let i = 0; i <= colors.length * 2; i++) {
+          const c = colors[i % colors.length]
+          const stop = (i / (colors.length * 2) + (offset * 0.0005)) % 1
+          grad.addColorStop(stop, c)
         }
 
-        ctx.globalAlpha = 1.0
+        ctx.fillStyle = grad
+        ctx.fillRect(0, 0, w, h)
+
         animFrameId.current = requestAnimationFrame(render2D)
       }
 
@@ -287,7 +263,7 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
     >
       <canvas
         ref={canvasRef}
-        className="w-full h-full object-cover transition-opacity duration-700 ease-in-out"
+        className="w-full h-full object-cover transition-opacity duration-500 ease-in-out"
         style={{ width: '100vw', height: '100vh', display: 'block' }}
       />
     </div>
