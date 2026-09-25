@@ -21,6 +21,7 @@ export const UpgradeModal: React.FC = () => {
     activateLicense,
     activateOnlineLicense,
     deactivateLicense,
+    openCheckout,
     closeUpgradeModal,
   } = useLicenseStore()
 
@@ -298,7 +299,7 @@ export const UpgradeModal: React.FC = () => {
                 </div>
               )}
 
-              {/* Enter license key toggle */}
+              {/* Enter license key toggle / input */}
               {!isPro && (
                 <div className="pt-1.5 border-t border-white/[0.06] space-y-2">
                   {!showKeyInput ? (
@@ -321,6 +322,10 @@ export const UpgradeModal: React.FC = () => {
                     </div>
                   ) : (
                     <div className="space-y-1.5 animate-fade-in">
+                      <label className="text-[10px] font-medium text-zinc-400 flex items-center gap-1">
+                        <KeyRound className="w-3 h-3 text-blue-400" />
+                        <span>Enter Dodo Payments License Key:</span>
+                      </label>
                       <div className="flex gap-1.5">
                         <input
                           type="text"
@@ -355,8 +360,8 @@ export const UpgradeModal: React.FC = () => {
                 <div
                   className={`text-[11px] p-2.5 rounded-lg text-center font-medium animate-fade-in ${
                     statusMessage.isError
-                      ? 'bg-rose-950/40 text-rose-300 border border-rose-800/40'
-                      : 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/40'
+                      ? 'bg-rose-950/50 text-rose-200 border border-rose-800/60'
+                      : 'bg-emerald-950/50 text-emerald-200 border border-emerald-800/60'
                   }`}
                 >
                   {statusMessage.text}

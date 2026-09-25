@@ -52,7 +52,7 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
   triggerFeature: null,
   isValidating: false,
 
-  activateLicense: (key?: string) => {
+  activateLicense: async (key?: string) => {
     const effectiveKey = key?.trim() || `FERNUM-PRO-${Date.now().toString(36).toUpperCase()}`
 
     // Validate format: accept any key containing PRO, FERNUM, DODO, or standard license pattern
@@ -70,9 +70,7 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
       localStorage.setItem(STORAGE_TIER_KEY, 'premium')
       localStorage.setItem(STORAGE_KEY_KEY, effectiveKey)
       localStorage.setItem('fernum_is_pro', 'true')
-    } catch {
-      // Ignore
-    }
+    } catch {}
 
     useSettingsStore.getState().setIsPro(true)
 

@@ -365,9 +365,9 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
     })
   }
 
-  const { deleteNodeFromTree, selectedDrive } = useScanStore()
-  const { addExcludedPath, setIsPro } = useSettingsStore()
-  const { isPro, openUpgradeModal, activateLicense } = useLicenseStore()
+  const { deleteNodeFromTree } = useScanStore()
+  const { addExcludedPath } = useSettingsStore()
+  const { isPro, openUpgradeModal } = useLicenseStore()
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean
@@ -506,20 +506,7 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
   }
 
   const handleUpgradeToPro = () => {
-    // TODO: replace with real purchase/license flow (e.g. Stripe checkout or license verification)
-    setIsPro(true)
-    activateLicense()
-    setToastMessage('Pro tier unlocked! Rescanning entire drive without limits...')
-    setTimeout(() => setToastMessage(null), 3500)
-    if (selectedDrive && window.electronAPI) {
-      window.electronAPI.startScan({
-        targetPath: selectedDrive.path,
-        excludePaths: useSettingsStore.getState().excludedPaths,
-        forceRescan: true,
-        deepScan: false,
-        isPro: true,
-      })
-    }
+    openUpgradeModal('Unlock Full Drive Storage Scan (Remove 70GB Cap)')
   }
 
   // Close context menu on global click

@@ -332,3 +332,16 @@ export interface ElectronAPI {
   openExternalUrl?: (url: string) => Promise<boolean>
   onDeepLinkLicense?: (callback: (licenseKey: string) => void) => () => void
 }
+
+export interface DodoActivationResult {
+  success: boolean
+  message: string
+  licenseId?: string
+  status?: string
+}
+
+export interface DodoValidationResult {
+  valid: boolean
+  message?: string
+}
+

@@ -44,8 +44,8 @@ describe('Licensing & Tier Management', () => {
     expect(useLicenseStore.getState().triggerFeature).toBeNull()
   })
 
-  it('successfully activates Lifetime Pro with valid license key', () => {
-    const result = useLicenseStore.getState().activateLicense('FERNUM-PRO-TEST-KEY-2026')
+  it('successfully activates Lifetime Pro with valid license key', async () => {
+    const result = await useLicenseStore.getState().activateLicense('FERNUM-PRO-TEST-KEY-2026')
     expect(result.success).toBe(true)
     expect(useLicenseStore.getState().tier).toBe('premium')
     expect(useLicenseStore.getState().isPro).toBe(true)
@@ -53,15 +53,22 @@ describe('Licensing & Tier Management', () => {
     expect(localStorage.getItem('fernum_license_tier')).toBe('premium')
   })
 
-  it('rejects malformed license key that is too short and lacks PRO indicator', () => {
-    const result = useLicenseStore.getState().activateLicense('abc')
+  it('successfully activates Lifetime Pro with Dodo Payments license key', async () => {
+    const result = await useLicenseStore.getState().activateLicense('DODO-PRO-9876-5432-1098')
+    expect(result.success).toBe(true)
+    expect(useLicenseStore.getState().isPro).toBe(true)
+    expect(useLicenseStore.getState().licenseKey).toBe('DODO-PRO-9876-5432-1098')
+  })
+
+  it('rejects malformed license key that is too short and lacks PRO indicator', async () => {
+    const result = await useLicenseStore.getState().activateLicense('abc')
     expect(result.success).toBe(false)
     expect(useLicenseStore.getState().isPro).toBe(false)
   })
 
-  it('supports instant demo unlock and subsequent deactivation', () => {
+  it('supports instant demo unlock and subsequent deactivation', async () => {
     // Instant unlock (no key passed generates a lifetime key)
-    const res = useLicenseStore.getState().activateLicense()
+    const res = await useLicenseStore.getState().activateLicense()
     expect(res.success).toBe(true)
     expect(useLicenseStore.getState().isPro).toBe(true)
     expect(useLicenseStore.getState().licenseKey).toMatch(/^FERNUM-PRO-/)
