@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react'
 import {
-  Sparkles,
   Check,
   X,
   ShieldCheck,
@@ -11,6 +10,7 @@ import {
 import { useLicenseStore } from '../../stores/licenseStore'
 import { getDodoCheckoutUrl } from '../../services/dodoPayments'
 import { Button } from './Button'
+import { FernumLogo } from './FernumLogo'
 
 export const UpgradeModal: React.FC = () => {
   const {
@@ -129,9 +129,7 @@ export const UpgradeModal: React.FC = () => {
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/[0.02]">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-amber-500 to-yellow-300 flex items-center justify-center text-slate-950 font-black shadow-sm">
-              <Sparkles className="w-4 h-4" />
-            </div>
+            <FernumLogo className="w-8 h-8 rounded-lg shadow-sm" variant="icon" />
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-bold text-zinc-100">

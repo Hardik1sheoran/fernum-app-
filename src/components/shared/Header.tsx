@@ -19,6 +19,7 @@ import { useLicenseStore } from '../../stores/licenseStore'
 import { formatBytes } from '../Treemap/treemapLayout'
 import type { ThemeMode } from '../../stores/settingsStore'
 import type { TabKey } from './TabNavigation'
+import { FernumLogo } from './FernumLogo'
 
 interface HeaderProps {
   activeTab?: TabKey
@@ -87,7 +88,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="h-8 pl-3 pr-0 flex items-center justify-between bg-[#0a0c10] border-b border-[#1b1e24] drag-region text-xs">
         {/* Left Windows App Brand & System Identity */}
         <div className="flex items-center gap-2.5 no-drag">
-          <img src="/icon.png" alt="Fernum" className="w-4 h-4 object-contain rounded-xs" />
+          <FernumLogo className="w-4 h-4" variant="icon" />
           <span className="font-semibold text-zinc-200 text-xs tracking-tight">
             Fernum
           </span>
@@ -138,10 +139,12 @@ export const Header: React.FC<HeaderProps> = ({
       {/* 2. Main Navigation Bar */}
       <div className="h-12 px-3 flex items-center justify-between gap-4 bg-[#14161a] border-b border-[#22252c]">
         {/* Brand */}
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="font-bold text-sm tracking-tight text-white hover:text-blue-400 transition-colors cursor-pointer"
-            onClick={() => onSelectTab?.('storage')}
-          >
+        <div
+          className="flex items-center gap-2.5 shrink-0 cursor-pointer group"
+          onClick={() => onSelectTab?.('storage')}
+        >
+          <FernumLogo className="w-5 h-5 group-hover:scale-105 transition-transform" variant="cyan" glow />
+          <span className="font-bold text-sm tracking-tight text-white group-hover:text-blue-400 transition-colors">
             Fernum
           </span>
         </div>
