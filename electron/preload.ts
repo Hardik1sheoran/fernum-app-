@@ -167,6 +167,18 @@ const api: ElectronAPI = {
       ipcRenderer.removeListener('license:activated', handler)
     }
   },
+  minimizeWindow: (): Promise<boolean> => {
+    return ipcRenderer.invoke('window:minimize')
+  },
+  maximizeWindow: (): Promise<boolean> => {
+    return ipcRenderer.invoke('window:maximize')
+  },
+  closeWindow: (): Promise<boolean> => {
+    return ipcRenderer.invoke('window:close')
+  },
+  isWindowMaximized: (): Promise<boolean> => {
+    return ipcRenderer.invoke('window:is-maximized')
+  },
 }
 
 contextBridge.exposeInMainWorld('electronAPI', api)

@@ -178,7 +178,7 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
         ctx.stroke()
 
         // 4. Header label text
-        ctx.font = '600 11px "Segoe UI Variable", "Segoe UI", -apple-system, sans-serif'
+        ctx.font = '600 11px "Segoe UI Variable", "Segoe UI", system-ui, sans-serif'
         ctx.fillStyle = isHovered ? '#ffffff' : 'rgba(255, 255, 255, 0.95)'
         ctx.shadowColor = 'rgba(0, 0, 0, 0.85)'
         ctx.shadowBlur = 2
@@ -226,7 +226,7 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
 
         if (r.canFitTitle) {
           ctx.globalAlpha = 1.0
-          ctx.font = '600 11px "Segoe UI Variable", "Segoe UI", -apple-system, sans-serif'
+          ctx.font = '600 11px "Segoe UI Variable", "Segoe UI", system-ui, sans-serif'
           ctx.fillStyle = '#ffffff'
           ctx.shadowColor = 'rgba(0, 0, 0, 0.9)'
           ctx.shadowBlur = 3
@@ -645,7 +645,7 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
   <meta charset="UTF-8">
   <title>Fernum Storage Audit - ${currentViewNode.name}</title>
   <style>
-    body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; color: #f4f4f5; margin: 0; padding: 32px; }
+    body { font-family: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif; background: #0f1117; color: #f4f4f5; margin: 0; padding: 32px; }
     .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 24px; max-width: 960px; margin: 0 auto; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
     h1 { margin-top: 0; font-size: 20px; color: #ffffff; display: flex; align-items: center; justify-content: space-between; }
     .meta { font-size: 13px; color: #a1a1aa; margin-bottom: 24px; }

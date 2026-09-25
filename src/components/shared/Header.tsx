@@ -83,21 +83,55 @@ export const Header: React.FC<HeaderProps> = ({
 
   return (
     <div className="flex flex-col select-none border-b border-[#242429] bg-[#0d0f12] text-zinc-100 relative z-30">
-      {/* 1. Top Window Title Bar */}
-      <div className="h-8 px-3 flex items-center justify-between bg-[#090b0e] border-b border-[#1b1e24] drag-region text-xs">
-        {/* Left window control traffic lights */}
-        <div className="flex items-center gap-2 no-drag">
-          <span className="w-3 h-3 rounded-full bg-[#ef4444] border border-[#dc2626]/60 inline-block shadow-xs hover:brightness-110 cursor-pointer" />
-          <span className="w-3 h-3 rounded-full bg-[#f59e0b] border border-[#d97706]/60 inline-block shadow-xs hover:brightness-110 cursor-pointer" />
-          <span className="w-3 h-3 rounded-full bg-[#10b981] border border-[#059669]/60 inline-block shadow-xs hover:brightness-110 cursor-pointer" />
-          <span className="ml-3 font-semibold text-zinc-300 text-xs tracking-tight">
-            Fernum — Visualize Your Space
+      {/* 1. Native Windows 11 Fluent Title Bar */}
+      <div className="h-8 pl-3 pr-0 flex items-center justify-between bg-[#0a0c10] border-b border-[#1b1e24] drag-region text-xs">
+        {/* Left Windows App Brand & System Identity */}
+        <div className="flex items-center gap-2.5 no-drag">
+          <img src="/icon.png" alt="Fernum" className="w-4 h-4 object-contain rounded-xs" />
+          <span className="font-semibold text-zinc-200 text-xs tracking-tight">
+            Fernum
+          </span>
+          <span className="text-zinc-600 text-[11px]">|</span>
+          <span className="text-zinc-400 text-[11px] font-medium hidden sm:inline">
+            Storage Analyzer for Windows
+          </span>
+          <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20">
+            Windows 11
           </span>
         </div>
 
-        {/* Right verified app screen badge */}
-        <div className="no-drag flex items-center gap-1.5 font-mono text-[11px] font-semibold text-emerald-400">
-          <span>Verified Windows 11 App Screen</span>
+        {/* Right Native Windows Window Caption Buttons */}
+        <div className="no-drag flex items-center h-full">
+          <button
+            onClick={() => window.electronAPI?.minimizeWindow?.()}
+            title="Minimize"
+            aria-label="Minimize"
+            className="h-8 w-11 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:bg-white/15 transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 10 1" fill="none">
+              <path d="M0 0.5H10" stroke="currentColor" strokeWidth="1" />
+            </svg>
+          </button>
+          <button
+            onClick={() => window.electronAPI?.maximizeWindow?.()}
+            title="Maximize"
+            aria-label="Maximize"
+            className="h-8 w-11 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 active:bg-white/15 transition-colors"
+          >
+            <svg className="w-3 h-3" viewBox="0 0 10 10" fill="none">
+              <rect x="0.5" y="0.5" width="9" height="9" stroke="currentColor" strokeWidth="1" />
+            </svg>
+          </button>
+          <button
+            onClick={() => window.electronAPI?.closeWindow?.()}
+            title="Close"
+            aria-label="Close"
+            className="h-8 w-11 flex items-center justify-center text-zinc-400 hover:text-white hover:bg-[#e81123] active:bg-[#c4101e] transition-colors"
+          >
+            <svg className="w-3.5 h-3.5" viewBox="0 0 10 10" fill="none">
+              <path d="M1 1L9 9M9 1L1 9" stroke="currentColor" strokeWidth="1" />
+            </svg>
+          </button>
         </div>
       </div>
 

@@ -185,6 +185,24 @@ export function initBrowserFallback(): void {
       return true
     },
     onDeepLinkLicense: () => () => {},
+    minimizeWindow: async () => {
+      console.log('[Window] Minimize window requested')
+      return true
+    },
+    maximizeWindow: async () => {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => {})
+        return false
+      } else {
+        await document.documentElement.requestFullscreen().catch(() => {})
+        return true
+      }
+    },
+    closeWindow: async () => {
+      window.close()
+      return true
+    },
+    isWindowMaximized: async () => Boolean(document.fullscreenElement),
   }
 
   window.electronAPI = browserApi

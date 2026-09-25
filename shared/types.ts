@@ -339,6 +339,10 @@ export interface ElectronAPI {
   setTheme: (theme: 'dark' | 'light') => Promise<boolean>
   openExternalUrl?: (url: string) => Promise<boolean>
   onDeepLinkLicense?: (callback: (licenseKey: string) => void) => () => void
+  minimizeWindow?: () => Promise<boolean>
+  maximizeWindow?: () => Promise<boolean>
+  closeWindow?: () => Promise<boolean>
+  isWindowMaximized?: () => Promise<boolean>
 }
 
 export interface DodoActivationResult {

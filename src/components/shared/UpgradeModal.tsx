@@ -289,7 +289,7 @@ export const UpgradeModal: React.FC = () => {
                   <div className="flex items-center justify-center gap-2 text-[10px] text-zinc-400 font-medium">
                     <span>Card</span>
                     <span>·</span>
-                    <span>Apple Pay</span>
+                    <span>PayPal</span>
                     <span>·</span>
                     <span>Google Pay</span>
                     <span>·</span>

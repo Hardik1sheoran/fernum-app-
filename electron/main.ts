@@ -248,6 +248,39 @@ app.whenReady().then(() => {
     return true
   })
 
+  // Windows Window Caption Controls
+  ipcMain.handle('window:minimize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.minimize()
+      return true
+    }
+    return false
+  })
+
+  ipcMain.handle('window:maximize', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMaximized()) {
+        mainWindow.unmaximize()
+      } else {
+        mainWindow.maximize()
+      }
+      return mainWindow.isMaximized()
+    }
+    return false
+  })
+
+  ipcMain.handle('window:close', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.close()
+      return true
+    }
+    return false
+  })
+
+  ipcMain.handle('window:is-maximized', () => {
+    return mainWindow && !mainWindow.isDestroyed() ? mainWindow.isMaximized() : false
+  })
+
   createWindow()
 
   app.on('activate', () => {

@@ -25,9 +25,10 @@ const config: Config = {
         sans: [
           'Segoe UI Variable',
           'Segoe UI',
+          'Segoe UI Variable Text',
+          'Segoe UI Variable Display',
           'Inter',
-          '-apple-system',
-          'BlinkMacSystemFont',
+          'system-ui',
           'sans-serif',
         ],
       },
