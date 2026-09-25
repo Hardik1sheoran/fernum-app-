@@ -1,6 +1,8 @@
 import os from 'node:os'
+import { spawn, type ChildProcess } from 'node:child_process'
 import si from 'systeminformation'
 import type { SystemStats, SystemSpecs, ProcessStats } from '../../shared/types'
+import { sortProcesses } from '../../shared/monitorUtils'
 
 let prevCpuSnapshot: { idle: number; total: number } | null = null
 
@@ -146,10 +148,178 @@ export async function getRealSystemSpecs(): Promise<SystemSpecs> {
   }
 }
 
+// --------------------------------------------------------------------------
+// Real-time Windows Kernel Telemetry Sampling via typeperf (sub-millisecond)
+// --------------------------------------------------------------------------
+let telemetryProc: ChildProcess | null = null
+let currentDiskRead = 0
+let currentDiskWrite = 0
+let currentNetRx = 0
+let currentNetTx = 0
+let cachedTopProcesses: ProcessStats[] = []
+let isFetchingProcesses = false
+let processPollTimer: NodeJS.Timeout | null = null
+
+export function getLiveDiskRead(): number {
+  return currentDiskRead
+}
+
+export function getLiveDiskWrite(): number {
+  return currentDiskWrite
+}
+
+export function getLiveNetRx(): number {
+  return currentNetRx
+}
+
+export function getLiveNetTx(): number {
+  return currentNetTx
+}
+
+export function getCachedTopProcesses(): ProcessStats[] {
+  return cachedTopProcesses
+}
+
+export function startTelemetrySampling(): void {
+  if (telemetryProc || process.platform !== 'win32') return
+
+  try {
+    telemetryProc = spawn(
+      'typeperf',
+      [
+        '\\PhysicalDisk(_Total)\\Disk Read Bytes/sec',
+        '\\PhysicalDisk(_Total)\\Disk Write Bytes/sec',
+        '\\Network Interface(*)\\Bytes Received/sec',
+        '\\Network Interface(*)\\Bytes Sent/sec',
+        '-si',
+        '1',
+      ],
+      {
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }
+    )
+
+    let buffer = ''
+    let readIndices: number[] = []
+    let writeIndices: number[] = []
+    let rxIndices: number[] = []
+    let txIndices: number[] = []
+
+    telemetryProc.stdout?.on('data', (chunk: Buffer) => {
+      buffer += chunk.toString()
+      const lines = buffer.split(/\r?\n/)
+      buffer = lines.pop() || ''
+
+      for (const rawLine of lines) {
+        const line = rawLine.trim()
+        if (!line) continue
+
+        if (line.includes('PDH-CSV') || line.includes('PhysicalDisk')) {
+          const rawCols = line.replace(/^"/, '').replace(/"$/, '').split('","')
+          readIndices = []
+          writeIndices = []
+          rxIndices = []
+          txIndices = []
+
+          rawCols.forEach((col, idx) => {
+            const cl = col.toLowerCase()
+            if (cl.includes('disk read bytes/sec')) {
+              readIndices.push(idx)
+            } else if (cl.includes('disk write bytes/sec')) {
+              writeIndices.push(idx)
+            } else if (cl.includes('bytes received/sec') && !cl.includes('isatap') && !cl.includes('teredo') && !cl.includes('loopback')) {
+              rxIndices.push(idx)
+            } else if (cl.includes('bytes sent/sec') && !cl.includes('isatap') && !cl.includes('teredo') && !cl.includes('loopback')) {
+              txIndices.push(idx)
+            }
+          })
+          continue
+        }
+
+        if (line.startsWith('"') && (readIndices.length > 0 || rxIndices.length > 0)) {
+          const parts = line.replace(/^"/, '').replace(/"$/, '').split('","')
+          if (parts.length > 1) {
+            const r = readIndices.reduce((sum, i) => sum + (parseFloat(parts[i]) || 0), 0)
+            const w = writeIndices.reduce((sum, i) => sum + (parseFloat(parts[i]) || 0), 0)
+            const rx = rxIndices.reduce((sum, i) => sum + (parseFloat(parts[i]) || 0), 0)
+            const tx = txIndices.reduce((sum, i) => sum + (parseFloat(parts[i]) || 0), 0)
+
+            if (!isNaN(r)) currentDiskRead = Math.max(0, Math.round(r))
+            if (!isNaN(w)) currentDiskWrite = Math.max(0, Math.round(w))
+            if (!isNaN(rx)) currentNetRx = Math.max(0, Math.round(rx))
+            if (!isNaN(tx)) currentNetTx = Math.max(0, Math.round(tx))
+          }
+        }
+      }
+    })
+
+    telemetryProc.on('error', () => {
+      telemetryProc = null
+    })
+
+    telemetryProc.on('exit', () => {
+      telemetryProc = null
+    })
+  } catch {
+    telemetryProc = null
+  }
+
+  // Poll top processes in background every 3.5s without blocking fast stats
+  if (!processPollTimer) {
+    void updateTopProcesses()
+    processPollTimer = setInterval(() => {
+      void updateTopProcesses()
+    }, 3500)
+  }
+}
+
+async function updateTopProcesses(): Promise<void> {
+  if (isFetchingProcesses) return
+  isFetchingProcesses = true
+  try {
+    const procRes = await si.processes()
+    if (procRes && Array.isArray(procRes.list)) {
+      const mapped: ProcessStats[] = procRes.list.map((p) => ({
+        pid: p.pid,
+        name: p.name,
+        cpuPercent: Math.round(p.cpu * 10) / 10,
+        memoryBytes: (p.memRss || 0) * 1024,
+      }))
+      cachedTopProcesses = sortProcesses(mapped, 'memory', 10)
+    }
+  } catch {
+    // ignore
+  } finally {
+    isFetchingProcesses = false
+  }
+}
+
+export function stopTelemetrySampling(): void {
+  if (telemetryProc) {
+    try {
+      telemetryProc.kill()
+    } catch {}
+    telemetryProc = null
+  }
+  if (processPollTimer) {
+    clearInterval(processPollTimer)
+    processPollTimer = null
+  }
+  currentDiskRead = 0
+  currentDiskWrite = 0
+  currentNetRx = 0
+  currentNetTx = 0
+}
+
 /**
  * Fast snapshot of system telemetry without blocking processes list.
  */
 export async function getFastSystemStats(cachedProcesses: ProcessStats[] = []): Promise<SystemStats> {
+  if (!telemetryProc && process.platform === 'win32') {
+    startTelemetrySampling()
+  }
+
   const specs = await getRealSystemSpecs()
   const cpuPercent = calculateCpuUsage()
   const totalMem = os.totalmem()
@@ -172,13 +342,14 @@ export async function getFastSystemStats(cachedProcesses: ProcessStats[] = []): 
       usagePercent: memPercent,
     },
     disk: {
-      readSpeedBytesPerSec: 0,
-      writeSpeedBytesPerSec: 0,
+      readSpeedBytesPerSec: currentDiskRead,
+      writeSpeedBytesPerSec: currentDiskWrite,
     },
     network: {
-      rxSpeedBytesPerSec: 0,
-      txSpeedBytesPerSec: 0,
+      rxSpeedBytesPerSec: currentNetRx,
+      txSpeedBytesPerSec: currentNetTx,
     },
-    topProcesses: cachedProcesses,
+    topProcesses: cachedProcesses.length > 0 ? cachedProcesses : cachedTopProcesses,
   }
 }
+

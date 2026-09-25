@@ -162,13 +162,19 @@ export function initBrowserFallback(): void {
     getSystemStats: () => api<SystemStats>('/api/stats'),
     getSystemSpecs: () => api<SystemSpecs>('/api/specs'),
     subscribeSystemStats: (listener) => {
+      void browserApi.getSystemStats().then(listener).catch(() => {})
       const timer = setInterval(() => { void browserApi.getSystemStats().then(listener).catch(() => {}) }, 1000)
       return () => clearInterval(timer)
     },
     subscribeProcesses: (listener: (procs: ProcessStats[]) => void) => {
+      void browserApi.getSystemStats().then((s) => {
+        if (s.topProcesses && s.topProcesses.length > 0) listener(s.topProcesses)
+      }).catch(() => {})
       const timer = setInterval(() => {
-        void browserApi.getSystemStats().then((s) => listener(s.topProcesses || [])).catch(() => {})
-      }, 3500)
+        void browserApi.getSystemStats().then((s) => {
+          if (s.topProcesses && s.topProcesses.length > 0) listener(s.topProcesses)
+        }).catch(() => {})
+      }, 3000)
       return () => clearInterval(timer)
     },
     startMonitoring: async () => true,

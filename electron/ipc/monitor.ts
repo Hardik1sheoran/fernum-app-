@@ -1,10 +1,18 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import si from 'systeminformation'
 import os from 'node:os'
-import { spawn, type ChildProcess } from 'node:child_process'
 import type { SystemStats, ProcessStats, SystemSpecs } from '../../shared/types'
 import { sortProcesses } from '../../shared/monitorUtils'
-import { getRealSystemSpecs, calculateCpuUsage } from '../services/monitorService'
+import {
+  getRealSystemSpecs,
+  calculateCpuUsage,
+  startTelemetrySampling,
+  stopTelemetrySampling,
+  getLiveDiskRead,
+  getLiveDiskWrite,
+  getLiveNetRx,
+  getLiveNetTx,
+} from '../services/monitorService'
 
 let statsInterval: NodeJS.Timeout | null = null
 let processInterval: NodeJS.Timeout | null = null
@@ -13,72 +21,19 @@ let isCollectingFast = false
 let isCollectingProcesses = false
 let activeSubscribers = 0
 let lastKnownProcesses: ProcessStats[] = []
-let diskIoProc: ChildProcess | null = null
-let currentDiskRead = 0
-let currentDiskWrite = 0
 
 export function startDiskIoSampling(): void {
-  if (diskIoProc || process.platform !== 'win32') return
-
-  try {
-    diskIoProc = spawn(
-      'typeperf',
-      ['\\PhysicalDisk(_Total)\\Disk Read Bytes/sec', '\\PhysicalDisk(_Total)\\Disk Write Bytes/sec', '-si', '1'],
-      {
-        windowsHide: true,
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }
-    )
-
-    let buffer = ''
-    diskIoProc.stdout?.on('data', (chunk: Buffer) => {
-      buffer += chunk.toString()
-      const lines = buffer.split(/\r?\n/)
-      buffer = lines.pop() || ''
-
-      for (const rawLine of lines) {
-        const line = rawLine.trim()
-        if (!line || line.startsWith('(PDH-CSV') || line.includes('PhysicalDisk')) {
-          continue
-        }
-        const parts = line.replace(/"/g, '').split(',')
-        if (parts.length >= 3) {
-          const r = parseFloat(parts[1])
-          const w = parseFloat(parts[2])
-          if (!isNaN(r)) currentDiskRead = Math.max(0, Math.round(r))
-          if (!isNaN(w)) currentDiskWrite = Math.max(0, Math.round(w))
-        }
-      }
-    })
-
-    diskIoProc.on('error', () => {
-      diskIoProc = null
-    })
-
-    diskIoProc.on('exit', () => {
-      diskIoProc = null
-    })
-  } catch {
-    diskIoProc = null
-  }
+  startTelemetrySampling()
 }
 
 export function stopDiskIoSampling(): void {
-  if (diskIoProc) {
-    try {
-      diskIoProc.kill()
-    } catch {
-      // Ignored
-    }
-    diskIoProc = null
-  }
-  currentDiskRead = 0
-  currentDiskWrite = 0
+  stopTelemetrySampling()
 }
 
 export function getActiveSubscribers(): number {
   return activeSubscribers
 }
+
 
 /**
  * Initializes static CPU hardware information once.
@@ -141,7 +96,7 @@ export async function collectFastMetrics(): Promise<Omit<SystemStats, 'topProces
       timeoutPromise(si.currentLoad(), 1200, { currentLoad: 0 } as any),
       timeoutPromise(si.mem(), 600, null as any),
       timeoutPromise(si.disksIO(), 400, null as any),
-      timeoutPromise(si.networkStats(), 450, [] as any),
+      timeoutPromise(si.networkStats(), 1500, [] as any),
     ])
 
     // 1. CPU Usage
@@ -175,28 +130,34 @@ export async function collectFastMetrics(): Promise<Omit<SystemStats, 'topProces
       memPercent = Math.round((usedMem / totalMem) * 100)
     }
 
-    // 3. Disk I/O Read/Write (bytes/sec)
-    let diskReadSpeed = currentDiskRead
-    let diskWriteSpeed = currentDiskWrite
+    // 3. Disk I/O Read/Write (bytes/sec) - Live Windows PDH kernel counters
+    let diskReadSpeed = getLiveDiskRead()
+    let diskWriteSpeed = getLiveDiskWrite()
     if (diskReadSpeed === 0 && diskWriteSpeed === 0 && diskRes.status === 'fulfilled' && diskRes.value) {
       diskReadSpeed = Math.max(0, Math.round(diskRes.value.rIO_sec || 0))
       diskWriteSpeed = Math.max(0, Math.round(diskRes.value.wIO_sec || 0))
     }
 
-    // 4. Network Throughput (bytes/sec)
-    let netRxSpeed = lastKnownNetRx
-    let netTxSpeed = lastKnownNetTx
-    if (netRes.status === 'fulfilled' && Array.isArray(netRes.value) && netRes.value.length > 0) {
+    // 4. Network Throughput (bytes/sec) - Live Windows PDH kernel counters
+    let netRxSpeed = getLiveNetRx()
+    let netTxSpeed = getLiveNetTx()
+    if (netRxSpeed === 0 && netTxSpeed === 0 && netRes.status === 'fulfilled' && Array.isArray(netRes.value) && netRes.value.length > 0) {
       let currentRx = 0
       let currentTx = 0
       for (const iface of netRes.value) {
         currentRx += Math.max(0, Math.round(iface.rx_sec || 0))
         currentTx += Math.max(0, Math.round(iface.tx_sec || 0))
       }
-      lastKnownNetRx = currentRx
-      lastKnownNetTx = currentTx
+      if (currentRx > 0) lastKnownNetRx = currentRx
+      if (currentTx > 0) lastKnownNetTx = currentTx
       netRxSpeed = currentRx
       netTxSpeed = currentTx
+    } else if (netRxSpeed > 0 || netTxSpeed > 0) {
+      lastKnownNetRx = netRxSpeed
+      lastKnownNetTx = netTxSpeed
+    } else {
+      netRxSpeed = lastKnownNetRx
+      netTxSpeed = lastKnownNetTx
     }
 
     return {

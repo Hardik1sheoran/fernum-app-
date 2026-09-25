@@ -10,36 +10,23 @@ import type {
   ScanOptions,
   ScanProgress,
   FileNode,
-  FileCategory,
-  InstalledApp,
-  SearchResultItem,
   DuplicateScanOptions,
 } from '../shared/types'
 import { isProtectedSystemPath } from '../shared/pathSecurity'
 import { runScanDirectly, cancelDirectScan } from '../electron/workers/scanner.worker'
 import { scanSystemJunk, cleanSystemJunk } from '../electron/services/cleanerService'
-import { scanLeftoverCandidates, cleanLeftoverDirectories } from '../electron/services/appsService'
+import {
+  scanLeftoverCandidates,
+  cleanLeftoverDirectories,
+  queryInstalledApps,
+  parseUninstallCommand,
+} from '../electron/services/appsService'
 import { loadScanCache } from '../electron/services/scanCache'
 import { getRealSystemSpecs, getFastSystemStats } from '../electron/services/monitorService'
 import { findDuplicateFiles } from '../electron/services/duplicateService'
+import { searchDiskFiles } from '../electron/services/searchService'
 
 const execAsync = promisify(exec)
-
-const EXT_CATEGORY_MAP: Record<string, FileCategory> = {
-  mp4: 'video', mkv: 'video', avi: 'video', mov: 'video', wmv: 'video', flv: 'video', webm: 'video',
-  png: 'image', jpg: 'image', jpeg: 'image', gif: 'image', webp: 'image', svg: 'image', bmp: 'image',
-  mp3: 'audio', wav: 'audio', flac: 'audio', aac: 'audio', ogg: 'audio', m4a: 'audio',
-  pdf: 'document', doc: 'document', docx: 'document', xls: 'document', xlsx: 'document', ppt: 'document', pptx: 'document', txt: 'document', csv: 'document', md: 'document',
-  zip: 'archive', rar: 'archive', '7z': 'archive', tar: 'archive', gz: 'archive', iso: 'archive',
-  js: 'code', ts: 'code', tsx: 'code', jsx: 'code', py: 'code', java: 'code', cpp: 'code', c: 'code', cs: 'code', go: 'code', rs: 'code', html: 'code', css: 'code', json: 'code',
-  exe: 'system', dll: 'system', sys: 'system', msi: 'system',
-  tmp: 'cache', temp: 'cache', log: 'cache', cache: 'cache',
-}
-
-function getCategory(ext: string): FileCategory {
-  const cleanExt = ext.toLowerCase().replace(/^\./, '')
-  return EXT_CATEGORY_MAP[cleanExt] || 'other'
-}
 
 let activeScanCancelled = false
 let activeScanProgress: ScanProgress = {
@@ -301,53 +288,13 @@ Get-CimInstance -ClassName Win32_LogicalDisk | Select-Object DeviceID, VolumeNam
         // Real Installed Apps
         if (pathname === '/api/apps') {
           try {
-            const psScript = `
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$paths = @(
-    'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
-    'HKLM:\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
-    'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'
-)
-$items = Get-ItemProperty -Path $paths -ErrorAction SilentlyContinue |
-    Where-Object { $_.DisplayName -and -not $_.SystemComponent -and ($_.UninstallString -or $_.QuietUninstallString) } |
-    Select-Object DisplayName, DisplayVersion, Publisher, InstallDate, InstallLocation, UninstallString, EstimatedSize |
-    Sort-Object DisplayName -Unique
-$items | ConvertTo-Json -Compress -Depth 2
-`
-            const b64 = Buffer.from(psScript, 'utf16le').toString('base64')
-            const { stdout } = await execAsync(
-              `powershell -NoProfile -NonInteractive -EncodedCommand ${b64}`,
-              { windowsHide: true, maxBuffer: 10 * 1024 * 1024 }
-            )
-
-            if (stdout && stdout.trim()) {
-              const firstChar = stdout.search(/[{\[]/)
-              const jsonStr = firstChar !== -1 ? stdout.slice(firstChar).trim() : stdout.trim()
-              const raw = JSON.parse(jsonStr)
-              const list = Array.isArray(raw) ? raw : [raw]
-              const apps: InstalledApp[] = list
-                .filter((item) => item && item.DisplayName)
-                .map((item, idx) => ({
-                  id: `app-${idx}-${(item.DisplayName || '').replace(/\s+/g, '-').toLowerCase()}`,
-                  name: item.DisplayName,
-                  publisher: item.Publisher || 'Unknown',
-                  version: item.DisplayVersion,
-                  installDate: item.InstallDate,
-                  installLocation: item.InstallLocation,
-                  uninstallString: item.UninstallString,
-                  estimatedSizeBytes: item.EstimatedSize ? Number(item.EstimatedSize) * 1024 : undefined,
-                }))
-
-              res.writeHead(200, { 'Content-Type': 'application/json' })
-              res.end(JSON.stringify(apps))
-              return
-            }
-          } catch {
-            // fallback
+            const apps = await queryInstalledApps(false)
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify(apps))
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: String(err) }))
           }
-
-          res.writeHead(200, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify([]))
           return
         }
 
@@ -584,42 +531,20 @@ if (Test-Path -LiteralPath $targetPath -PathType Container) {
           req.on('end', async () => {
             const { appId } = JSON.parse(body || '{}')
             try {
-              const psScript = `
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-$paths = @(
-    'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
-    'HKLM:\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*',
-    'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\*'
-)
-$items = Get-ItemProperty -Path $paths -ErrorAction SilentlyContinue |
-    Where-Object { $_.DisplayName -and -not $_.SystemComponent -and ($_.UninstallString -or $_.QuietUninstallString) } |
-    Select-Object DisplayName, UninstallString, InstallLocation
-$items | ConvertTo-Json -Compress
-`
-              const b64 = Buffer.from(psScript, 'utf16le').toString('base64')
-              const { stdout } = await execAsync(
-                `powershell -NoProfile -NonInteractive -EncodedCommand ${b64}`,
-                { windowsHide: true, maxBuffer: 10 * 1024 * 1024 }
-              )
-              if (stdout && stdout.trim()) {
-                const firstChar = stdout.search(/[{\[]/)
-                const jsonStr = firstChar !== -1 ? stdout.slice(firstChar).trim() : stdout.trim()
-                const raw = JSON.parse(jsonStr)
-                const list = Array.isArray(raw) ? raw : [raw]
-                const matched = list.find((item: any, idx: number) => {
-                  const id = `app-${idx}-${(item.DisplayName || '').replace(/\\s+/g, '-').toLowerCase()}`
-                  return id === appId || item.DisplayName === appId
-                })
-                if (matched && matched.UninstallString) {
+              const apps = await queryInstalledApps(false)
+              const matched = apps.find((app) => app.id === appId || app.name === appId)
+              if (matched && matched.uninstallString) {
+                const command = parseUninstallCommand(matched.uninstallString)
+                if (command) {
                   const { spawn } = await import('node:child_process')
-                  const child = spawn('cmd.exe', ['/c', 'start', '""', matched.UninstallString], {
+                  const child = spawn('cmd.exe', ['/c', 'start', '""', command.filePath, ...command.args], {
                     detached: true,
                     stdio: 'ignore',
                     windowsHide: true,
                   })
                   child.unref()
                   res.writeHead(200, { 'Content-Type': 'application/json' })
-                  res.end(JSON.stringify({ success: true, message: `Uninstaller launched for "${matched.DisplayName}". Follow the on-screen prompts.` }))
+                  res.end(JSON.stringify({ success: true, message: `Uninstaller launched for "${matched.name}". Follow the on-screen prompts.` }))
                   return
                 }
               }
@@ -640,56 +565,7 @@ $items | ConvertTo-Json -Compress
           req.on('end', async () => {
             try {
               const options = JSON.parse(body || '{}')
-              const searchRoot = options.targetPath || process.env.USERPROFILE || 'C:\\Users\\hardi'
-              const query = (options.query || '').toLowerCase().trim()
-              const minSize = options.minSizeBytes || 0
-              const categoryFilter = options.category
-              const limit = options.limit || 100
-
-              const results: SearchResultItem[] = []
-
-              async function crawlSearch(dir: string, depth: number) {
-                if (results.length >= limit || depth > 8) return
-                try {
-                  const items = await fsPromises.readdir(dir, { withFileTypes: true })
-                  for (const item of items) {
-                    if (results.length >= limit) break
-                    if (item.isSymbolicLink()) continue
-                    const full = path.join(dir, item.name)
-                    if (['$recycle.bin', 'system volume information', 'node_modules'].includes(item.name.toLowerCase())) continue
-
-                    if (item.isFile()) {
-                      const lower = item.name.toLowerCase()
-                      if (query && !lower.includes(query)) continue
-                      const ext = path.extname(item.name)
-                      const cat = getCategory(ext)
-                      if (categoryFilter && cat !== categoryFilter) continue
-
-                      try {
-                        const st = await fsPromises.stat(full)
-                        if (st.size < minSize) continue
-                        results.push({
-                          id: full,
-                          name: item.name,
-                          path: full,
-                          sizeBytes: st.size,
-                          category: cat,
-                          extension: ext,
-                          lastModified: st.mtimeMs,
-                        })
-                      } catch {
-                        // ignore
-                      }
-                    } else if (item.isDirectory()) {
-                      await crawlSearch(full, depth + 1)
-                    }
-                  }
-                } catch {
-                  // ignore
-                }
-              }
-
-              await crawlSearch(searchRoot, 0)
+              const results = await searchDiskFiles(options)
               res.writeHead(200, { 'Content-Type': 'application/json' })
               res.end(JSON.stringify(results))
             } catch (err) {
