@@ -140,13 +140,18 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="h-12 px-3 flex items-center justify-between gap-4 bg-[#14161a] border-b border-[#22252c]">
         {/* Brand */}
         <div
-          className="flex items-center gap-2.5 shrink-0 cursor-pointer group"
+          className="flex items-center gap-3 shrink-0 cursor-pointer group px-2 py-1 -ml-1 rounded-lg hover:bg-white/[0.04] transition-all"
           onClick={() => onSelectTab?.('storage')}
         >
-          <FernumLogo className="w-5 h-5 group-hover:scale-105 transition-transform" variant="cyan" glow />
-          <span className="font-bold text-sm tracking-tight text-white group-hover:text-blue-400 transition-colors">
-            Fernum
-          </span>
+          <FernumLogo className="w-7 h-7 group-hover:scale-105 transition-transform" variant="cyan" glow />
+          <div className="flex flex-col">
+            <span className="font-bold text-base leading-none tracking-tight text-white group-hover:text-blue-400 transition-colors">
+              Fernum
+            </span>
+            <span className="text-[10px] text-zinc-400 font-medium tracking-wide mt-0.5">
+              Windows Suite
+            </span>
+          </div>
         </div>
 
         {/* Center Search Bar with scope pill */}

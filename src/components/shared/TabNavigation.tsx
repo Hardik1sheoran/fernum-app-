@@ -2,6 +2,7 @@ import React from 'react'
 import { HardDrive, Trash2, Copy, AppWindow, Search, Activity, Loader2 } from 'lucide-react'
 import { useLicenseStore } from '../../stores/licenseStore'
 import { useScanStore } from '../../stores/scanStore'
+import { FernumLogo } from './FernumLogo'
 
 export type TabKey = 'storage' | 'cleaner' | 'duplicates' | 'apps' | 'search' | 'monitor'
 
@@ -58,6 +59,18 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onSelec
 
   return (
     <nav className="p-2 space-y-1 select-none border-b border-[#2d2d33]">
+      <div className="flex items-center gap-3 px-2 py-2 mb-2 rounded-lg bg-gradient-to-r from-blue-950/40 via-[#181c24] to-[#12151b] border border-blue-500/20 shadow-xs">
+        <FernumLogo className="w-8 h-8" variant="cyan" glow />
+        <div className="flex flex-col">
+          <div className="flex items-center gap-1.5">
+            <span className="font-bold text-sm tracking-tight text-white">Fernum</span>
+            <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+              PRO
+            </span>
+          </div>
+          <span className="text-[10px] text-zinc-400 font-medium">Windows Storage Suite</span>
+        </div>
+      </div>
       {tabs.map((tab) => {
         const isActive = activeTab === tab.key
         return (

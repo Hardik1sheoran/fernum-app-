@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import type { DriveInfo, QuickFolderInfo, FileNode } from '@shared/types'
 import { useScanStore } from '../../stores/scanStore'
+import { FernumLogo } from '../shared/FernumLogo'
 
 interface DrivePickerProps {
   drives: DriveInfo[]
@@ -68,6 +69,20 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
   return (
     <aside className="w-64 h-full flex flex-col justify-between bg-[#111317] border-r border-[#1f2229] select-none text-zinc-300 p-3 overflow-y-auto">
       <div className="space-y-3.5">
+        {/* App Logo & Identity */}
+        <div className="flex items-center gap-3 px-2.5 py-2 rounded-lg bg-gradient-to-r from-blue-950/40 via-[#181c24] to-[#12151b] border border-blue-500/20 shadow-xs">
+          <FernumLogo className="w-8 h-8" variant="cyan" glow />
+          <div className="flex flex-col">
+            <div className="flex items-center gap-1.5">
+              <span className="font-bold text-sm tracking-tight text-white">Fernum</span>
+              <span className="px-1.5 py-0.2 rounded text-[9px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30">
+                PRO
+              </span>
+            </div>
+            <span className="text-[10px] text-zinc-400 font-medium">Windows Storage Analyzer</span>
+          </div>
+        </div>
+
         {/* 1. Primary Action Button: Scan Windows */}
         <button
           onClick={() => active && onStartScan(active)}
