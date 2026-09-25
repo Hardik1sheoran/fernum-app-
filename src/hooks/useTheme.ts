@@ -15,11 +15,11 @@ export function useTheme() {
       root.classList.add('dark')
       if (body) body.classList.add('dark')
     } else if (theme === 'forest') {
-      root.classList.add('light', 'theme-forest')
-      if (body) body.classList.add('light', 'theme-forest')
+      root.classList.add('theme-forest')
+      if (body) body.classList.add('theme-forest')
     } else if (theme === 'ocean') {
-      root.classList.add('light', 'theme-ocean')
-      if (body) body.classList.add('light', 'theme-ocean')
+      root.classList.add('theme-ocean')
+      if (body) body.classList.add('theme-ocean')
     } else if (theme === 'aurora') {
       root.classList.add('dark', 'theme-aurora')
       if (body) body.classList.add('dark', 'theme-aurora')

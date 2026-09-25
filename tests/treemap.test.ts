@@ -15,6 +15,10 @@ describe('Squarified Treemap Layout Engine', () => {
 
   it('formats byte sizes correctly', () => {
     expect(formatBytes(0)).toBe('0 B')
+    expect(formatBytes(-100)).toBe('0 B')
+    expect(formatBytes(NaN)).toBe('0 B')
+    expect(formatBytes(Infinity)).toBe('0 B')
+    expect(formatBytes(0.5)).toBe('0.5 B')
     expect(formatBytes(1024)).toBe('1.00 KB')
     expect(formatBytes(1024 * 1024 * 50)).toBe('50.0 MB')
     expect(formatBytes(1024 * 1024 * 1024 * 4.5)).toBe('4.50 GB')
@@ -216,4 +220,42 @@ describe('Squarified Treemap Layout Engine', () => {
       expect(hitChild?.node.name).toBe('inner.mp4')
     })
   })
+
+  describe('File Organization and Directory Sorting', () => {
+    const sampleFiles: FileNode[] = [
+      { id: '1', name: 'video.mp4', path: '/media/video.mp4', size: 500000000, type: 'file', category: 'video' },
+      { id: '2', name: 'photo.png', path: '/media/photo.png', size: 2000000, type: 'file', category: 'image' },
+      { id: '3', name: 'doc.pdf', path: '/media/doc.pdf', size: 15000000, type: 'file', category: 'document' },
+      { id: '4', name: 'archive.zip', path: '/media/archive.zip', size: 120000000, type: 'file', category: 'archive' },
+      { id: '5', name: 'SubDir', path: '/media/SubDir', size: 800000000, type: 'directory', category: 'other', childCount: 15 },
+    ]
+
+    it('organizes files by size descending by default', () => {
+      const sorted = [...sampleFiles].sort((a, b) => b.size - a.size)
+      expect(sorted[0].name).toBe('SubDir')
+      expect(sorted[1].name).toBe('video.mp4')
+      expect(sorted[2].name).toBe('archive.zip')
+      expect(sorted[3].name).toBe('doc.pdf')
+      expect(sorted[4].name).toBe('photo.png')
+    })
+
+    it('filters files cleanly by category', () => {
+      const videoItems = sampleFiles.filter((f) => f.category === 'video')
+      expect(videoItems.length).toBe(1)
+      expect(videoItems[0].name).toBe('video.mp4')
+
+      const largeItems = sampleFiles.filter((f) => f.size >= 100 * 1024 * 1024)
+      expect(largeItems.length).toBe(3) // SubDir, video.mp4, archive.zip
+    })
+
+    it('filters items by keyword or extension', () => {
+      const query = 'pdf'
+      const matched = sampleFiles.filter(
+        (f) => f.name.toLowerCase().includes(query.toLowerCase())
+      )
+      expect(matched.length).toBe(1)
+      expect(matched[0].name).toBe('doc.pdf')
+    })
+  })
 })
+

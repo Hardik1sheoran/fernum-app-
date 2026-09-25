@@ -109,16 +109,15 @@ export const UpgradeModal: React.FC = () => {
 
   const powerSuiteFeatures = [
     'Everything in Free +',
+    'Deep Duplicate File Hunter (SHA-256 cluster detection & 1-click clean)',
+    'Developer Bloat Cleaner (purge node_modules, .venv, pip, cargo, gradle caches)',
+    'Export Storage Audit Reports (Professional CSV & HTML Executive Reports)',
     'Full PC Deep Scan (unthrottled Windows & leaf directory scan)',
-    'Complete PC Hardware profile & CPU topology report',
-    'Delete files within the app (Fast multi-file parallel deletion)',
-    'App uninstaller with residue cleanup',
-    'Super Power search & direct disk queries',
-    'Reveal & open file paths in Explorer',
-    'Directly open archives & folders',
-    'Premium themes customisation (Forest, Ocean, Aurora)',
-    'Priority email support',
-    'Lifetime updates & zero subscription fees',
+    'Deep App Uninstaller with residue leftover cleanup',
+    'Fast multi-file parallel deletion & Recycle Bin safe restore',
+    'Complete PC Hardware profile & CPU topology telemetry',
+    'Premium themes customisation (Forest, Ocean, Aurora, Rainbow)',
+    'Priority support with lifetime updates & zero monthly fees',
   ]
 
   return (

@@ -221,6 +221,7 @@ export type JunkCategoryType =
   | 'shaderCache'
   | 'thumbnailCache'
   | 'browserCache'
+  | 'devCaches'
 
 export interface JunkCategoryItem {
   id: JunkCategoryType
@@ -245,6 +246,38 @@ export interface JunkCleanResult {
   deletedFileCount: number
   skippedCount: number
   failed: Array<{ path: string; reason: string }>
+}
+
+export interface DuplicateFileItem {
+  id: string
+  path: string
+  name: string
+  sizeBytes: number
+  category: FileCategory
+  extension?: string
+  lastModified?: number
+  hash: string
+}
+
+export interface DuplicateGroup {
+  hash: string
+  sizeBytes: number
+  wastedBytes: number
+  files: DuplicateFileItem[]
+}
+
+export interface DuplicateScanOptions {
+  targetPath?: string
+  minSizeBytes?: number
+  category?: FileCategory | 'all'
+  limit?: number
+}
+
+export interface DuplicateScanResult {
+  groups: DuplicateGroup[]
+  totalDuplicateFiles: number
+  totalWastedBytes: number
+  scannedFilesCount: number
 }
 
 /**
@@ -272,6 +305,9 @@ export interface ElectronAPI {
 
   // Search IPC
   searchFiles: (options: SearchQueryOptions) => Promise<SearchResultItem[] | SearchResultResponse>
+
+  // Duplicates IPC
+  scanDuplicates?: (options?: DuplicateScanOptions) => Promise<DuplicateScanResult>
 
   // Applications IPC
   listInstalledApps: (forceRefresh?: boolean) => Promise<InstalledApp[]>

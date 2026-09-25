@@ -9,6 +9,7 @@ import { registerAppsIpc } from './ipc/apps'
 import { registerSearchIpc } from './ipc/search'
 import { registerMonitorIpc, stopMonitorIpc } from './ipc/monitor'
 import { registerCleanerIpc } from './ipc/cleaner'
+import { registerDuplicatesIpc } from './ipc/duplicates'
 
 // Register deep link protocol
 if (process.defaultApp) {
@@ -30,7 +31,7 @@ function extractLicenseFromUrl(rawUrl: string): string | null {
 
 const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
-  app.quit()
+  app.exit(0)
 }
 
 const __filename = fileURLToPath(import.meta.url)
@@ -73,13 +74,50 @@ function createWindow(): void {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      spellcheck: false,
     },
+  })
+
+  // Security: Prevent arbitrary child browser windows; route links to default external OS browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
+      void shell.openExternal(url)
+    }
+    return { action: 'deny' }
+  })
+
+  // Security: Block in-app navigation to arbitrary remote web origins
+  mainWindow.webContents.on('will-navigate', (event, navigationUrl) => {
+    const devUrl = process.env.VITE_DEV_SERVER_URL
+    if (devUrl && navigationUrl.startsWith(devUrl)) {
+      return
+    }
+    if (navigationUrl.startsWith('file://')) {
+      return
+    }
+    event.preventDefault()
+    if (navigationUrl.startsWith('https://') || navigationUrl.startsWith('http://')) {
+      void shell.openExternal(navigationUrl)
+    }
+  })
+
+  // Security: Disallow embedding of arbitrary webviews
+  mainWindow.webContents.on('will-attach-webview', (event) => {
+    event.preventDefault()
   })
 
   mainWindow.once('ready-to-show', () => {
     console.log(`[PERF] App launch to ready-to-show: ${Date.now() - appLaunchStart} ms`)
     mainWindow?.show()
   })
+
+  setTimeout(() => {
+    if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+      mainWindow.show()
+    }
+  }, 1200)
 
   mainWindow.webContents.on('did-finish-load', () => {
     console.log(`[PERF] App launch to did-finish-load: ${Date.now() - appLaunchStart} ms`)
@@ -93,9 +131,10 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.webContents.on('console-message', (_event, _level, message) => {
-    if (message.startsWith('[PERF]')) {
-      console.log(`[Renderer] ${message}`)
+  mainWindow.webContents.on('console-message', (event, ...rest) => {
+    const msg = (event && typeof event === 'object' && 'message' in event ? (event as any).message : rest[1]) || ''
+    if (typeof msg === 'string' && msg.startsWith('[PERF]')) {
+      console.log(`[Renderer] ${msg}`)
     }
   })
 
@@ -157,6 +196,7 @@ app.on('second-instance', (_event, commandLine) => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.focus()
+    mainWindow.webContents.reload()
     const urlArg = commandLine.find((arg) => arg.startsWith('fernum://'))
     if (urlArg) {
       const key = extractLicenseFromUrl(urlArg)
@@ -175,6 +215,7 @@ app.whenReady().then(() => {
   registerSearchIpc()
   registerMonitorIpc(() => mainWindow)
   registerCleanerIpc()
+  registerDuplicatesIpc()
 
   // External URL opening helper
   ipcMain.handle('system:open-external', async (_event, url: string) => {

@@ -1,9 +1,9 @@
 import React from 'react'
-import { HardDrive, Trash2, AppWindow, Search, Activity, Loader2 } from 'lucide-react'
+import { HardDrive, Trash2, Copy, AppWindow, Search, Activity, Loader2 } from 'lucide-react'
 import { useLicenseStore } from '../../stores/licenseStore'
 import { useScanStore } from '../../stores/scanStore'
 
-export type TabKey = 'storage' | 'cleaner' | 'apps' | 'search' | 'monitor'
+export type TabKey = 'storage' | 'cleaner' | 'duplicates' | 'apps' | 'search' | 'monitor'
 
 interface TabNavigationProps {
   activeTab: TabKey
@@ -30,6 +30,12 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onSelec
       key: 'cleaner',
       label: 'Disk Cleanup',
       icon: <Trash2 className="w-4 h-4" />,
+      isProFeature: true,
+    },
+    {
+      key: 'duplicates',
+      label: 'Duplicates',
+      icon: <Copy className="w-4 h-4" />,
       isProFeature: true,
     },
     {

@@ -4,7 +4,6 @@ import fsPromises from 'node:fs/promises'
 import path from 'node:path'
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
-import si from 'systeminformation'
 import type {
   DriveInfo,
   QuickFolderInfo,
@@ -14,10 +13,15 @@ import type {
   FileCategory,
   InstalledApp,
   SearchResultItem,
-  SystemStats,
+  DuplicateScanOptions,
 } from '../shared/types'
 import { isProtectedSystemPath } from '../shared/pathSecurity'
 import { runScanDirectly, cancelDirectScan } from '../electron/workers/scanner.worker'
+import { scanSystemJunk, cleanSystemJunk } from '../electron/services/cleanerService'
+import { scanLeftoverCandidates, cleanLeftoverDirectories } from '../electron/services/appsService'
+import { loadScanCache } from '../electron/services/scanCache'
+import { getRealSystemSpecs, getFastSystemStats } from '../electron/services/monitorService'
+import { findDuplicateFiles } from '../electron/services/duplicateService'
 
 const execAsync = promisify(exec)
 
@@ -268,62 +272,30 @@ Get-CimInstance -ClassName Win32_LogicalDisk | Select-Object DeviceID, VolumeNam
           return
         }
 
-        // Real-Time System Stats (Monitor)
-        if (pathname === '/api/stats') {
+        // Real-Time System Hardware Specs (Monitor)
+        if (pathname === '/api/specs') {
           try {
-            const [cpuSpeed, cpuLoad, mem, netStats, procs] = await Promise.all([
-              si.cpuCurrentSpeed(),
-              si.currentLoad(),
-              si.mem(),
-              si.networkStats(),
-              si.processes(),
-            ])
-
-            const primaryNet = netStats[0] || { rx_sec: 0, tx_sec: 0 }
-
-            const topProcs = (procs.list || [])
-              .sort((a, b) => (b.memRss || 0) - (a.memRss || 0))
-              .slice(0, 10)
-              .map((p) => ({
-                pid: p.pid,
-                name: p.name,
-                cpuPercent: Math.round(p.cpu || 0),
-                memoryBytes: (p.memRss || 0),
-              }))
-
-            const stats: SystemStats = {
-              timestamp: Date.now(),
-              cpu: {
-                usagePercent: Math.round(cpuLoad.currentLoad || 0),
-                model: 'Windows CPU',
-                cores: cpuLoad.cpus ? cpuLoad.cpus.length : 8,
-                speedGhz: Number((cpuSpeed.avg || 2.4).toFixed(2)),
-              },
-              memory: {
-                totalBytes: mem.total,
-                usedBytes: mem.active || mem.used,
-                freeBytes: mem.free,
-                usagePercent: Math.round(((mem.active || mem.used) / mem.total) * 100),
-              },
-              disk: {
-                readSpeedBytesPerSec: 0,
-                writeSpeedBytesPerSec: 0,
-              },
-              network: {
-                rxSpeedBytesPerSec: Math.max(0, primaryNet.rx_sec || 0),
-                txSpeedBytesPerSec: Math.max(0, primaryNet.tx_sec || 0),
-              },
-              topProcesses: topProcs,
-            }
-
+            const specs = await getRealSystemSpecs()
             res.writeHead(200, { 'Content-Type': 'application/json' })
-            res.end(JSON.stringify(stats))
-            return
+            res.end(JSON.stringify(specs))
           } catch (err) {
             res.writeHead(500, { 'Content-Type': 'application/json' })
             res.end(JSON.stringify({ error: String(err) }))
-            return
           }
+          return
+        }
+
+        // Real-Time System Stats (Monitor - sub-millisecond fast telemetry)
+        if (pathname === '/api/stats') {
+          try {
+            const stats = await getFastSystemStats()
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify(stats))
+          } catch (err) {
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: String(err) }))
+          }
+          return
         }
 
         // Real Installed Apps
@@ -720,6 +692,225 @@ $items | ConvertTo-Json -Compress
               await crawlSearch(searchRoot, 0)
               res.writeHead(200, { 'Content-Type': 'application/json' })
               res.end(JSON.stringify(results))
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: String(err) }))
+            }
+          })
+          return
+        }
+
+        // Deep Duplicate File Search
+        if (pathname === '/api/duplicates/scan' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (c) => (body += c))
+          req.on('end', async () => {
+            try {
+              const options: DuplicateScanOptions = JSON.parse(body || '{}')
+              const result = await findDuplicateFiles(options)
+              res.writeHead(200, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify(result))
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: String(err) }))
+            }
+          })
+          return
+        }
+
+        // Native Folder Picker Dialog via PowerShell Forms
+        if (pathname === '/api/select-folder') {
+          try {
+            const psScript = `
+[System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null
+$f = New-Object System.Windows.Forms.FolderBrowserDialog
+$f.Description = 'Select Folder to Scan'
+$f.ShowNewFolderButton = $false
+$top = New-Object System.Windows.Forms.Form
+$top.TopMost = $true
+if ($f.ShowDialog($top) -eq [System.Windows.Forms.DialogResult]::OK) {
+  Write-Output $f.SelectedPath
+}
+`
+            const b64 = Buffer.from(psScript, 'utf16le').toString('base64')
+            const { stdout } = await execAsync(`powershell -NoProfile -NonInteractive -EncodedCommand ${b64}`, {
+              windowsHide: false,
+            })
+            const selectedPath = stdout ? stdout.trim() : null
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ selectedPath }))
+          } catch {
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ selectedPath: null }))
+          }
+          return
+        }
+
+        // Persistent Scan Cache
+        if (pathname === '/api/scan/cache') {
+          const targetPath = url.searchParams.get('path') || ''
+          try {
+            const cached = await loadScanCache(targetPath)
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify(cached))
+          } catch {
+            res.writeHead(200, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify(null))
+          }
+          return
+        }
+
+        // Real Junk Cleaner: Scan
+        if (pathname === '/api/cleaner/scan' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (c) => (body += c))
+          req.on('end', async () => {
+            try {
+              const { categories, forceRescan } = JSON.parse(body || '{}')
+              const result = await scanSystemJunk(categories, forceRescan)
+              res.writeHead(200, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify(result))
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: String(err) }))
+            }
+          })
+          return
+        }
+
+        // Real Junk Cleaner: Clean
+        if (pathname === '/api/cleaner/clean' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (c) => (body += c))
+          req.on('end', async () => {
+            try {
+              const { categoryIds } = JSON.parse(body || '{}')
+              const result = await cleanSystemJunk(categoryIds || [])
+              res.writeHead(200, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify(result))
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: String(err) }))
+            }
+          })
+          return
+        }
+
+        // Real Leftovers: Scan
+        if (pathname === '/api/apps/leftovers' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (c) => (body += c))
+          req.on('end', async () => {
+            try {
+              const { appName, publisher } = JSON.parse(body || '{}')
+              const result = await scanLeftoverCandidates(appName || '', publisher)
+              res.writeHead(200, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify(result))
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: String(err) }))
+            }
+          })
+          return
+        }
+
+        // Real Leftovers: Clean
+        if (pathname === '/api/apps/clean-leftovers' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (c) => (body += c))
+          req.on('end', async () => {
+            try {
+              const { paths } = JSON.parse(body || '{}')
+              const result = await cleanLeftoverDirectories(paths || [])
+              res.writeHead(200, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify(result))
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: String(err) }))
+            }
+          })
+          return
+        }
+
+        // Batch Trash
+        if (pathname === '/api/trash-many' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (c) => (body += c))
+          req.on('end', async () => {
+            try {
+              const { paths } = JSON.parse(body || '{}')
+              const list: string[] = paths || []
+              const succeeded: string[] = []
+              const failed: Array<{ path: string; error: string }> = []
+              for (const p of list) {
+                if (!p || isProtectedSystemPath(p)) {
+                  failed.push({ path: p, error: 'Protected system path.' })
+                  continue
+                }
+                try {
+                  const b64 = Buffer.from(p, 'utf8').toString('base64')
+                  const psScript = `
+Add-Type -AssemblyName Microsoft.VisualBasic
+$p = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String('${b64}'))
+if (Test-Path -LiteralPath $p -PathType Container) {
+  [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteDirectory($p, 'OnlyErrorDialogs', 'SendToRecycleBin')
+} else {
+  [Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile($p, 'OnlyErrorDialogs', 'SendToRecycleBin')
+}
+`
+                  const psB64 = Buffer.from(psScript, 'utf16le').toString('base64')
+                  await execAsync(`powershell -NoProfile -NonInteractive -EncodedCommand ${psB64}`)
+                  succeeded.push(p)
+                } catch (e) {
+                  failed.push({ path: p, error: String(e) })
+                }
+              }
+              res.writeHead(200, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({
+                success: failed.length === 0,
+                totalRequested: list.length,
+                deletedCount: succeeded.length,
+                succeeded,
+                failed,
+              }))
+            } catch (err) {
+              res.writeHead(500, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({ error: String(err) }))
+            }
+          })
+          return
+        }
+
+        // Batch Delete
+        if (pathname === '/api/delete-many' && req.method === 'POST') {
+          let body = ''
+          req.on('data', (c) => (body += c))
+          req.on('end', async () => {
+            try {
+              const { paths } = JSON.parse(body || '{}')
+              const list: string[] = paths || []
+              const succeeded: string[] = []
+              const failed: Array<{ path: string; error: string }> = []
+              for (const p of list) {
+                if (!p || isProtectedSystemPath(p)) {
+                  failed.push({ path: p, error: 'Protected system path.' })
+                  continue
+                }
+                try {
+                  await fsPromises.rm(p, { recursive: true, force: true })
+                  succeeded.push(p)
+                } catch (e) {
+                  failed.push({ path: p, error: String(e) })
+                }
+              }
+              res.writeHead(200, { 'Content-Type': 'application/json' })
+              res.end(JSON.stringify({
+                success: failed.length === 0,
+                totalRequested: list.length,
+                deletedCount: succeeded.length,
+                succeeded,
+                failed,
+              }))
             } catch (err) {
               res.writeHead(500, { 'Content-Type': 'application/json' })
               res.end(JSON.stringify({ error: String(err) }))

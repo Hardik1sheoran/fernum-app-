@@ -10,7 +10,7 @@ let isCancelled = false
  * A bounded concurrency of 16-24 yields high throughput on modern SSDs without
  * overloading the Node.js libuv threadpool or file system handles.
  */
-export const CONCURRENT_DIR_SCANS = 16
+export const CONCURRENT_DIR_SCANS = 32
 
 export class AsyncSemaphore {
   private active = 0
@@ -301,9 +301,9 @@ export async function scanDirectory(
     }
   }
 
-  // Throttle progress updates every ~150ms or immediately on cap
+  // Throttle progress updates every ~80ms or immediately on cap
   const now = Date.now()
-  if (now - ctx.lastReportTime > 150 || ctx.isCapped) {
+  if (now - ctx.lastReportTime > 80 || ctx.isCapped) {
     ctx.lastReportTime = now
     const progressData: ScanProgress = {
       status: ctx.isCapped ? 'completed' : 'scanning',

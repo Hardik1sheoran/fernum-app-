@@ -4,6 +4,7 @@ import { TabNavigation, type TabKey } from './components/shared/TabNavigation'
 import { DrivePicker } from './components/DrivePicker/DrivePicker'
 import { TreemapCanvas } from './components/Treemap/TreemapCanvas'
 import { JunkCleaner } from './components/Cleaner/JunkCleaner'
+import { DuplicateFinder } from './components/Duplicates/DuplicateFinder'
 import { AppsList } from './components/AppsList/AppsList'
 import { SearchPanel } from './components/Search/SearchPanel'
 import { MonitorDashboard } from './components/Monitor/MonitorDashboard'
@@ -78,7 +79,7 @@ export const App: React.FC = () => {
         try {
           const cached = await window.electronAPI.getCachedScan(drive.path)
           // If user upgraded to Pro, but cached result was capped under Free tier, bypass old cache to re-scan in full
-          if (cached && !(isPro && cached.capped)) {
+          if (cached && !(isPro && cached.capped) && cached.children && cached.children.length > 0) {
             hasWarmCached = true
             setRootNode(cached)
             setScanProgress({
@@ -132,6 +133,11 @@ export const App: React.FC = () => {
     }
   }, [setRootNode, setScanProgress])
 
+  const handleSelectDrive = useCallback((drive: DriveInfo) => {
+    setSelectedDrive(drive)
+    handleStartScan(drive, false, false)
+  }, [setSelectedDrive, handleStartScan])
+
   const loadDrives = useCallback(async () => {
     setIsLoadingDrives(true)
     setDriveError(null)
@@ -180,7 +186,7 @@ export const App: React.FC = () => {
         if (window.electronAPI.getCachedScan) {
           try {
             const cached = await window.electronAPI.getCachedScan(targetForInitial)
-            if (cached && !(isPro && cached.capped)) {
+            if (cached && !(isPro && cached.capped) && cached.children && cached.children.length > 0) {
               loadedCache = true
               setRootNode(cached)
               setScanProgress({
@@ -393,11 +399,14 @@ export const App: React.FC = () => {
       {/* Living Aurora Borealis Canvas with Falling Stars for Aurora Theme */}
       <AuroraCanvas active={theme === 'aurora'} />
 
-      {/* Top Title Bar */}
+      {/* Top Title Bar & Sub-Header */}
       <Header
+        activeTab={activeTab}
+        onSelectTab={handleSelectTab}
         onRefreshDrives={loadDrives}
         onOpenExclusions={() => setIsExclusionsOpen(true)}
         onOpenPrivacy={() => setIsPrivacyOpen(true)}
+        onRevealExplorer={() => handleRevealInExplorer(selectedDrive?.path || 'C:\\')}
       />
 
       {/* Scan Exclusions Modal */}
@@ -416,25 +425,25 @@ export const App: React.FC = () => {
       <UpgradeModal />
 
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-64 shrink-0 flex-col glass-sidebar">
-          <TabNavigation activeTab={activeTab} onSelectTab={handleSelectTab} />
-          {activeTab === 'storage' ? (
-            <DrivePicker
-              drives={drives}
-              quickFolders={quickFolders}
-              selectedDrive={selectedDrive}
-              currentViewNode={currentViewNode}
-              errorMessage={driveError}
-              onSelectDrive={setSelectedDrive}
-              onStartScan={(drive) => handleStartScan(drive, true, false)}
-              onStartDeepScan={(drive) => handleStartScan(drive, true, true)}
-              onScanHome={handleScanHome}
-              onSelectQuickFolder={handleSelectQuickFolder}
-              onSelectCustomFolder={handleSelectCustomFolder}
-              onRevealInExplorer={handleRevealInExplorer}
-              isScanning={scanProgress.status === 'scanning'}
-            />
-          ) : (
+        {activeTab === 'storage' ? (
+          <DrivePicker
+            drives={drives}
+            quickFolders={quickFolders}
+            selectedDrive={selectedDrive}
+            currentViewNode={currentViewNode}
+            errorMessage={driveError}
+            onSelectDrive={handleSelectDrive}
+            onStartScan={(drive) => handleStartScan(drive, true, false)}
+            onStartDeepScan={(drive) => handleStartScan(drive, true, true)}
+            onScanHome={handleScanHome}
+            onSelectQuickFolder={handleSelectQuickFolder}
+            onSelectCustomFolder={handleSelectCustomFolder}
+            onRevealInExplorer={handleRevealInExplorer}
+            isScanning={scanProgress.status === 'scanning'}
+          />
+        ) : (
+          <aside className="flex w-64 shrink-0 flex-col glass-sidebar">
+            <TabNavigation activeTab={activeTab} onSelectTab={handleSelectTab} />
             <div className="flex-1 p-3 flex flex-col justify-between select-none">
               <div className="space-y-3">
                 <div className="p-3 rounded-lg bg-[#242429] border border-[#2f2f36] space-y-2">
@@ -475,11 +484,11 @@ export const App: React.FC = () => {
                 </p>
               </div>
             </div>
-          )}
-        </aside>
+          </aside>
+        )}
 
         {/* Main Content Area */}
-        <main className="min-w-0 flex-1 overflow-hidden bg-[#18181b] p-3">
+        <main className={`min-w-0 flex-1 overflow-hidden bg-[#0a0c0f] ${activeTab === 'storage' ? 'p-0' : 'p-3'}`}>
           <div className={activeTab === 'storage' ? 'h-full' : 'hidden'}>
             <div className="h-full min-h-[420px]">
               <TreemapCanvas
@@ -502,6 +511,12 @@ export const App: React.FC = () => {
           {visitedTabs.has('cleaner') && (
             <div className={activeTab === 'cleaner' ? 'h-full overflow-y-auto p-2' : 'hidden'}>
               <JunkCleaner />
+            </div>
+          )}
+
+          {visitedTabs.has('duplicates') && (
+            <div className={activeTab === 'duplicates' ? 'h-full overflow-y-auto p-2' : 'hidden'}>
+              <DuplicateFinder />
             </div>
           )}
 

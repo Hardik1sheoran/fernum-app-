@@ -14,6 +14,7 @@ import {
   ChevronRight,
   AlertCircle,
   Folder,
+  Code2,
 } from 'lucide-react'
 import type { JunkCategoryItem, JunkCategoryType, JunkCleanResult } from '@shared/types'
 import { formatBytes } from '../Treemap/treemapLayout'
@@ -30,6 +31,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
   Zap: <Zap className="w-5 h-5 text-violet-400" />,
   Image: <ImageIcon className="w-5 h-5 text-purple-400" />,
   Globe: <Globe className="w-5 h-5 text-sky-400" />,
+  Code2: <Code2 className="w-5 h-5 text-indigo-400" />,
 }
 
 export const JunkCleaner: React.FC = () => {
@@ -295,8 +297,8 @@ export const JunkCleaner: React.FC = () => {
                 key={cat.id}
                 className={`rounded-lg border transition-colors ${
                   isSelected
-                    ? 'border-blue-500/40 bg-[#242730]'
-                    : 'border-[#2d2d33] bg-[#202024] hover:bg-[#25252b]'
+                    ? 'border-blue-500/50 bg-[#242730] junk-category-card junk-category-card-selected'
+                    : 'border-[#2d2d33] bg-[#202024] hover:bg-[#25252b] junk-category-card'
                 }`}
               >
                 <div className="flex items-center justify-between p-3 gap-3">

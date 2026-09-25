@@ -11,6 +11,13 @@ const mockLocalStorage = {
 // @ts-expect-error Node env polyfill
 globalThis.localStorage = mockLocalStorage
 
+// Mock global fetch for Dodo Payments API tests
+globalThis.fetch = async () => ({
+  ok: true,
+  status: 200,
+  json: async () => ({ id: 'act_test_123', customer_email: 'test@example.com' }),
+} as unknown as Response)
+
 import { useLicenseStore } from '../src/stores/licenseStore'
 
 describe('Licensing & Tier Management', () => {

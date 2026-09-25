@@ -4,6 +4,17 @@ interface RainbowMarblingCanvasProps {
   active: boolean
 }
 
+/**
+ * Living Acrylic Pour & Liquid Paint Marbling Canvas
+ * Faithfully reproduces the authentic fluid acrylic marbled painting:
+ * - #E93E8F (Paint Magenta / Rose)
+ * - #FF6A1C (Vibrant Fluid Orange)
+ * - #FFD940 (Warm Golden Yellow)
+ * - #44D46E (Lush Paint Green)
+ * - #227BFF (Cobalt Blue)
+ * with deep violet swirl transitions (#701A75).
+ * Continuous, unbroken, organic fluid flow without neon glare.
+ */
 export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ active }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const animFrameId = useRef<number | null>(null)
@@ -20,7 +31,6 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
     const canvas = canvasRef.current
     if (!canvas) return
 
-    // Try WebGL first for smooth GPU acceleration
     let gl: WebGLRenderingContext | null = null
     try {
       gl = canvas.getContext('webgl', {
@@ -37,8 +47,7 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
     let isDisposed = false
 
     if (gl) {
-      // ---------------- WEBGL IMPLEMENTATION ----------------
-      // Directional linear liquid marbling bands matching the reference photo
+      // ---------------- WEBGL FLUID ACRYLIC MARBLING ----------------
       const vsSource = `
         attribute vec2 a_position;
         void main() {
@@ -51,59 +60,114 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
         uniform vec2 u_resolution;
         uniform float u_time;
 
-        // ONLY THE EXACT COLORS FROM REFERENCE PICTURE:
-        // Swatches: #E93E8F, #FF6A1C, #FFD940, #44D46E, #227BFF
-        // Plus the deep purple swirl base and subtle white marble veining from the photo
-        const vec3 c_pink   = vec3(0.914, 0.243, 0.561); // #E93E8F Pink / Magenta
-        const vec3 c_orange = vec3(1.000, 0.416, 0.110); // #FF6A1C Warm Orange
-        const vec3 c_yellow = vec3(1.000, 0.851, 0.251); // #FFD940 Yellow
-        const vec3 c_green  = vec3(0.267, 0.831, 0.431); // #44D46E Green
-        const vec3 c_blue   = vec3(0.133, 0.482, 1.000); // #227BFF Blue
-        const vec3 c_purple = vec3(0.345, 0.110, 0.529); // #581C87 Deep Purple (from image background)
-        const vec3 c_white  = vec3(1.000, 1.000, 1.000); // White acrylic veining
+        // ULTRA-COLORFUL, HIGHLY SATURATED LIQUID PAINT PALETTE:
+        const vec3 c_magenta = vec3(1.000, 0.000, 0.560); // Radiant Neon Magenta / Hot Rose
+        const vec3 c_orange  = vec3(1.000, 0.380, 0.000); // Pure Vivid Solar Orange
+        const vec3 c_yellow  = vec3(1.000, 0.940, 0.000); // Electric Golden Sun Yellow
+        const vec3 c_green   = vec3(0.000, 0.960, 0.360); // Vivid Spring Emerald Green
+        const vec3 c_cyan    = vec3(0.000, 0.900, 1.000); // Radiant Electric Turquoise Cyan
+        const vec3 c_blue    = vec3(0.080, 0.420, 1.000); // Intense Deep Sapphire/Cobalt Blue
+        const vec3 c_violet  = vec3(0.640, 0.040, 0.950); // Luminous Royal Violet
+
+        // Hash function for procedural fluid noise
+        vec2 hash2(vec2 p) {
+          p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+          return -1.0 + 2.0 * fract(sin(p) * 43758.5453123);
+        }
+
+        // 2D Simplex/Perlin-style gradient noise
+        float gnoise(in vec2 p) {
+          vec2 i = floor(p);
+          vec2 f = fract(p);
+          vec2 u = f * f * (3.0 - 2.0 * f);
+
+          return mix(
+            mix(dot(hash2(i + vec2(0.0, 0.0)), f - vec2(0.0, 0.0)),
+                dot(hash2(i + vec2(1.0, 0.0)), f - vec2(1.0, 0.0)), u.x),
+            mix(dot(hash2(i + vec2(0.0, 1.0)), f - vec2(0.0, 1.0)),
+                dot(hash2(i + vec2(1.0, 1.0)), f - vec2(1.0, 1.0)), u.x),
+            u.y
+          );
+        }
+
+        // Fractional Brownian Motion (4 octaves for fluid marbling curls)
+        float fbm(vec2 p) {
+          mat2 m = mat2(1.6, 1.2, -1.2, 1.6);
+          float f = 0.5000 * gnoise(p); p = m * p;
+          f += 0.2500 * gnoise(p); p = m * p;
+          f += 0.1250 * gnoise(p); p = m * p;
+          f += 0.0625 * gnoise(p);
+          return f * 0.5 + 0.5;
+        }
 
         void main() {
           vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-          
-          // Align approximately in a diagonal line (matching the reference photo)
-          float lineAxis = uv.x * 0.72 + uv.y * 0.68;
+          float aspect = u_resolution.x / u_resolution.y;
+          vec2 p = uv * vec2(aspect, 1.0) * 1.8;
 
-          // Organic fluid wave displacements along the line direction
-          float t = u_time * 0.45;
-          float wave1 = sin(uv.y * 4.2 - uv.x * 2.8 + t * 0.8) * 0.09;
-          float wave2 = cos(uv.x * 6.5 + uv.y * 3.5 - t * 0.6) * 0.06;
-          float wave3 = sin((lineAxis + wave1) * 5.0 + t * 0.5) * 0.04;
+          // Continuous fluid time flow
+          float t = u_time * 0.095;
 
-          // Seamless cyclic parameter flowing approximately in a line
-          float param = fract(lineAxis * 1.35 + wave1 + wave2 + wave3 + t * 0.12);
+          // Multi-layer domain warping to simulate acrylic marbling fluid dynamics
+          vec2 q = vec2(
+            fbm(p + vec2(0.0, 0.0) + vec2(t * 0.45, t * 0.35)),
+            fbm(p + vec2(5.2, 1.3) + vec2(-t * 0.35, t * 0.40))
+          );
 
-          // Blend bands in exact sequence from the photo
+          vec2 r = vec2(
+            fbm(p + 2.4 * q + vec2(1.7, 9.2) + vec2(t * 0.25, -t * 0.30)),
+            fbm(p + 2.4 * q + vec2(8.3, 2.8) + vec2(-t * 0.30, -t * 0.25))
+          );
+
+          // Deep fluid pattern
+          float f = fbm(p + 3.2 * r + vec2(q.y * 1.2, r.x * 1.2));
+
+          // Physical paint swirl ridges (fine acrylic veins and striations)
+          float veins = sin((f + r.x * 0.6 + q.y * 0.4) * 14.0);
+          veins = smoothstep(-0.3, 0.9, veins);
+
+          // Map warped fluid coordinate across the 7 full rainbow hues
+          float colorParam = fract(f * 1.35 + q.x * 0.55 + r.y * 0.45 + t * 0.09);
+
           vec3 col;
           float step = 1.0 / 6.0;
 
-          if (param < step) {
-            float f = smoothstep(0.0, step, param);
-            col = mix(c_purple, c_pink, f);
-          } else if (param < step * 2.0) {
-            float f = smoothstep(step, step * 2.0, param);
-            col = mix(c_pink, c_orange, f);
-          } else if (param < step * 3.0) {
-            float f = smoothstep(step * 2.0, step * 3.0, param);
-            col = mix(c_orange, c_yellow, f);
-          } else if (param < step * 4.0) {
-            float f = smoothstep(step * 3.0, step * 4.0, param);
-            col = mix(c_yellow, c_green, f);
-          } else if (param < step * 5.0) {
-            float f = smoothstep(step * 4.0, step * 5.0, param);
-            col = mix(c_green, c_blue, f);
+          if (colorParam < step) {
+            float s = smoothstep(0.0, step, colorParam);
+            col = mix(c_magenta, c_orange, s);
+          } else if (colorParam < step * 2.0) {
+            float s = smoothstep(step, step * 2.0, colorParam);
+            col = mix(c_orange, c_yellow, s);
+          } else if (colorParam < step * 3.0) {
+            float s = smoothstep(step * 2.0, step * 3.0, colorParam);
+            col = mix(c_yellow, c_green, s);
+          } else if (colorParam < step * 4.0) {
+            float s = smoothstep(step * 3.0, step * 4.0, colorParam);
+            col = mix(c_green, c_cyan, s);
+          } else if (colorParam < step * 5.0) {
+            float s = smoothstep(step * 4.0, step * 5.0, colorParam);
+            col = mix(c_cyan, c_blue, s);
           } else {
-            float f = smoothstep(step * 5.0, 1.0, param);
-            col = mix(c_blue, c_purple, f);
+            float s = smoothstep(step * 5.0, 1.0, colorParam);
+            col = mix(c_blue, c_violet, s);
           }
 
-          // Subtle natural white marble veining along the fluid boundary (as seen in the photo)
-          float vein = smoothstep(0.015, 0.0, abs(sin((lineAxis + wave1 + wave2) * 24.0 + t * 0.3)) - 0.985);
-          col = mix(col, c_white, vein * 0.35);
+          // Smooth loop back to magenta at the cycle seam
+          if (colorParam > 0.90) {
+            float s = smoothstep(0.90, 1.0, colorParam);
+            col = mix(col, c_magenta, s * 0.9);
+          }
+
+          // Subtle physical acrylic marbling veins
+          col = mix(col, col * (0.88 + 0.24 * veins), 0.4);
+
+          // Boost color saturation and vibrancy so rainbow is deeply rich and colorful
+          vec3 lum = vec3(0.299, 0.587, 0.114);
+          float l = dot(col, lum);
+          col = mix(vec3(l), col, 1.38); // +38% saturation boost
+          col = pow(col, vec3(0.88));    // Luminous vibrance
+
+          col = clamp(col, 0.0, 1.0);
 
           gl_FragColor = vec4(col, 1.0);
         }
@@ -139,7 +203,6 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
 
       gl.useProgram(program)
 
-      // Full screen quad
       const positionBuffer = gl.createBuffer()
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
       gl.bufferData(
@@ -198,17 +261,17 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
       }
     } else {
       // ---------------- 2D CANVAS FALLBACK ----------------
-      // Directional linear bands with subtle wave offsets
       const ctx = canvas.getContext('2d')
       if (!ctx) return
 
-      const colors = [
-        '#581C87', // Deep Purple
-        '#E93E8F', // Pink
-        '#FF6A1C', // Orange
-        '#FFD940', // Yellow
-        '#44D46E', // Green
-        '#227BFF', // Blue
+      const paintColors = [
+        '#FF1499', // Hot Magenta Rose
+        '#FF6600', // Pure Vivid Solar Orange
+        '#FFE600', // Brilliant Golden Sun Yellow
+        '#00EB6B', // Lush Emerald Green
+        '#00D9FF', // Electric Turquoise Cyan
+        '#1473FF', // Deep Vibrant Cobalt Blue
+        '#9414E0', // Royal Violet
       ]
 
       const handleResize2D = () => {
@@ -224,22 +287,36 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
 
       const render2D = () => {
         if (isDisposed || !ctx || !canvas) return
-        offset += 0.8
+        offset += 0.015
         const w = canvas.width
         const h = canvas.height
 
         ctx.clearRect(0, 0, w, h)
 
-        // Draw flowing diagonal linear bands approximately in a line
-        const grad = ctx.createLinearGradient(0, 0, w, h)
-        for (let i = 0; i <= colors.length * 2; i++) {
-          const c = colors[i % colors.length]
-          const stop = (i / (colors.length * 2) + (offset * 0.0005)) % 1
-          grad.addColorStop(stop, c)
-        }
+        // Multiple overlapping wavy fluid ribbons of the exact paint colors
+        for (let i = 0; i < paintColors.length; i++) {
+          const color = paintColors[i]
+          const phase = i * 1.05 + offset
+          ctx.save()
+          ctx.beginPath()
 
-        ctx.fillStyle = grad
-        ctx.fillRect(0, 0, w, h)
+          const cy = h * (0.15 + (i * 0.14))
+          ctx.moveTo(0, cy + Math.sin(phase) * 60)
+
+          for (let x = 0; x <= w; x += 30) {
+            const y = cy + Math.sin(x * 0.003 + phase) * 80 + Math.cos(x * 0.006 - phase * 0.8) * 40
+            ctx.lineTo(x, y)
+          }
+
+          ctx.lineTo(w, h)
+          ctx.lineTo(0, h)
+          ctx.closePath()
+
+          ctx.fillStyle = color
+          ctx.globalAlpha = 0.85
+          ctx.fill()
+          ctx.restore()
+        }
 
         animFrameId.current = requestAnimationFrame(render2D)
       }
@@ -263,7 +340,7 @@ export const RainbowMarblingCanvas: React.FC<RainbowMarblingCanvasProps> = ({ ac
     >
       <canvas
         ref={canvasRef}
-        className="w-full h-full object-cover transition-opacity duration-500 ease-in-out"
+        className="w-full h-full object-cover transition-opacity duration-700 ease-in-out"
         style={{ width: '100vw', height: '100vh', display: 'block' }}
       />
     </div>

@@ -10,10 +10,10 @@ const config: Config = {
     extend: {
       colors: {
         fluent: {
-          dark: '#181b20',
-          darker: '#0f1115',
-          card: '#1e2229',
-          cardBorder: '#2d333f',
+          dark: '#000000',
+          darker: '#000000',
+          card: '#0c0c10',
+          cardBorder: '#1c1c24',
           light: '#f8fafc',
           lightCard: '#ffffff',
           lightBorder: '#e2e8f0',

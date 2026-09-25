@@ -12,7 +12,10 @@ import { loadScanCache } from '../services/scanCache'
 export async function searchDiskFiles(
   options: SearchQueryOptions
 ): Promise<SearchResultItem[] | SearchResultResponse> {
-  const rootDir = options.targetPath || process.env.USERPROFILE || 'C:\\'
+  let rootDir = options.targetPath || process.env.USERPROFILE || 'C:\\'
+  if (/^[a-zA-Z]:$/.test(rootDir)) {
+    rootDir = `${rootDir}\\`
+  }
   const query = (options.query || '').trim().toLowerCase()
   const minSize = options.minSizeBytes ?? 0
   const targetCategory = options.category && options.category !== 'all' ? options.category : null

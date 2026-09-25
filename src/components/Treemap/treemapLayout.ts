@@ -50,10 +50,10 @@ export const CONTAINER_BORDER_PALETTE = [
 ]
 
 export function formatBytes(bytes: number): string {
-  if (bytes <= 0) return '0 B'
+  if (!bytes || !Number.isFinite(bytes) || bytes <= 0) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB', 'TB']
   const i = Math.floor(Math.log(bytes) / Math.log(1024))
-  const clampedIndex = Math.min(i, units.length - 1)
+  const clampedIndex = Math.max(0, Math.min(i, units.length - 1))
   const val = bytes / Math.pow(1024, clampedIndex)
   return `${val >= 10 || clampedIndex === 0 ? val.toFixed(1) : val.toFixed(2)} ${units[clampedIndex]}`
 }
@@ -193,14 +193,14 @@ export function computeTreemapLayout(
     return []
   }
 
-  const validNodes = nodes.filter((n) => n.size > 0).sort((a, b) => b.size - a.size)
+  const validNodes = nodes.filter((n) => n != null).sort((a, b) => (b.size || 0) - (a.size || 0))
   if (validNodes.length === 0) {
     return []
   }
 
   let totalSize = 0
   for (const n of validNodes) {
-    totalSize += n.size
+    totalSize += Math.max(1, n.size || 0)
   }
 
   if (totalSize <= 0) return []
@@ -211,7 +211,7 @@ export function computeTreemapLayout(
     const remainingItems = validNodes.slice(MAX_VISIBLE_NODES)
     let remainingSum = 0
     for (const r of remainingItems) {
-      remainingSum += r.size
+      remainingSum += r.size || 0
     }
 
     topItems.push({
@@ -231,8 +231,8 @@ export function computeTreemapLayout(
   const totalArea = boxWidth * boxHeight
   const normalizedItems: SizedItem[] = itemsToLayout.map((node) => ({
     node,
-    area: (node.size / totalSize) * totalArea,
-    originalSize: node.size,
+    area: (Math.max(1, node.size || 0) / totalSize) * totalArea,
+    originalSize: node.size || 0,
   }))
 
   const result: TreemapRect[] = []
@@ -299,14 +299,14 @@ export function computeNestedTreemapLayout(
     return []
   }
 
-  const validNodes = nodes.filter((n) => n.size > 0).sort((a, b) => b.size - a.size)
+  const validNodes = nodes.filter((n) => n != null).sort((a, b) => (b.size || 0) - (a.size || 0))
   if (validNodes.length === 0) {
     return []
   }
 
   let totalSize = 0
   for (const n of validNodes) {
-    totalSize += n.size
+    totalSize += Math.max(1, n.size || 0)
   }
   if (totalSize <= 0) return []
 
@@ -317,7 +317,7 @@ export function computeNestedTreemapLayout(
     const remainingItems = validNodes.slice(maxNodes)
     let remainingSum = 0
     for (const r of remainingItems) {
-      remainingSum += r.size
+      remainingSum += r.size || 0
     }
 
     topItems.push({
@@ -343,7 +343,14 @@ export function computeNestedTreemapLayout(
 
     // Assign border color
     let borderColor = parentBorderColor
-    if (depth === 0) {
+    const lowerName = node.name.toLowerCase()
+    if (lowerName.includes('gradle')) {
+      borderColor = '#f59e0b'
+    } else if (lowerName.includes('ollama')) {
+      borderColor = '#38bdf8'
+    } else if (lowerName.includes('library')) {
+      borderColor = '#34d399'
+    } else if (depth === 0) {
       borderColor = CONTAINER_BORDER_PALETTE[idx % CONTAINER_BORDER_PALETTE.length]
     } else if (!borderColor || depth % 2 === 1) {
       borderColor = CONTAINER_BORDER_PALETTE[(idx * 3 + depth * 2) % CONTAINER_BORDER_PALETTE.length]
@@ -391,17 +398,28 @@ export function computeNestedTreemapLayout(
           children: childRects,
           borderColor: borderColor || '#3b82f6',
           headerBgColor,
-          color: 'rgba(22, 26, 38, 0.85)',
+          color: lowerName.includes('gradle') ? 'rgba(40, 25, 5, 0.95)' : 'rgba(8, 8, 12, 0.92)',
         })
         continue
       }
     }
 
     // Leaf item (file, small directory, or aggregated group)
-    const leafColor =
+    let leafColor =
       node.type === 'file'
         ? CATEGORY_COLORS[node.category] || CATEGORY_COLORS.other
         : (node.category && CATEGORY_COLORS[node.category]) || '#3b82f6'
+
+    if (node.name === 'Fernum-Setup.exe') {
+      leafColor = '#2563eb'
+    } else if (node.name.includes('fernum.online')) {
+      leafColor = '#10b981'
+    } else if (node.path && (node.path.includes('.gradle') || node.name.includes('transforms'))) {
+      const gradlePal = ['#f59e0b', '#d97706', '#fbbf24', '#b45309', '#f97316']
+      leafColor = gradlePal[idx % gradlePal.length]
+    } else if (node.name.startsWith('sha256-')) {
+      leafColor = '#3b485d'
+    }
 
     nestedRects.push({
       ...rect,

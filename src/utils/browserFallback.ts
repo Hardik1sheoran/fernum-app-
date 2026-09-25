@@ -15,6 +15,11 @@ import type {
   SystemStats,
   SystemSpecs,
   ProcessStats,
+  JunkCategoryType,
+  JunkScanResult,
+  JunkCleanResult,
+  DuplicateScanOptions,
+  DuplicateScanResult,
 } from '@shared/types'
 
 async function api<T>(url: string, options?: RequestInit): Promise<T> {
@@ -84,7 +89,13 @@ export function initBrowserFallback(): void {
       }
       return true
     },
-    getCachedScan: async () => null,
+    getCachedScan: async (targetPath: string) => {
+      try {
+        return await api<FileNode | null>(`/api/scan/cache?path=${encodeURIComponent(targetPath)}`)
+      } catch {
+        return null
+      }
+    },
     onScanProgress: (listener) => {
       progressListeners.push(listener)
       return () => { progressListeners = progressListeners.filter((item) => item !== listener) }
@@ -103,7 +114,14 @@ export function initBrowserFallback(): void {
     },
     getDrives: () => api('/api/drives'),
     getQuickAccessFolders: () => api<QuickFolderInfo[]>('/api/quick-folders'),
-    selectFolder: async () => { throw new Error('Folder selection requires the Electron desktop app.') },
+    selectFolder: async () => {
+      try {
+        const res = await api<{ selectedPath: string | null }>('/api/select-folder')
+        return res.selectedPath
+      } catch {
+        return null
+      }
+    },
     revealInExplorer: (targetPath: string) => api<FsOperationResult>('/api/reveal', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetPath }),
     }),
@@ -113,124 +131,36 @@ export function initBrowserFallback(): void {
     deletePermanently: (targetPath: string) => api<FsOperationResult>('/api/delete', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ targetPath }),
     }),
-    trashMany: async (targetPaths: string[]): Promise<BatchFsOperationResult> => {
-      return {
-        success: true,
-        totalRequested: targetPaths.length,
-        deletedCount: targetPaths.length,
-        succeeded: targetPaths,
-        failed: [],
-      }
-    },
-    deleteManyPermanently: async (targetPaths: string[]): Promise<BatchFsOperationResult> => {
-      return {
-        success: true,
-        totalRequested: targetPaths.length,
-        deletedCount: targetPaths.length,
-        succeeded: targetPaths,
-        failed: [],
-      }
-    },
+    trashMany: (paths: string[]): Promise<BatchFsOperationResult> => api<BatchFsOperationResult>('/api/trash-many', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paths }),
+    }),
+    deleteManyPermanently: (paths: string[]): Promise<BatchFsOperationResult> => api<BatchFsOperationResult>('/api/delete-many', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paths }),
+    }),
     searchFiles: (options: SearchQueryOptions) => api<SearchResultItem[] | SearchResultResponse>('/api/search', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(options),
+    }),
+    scanDuplicates: (options?: DuplicateScanOptions): Promise<DuplicateScanResult> => api<DuplicateScanResult>('/api/duplicates/scan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(options || {}),
     }),
     listInstalledApps: () => api<InstalledApp[]>('/api/apps'),
     uninstallApp: (appId: string) => api<{ success: boolean; message?: string }>('/api/apps/uninstall', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appId }),
     }),
-    scanLeftovers: async (appName: string, _publisher?: string): Promise<ScanLeftoversResult> => ({
-      appName,
-      totalSizeBytes: 340000000,
-      residues: [
-        {
-          path: `C:\\Users\\Default\\AppData\\Local\\${appName.replace(/\s+/g, '')}`,
-          sizeBytes: 250000000,
-          category: 'localappdata',
-          description: 'Local AppData caches & user settings',
-        },
-        {
-          path: `C:\\ProgramData\\${appName.replace(/\s+/g, '')}`,
-          sizeBytes: 90000000,
-          category: 'programdata',
-          description: 'Shared machine caches & installation residue',
-        },
-      ],
+    scanLeftovers: (appName: string, publisher?: string): Promise<ScanLeftoversResult> => api<ScanLeftoversResult>('/api/apps/leftovers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appName, publisher }),
     }),
-    cleanLeftovers: async (pathsToClean: string[]): Promise<CleanLeftoversResult> => ({
-      success: true,
-      cleanedBytes: 340000000,
-      paths: pathsToClean || [],
-      failed: [],
+    cleanLeftovers: (paths: string[]): Promise<CleanLeftoversResult> => api<CleanLeftoversResult>('/api/apps/clean-leftovers', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paths }),
     }),
-    scanJunk: async () => ({
-      totalSizeBytes: 1250000000,
-      totalFileCount: 420,
-      categories: [
-        {
-          id: 'userTemp',
-          name: 'User Temporary Files',
-          description: 'Temporary files, log files, and caches created by active applications.',
-          icon: 'Trash2',
-          sizeBytes: 850000000,
-          fileCount: 310,
-          safeToClean: true,
-          paths: ['C:\\Users\\Mock\\AppData\\Local\\Temp'],
-        },
-        {
-          id: 'recycleBin',
-          name: 'Windows Recycle Bin',
-          description: 'Files previously deleted by the user across all connected local drives.',
-          icon: 'Archive',
-          sizeBytes: 400000000,
-          fileCount: 110,
-          safeToClean: true,
-          paths: ['C:\\$Recycle.Bin'],
-        },
-      ],
+    scanJunk: (categories?: JunkCategoryType[], forceRescan?: boolean): Promise<JunkScanResult> => api<JunkScanResult>('/api/cleaner/scan', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categories, forceRescan }),
     }),
-    cleanJunk: async () => ({
-      success: true,
-      reclaimedBytes: 1250000000,
-      deletedFileCount: 420,
-      skippedCount: 0,
-      failed: [],
+    cleanJunk: (categoryIds: JunkCategoryType[]): Promise<JunkCleanResult> => api<JunkCleanResult>('/api/cleaner/clean', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ categoryIds }),
     }),
     getSystemStats: () => api<SystemStats>('/api/stats'),
-    getSystemSpecs: async (): Promise<SystemSpecs> => ({
-      os: {
-        distro: 'Windows 11 Home',
-        release: '10.0.26200',
-        arch: 'x64',
-        hostname: 'DESKTOP-PC',
-        uptime: 184500,
-      },
-      cpu: {
-        brand: 'Intel(R) Core(TM) i7-13700H',
-        cores: 14,
-        physicalCores: 8,
-        speed: 2.4,
-      },
-      memory: {
-        totalBytes: 16 * 1024 * 1024 * 1024,
-      },
-      disks: [
-        {
-          name: 'NVMe Solidigm SSD 1TB',
-          type: 'NVMe',
-          size: 1024 * 1024 * 1024 * 1024,
-          interfaceType: 'NVMe',
-        },
-      ],
-      graphics: {
-        model: 'NVIDIA GeForce RTX 4070 Laptop GPU',
-        vramMb: 8192,
-      },
-      battery: {
-        hasBattery: true,
-        percent: 85,
-        isCharging: true,
-      },
-    }),
+    getSystemSpecs: () => api<SystemSpecs>('/api/specs'),
     subscribeSystemStats: (listener) => {
       const timer = setInterval(() => { void browserApi.getSystemStats().then(listener).catch(() => {}) }, 1000)
       return () => clearInterval(timer)

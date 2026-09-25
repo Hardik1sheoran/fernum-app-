@@ -11,6 +11,10 @@ import {
   Shield,
   Flame,
   Sparkles,
+  Download,
+  AlertTriangle,
+  Columns,
+  List,
 } from 'lucide-react'
 import type { FileNode } from '@shared/types'
 import {
@@ -21,8 +25,10 @@ import {
   type NestedTreemapRect,
 } from './treemapLayout'
 import { Breadcrumb } from '../shared/Breadcrumb'
-import { EmptyState } from '../shared/EmptyState'
 import { ConfirmDeleteModal } from '../shared/ConfirmDeleteModal'
+import { FileTableView } from './FileTableView'
+import { CleanupQueueDrawer } from './CleanupQueueDrawer'
+import { DEMO_ROOT_NODE } from './demoTreeData'
 import { useScanStore } from '../../stores/scanStore'
 import { useSettingsStore } from '../../stores/settingsStore'
 import { useLicenseStore } from '../../stores/licenseStore'
@@ -77,51 +83,13 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
     rect: null,
   })
   const [copiedNotification, setCopiedNotification] = useState(false)
+  const [viewMode, setViewMode] = useState<'treemap' | 'table' | 'split'>('treemap')
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState<string>('all')
+  const [searchQuery, setSearchQuery] = useState<string>('')
+  const [selectedTableNode, setSelectedTableNode] = useState<FileNode | null>(null)
 
-  // Recalculate layout whenever view node or container size changes
-  const updateLayout = useCallback(() => {
-    const canvas = canvasRef.current
-    const container = containerRef.current
-    if (!canvas || !container) return
-
-    const rect = container.getBoundingClientRect()
-    const width = Math.floor(rect.width)
-    const height = Math.floor(rect.height)
-
-    if (width <= 0 || height <= 0) return
-
-    const dpr = window.devicePixelRatio || 1
-    canvas.width = width * dpr
-    canvas.height = height * dpr
-    canvas.style.width = `${width}px`
-    canvas.style.height = `${height}px`
-
-    const nodesToRender = currentViewNode?.children || []
-    const computed = computeNestedTreemapLayout(
-      nodesToRender,
-      { x: 0, y: 0, width, height },
-      0,
-      { maxDepth: 4, minContainerWidth: 44, minContainerHeight: 40 }
-    )
-    setLayoutRects(computed)
-  }, [currentViewNode])
-
-  useEffect(() => {
-    updateLayout()
-
-    const container = containerRef.current
-    if (!container) return
-
-    const resizeObserver = new ResizeObserver(() => {
-      updateLayout()
-    })
-    resizeObserver.observe(container)
-
-    return () => resizeObserver.disconnect()
-  }, [updateLayout])
-
-  // Canvas paint effect: Multi-Level Nested Treemap (matching DissectMac)
-  useEffect(() => {
+  // Dedicated treemap renderer function for zero-latency drawing
+  const drawTreemap = useCallback((rects: NestedTreemapRect[], hovered: NestedTreemapRect | null) => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
@@ -137,7 +105,7 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
     const renderRect = (r: NestedTreemapRect) => {
       if (r.width <= 0 || r.height <= 0) return
 
-      const isHovered = hoveredRect?.node.id === r.node.id
+      const isHovered = hovered?.node.id === r.node.id
       ctx.save()
 
       if (r.isContainer) {
@@ -240,10 +208,103 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
       ctx.restore()
     }
 
-    for (const r of layoutRects) {
+    for (const r of rects) {
       renderRect(r)
     }
-  }, [layoutRects, hoveredRect])
+  }, [])
+
+  // Recalculate layout whenever view node or container size changes
+  const updateLayout = useCallback(() => {
+    const canvas = canvasRef.current
+    const container = containerRef.current
+    if (!canvas || !container) return
+
+    const rect = container.getBoundingClientRect()
+    const width = Math.floor(rect.width)
+    const height = Math.floor(rect.height)
+
+    if (width <= 0 || height <= 0) return
+
+    const dpr = window.devicePixelRatio || 1
+    canvas.width = width * dpr
+    canvas.height = height * dpr
+    canvas.style.width = `${width}px`
+    canvas.style.height = `${height}px`
+
+    const effectiveRoot = rootNode || DEMO_ROOT_NODE
+    const effectiveView = currentViewNode || effectiveRoot
+
+    let nodesToRender = effectiveView?.type === 'file'
+      ? [effectiveView]
+      : (effectiveView?.children && effectiveView.children.length > 0
+          ? effectiveView.children
+          : [effectiveView])
+
+    if (activeCategoryFilter !== 'all') {
+      if (activeCategoryFilter === 'large') {
+        nodesToRender = nodesToRender.filter((n) => n.type === 'file' && (n.size || 0) >= 100 * 1024 * 1024)
+      } else {
+        nodesToRender = nodesToRender.filter((n) => n.category === activeCategoryFilter || (activeCategoryFilter === 'directory' && n.type === 'directory'))
+      }
+    }
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim()
+      nodesToRender = nodesToRender.filter((n) => n.name.toLowerCase().includes(q) || (n.path && n.path.toLowerCase().includes(q)))
+    }
+
+    const computed = computeNestedTreemapLayout(
+      nodesToRender,
+      { x: 0, y: 0, width, height },
+      0,
+      { maxDepth: 4, minContainerWidth: 44, minContainerHeight: 40 }
+    )
+    setLayoutRects(computed)
+    drawTreemap(computed, hoveredRectRef.current)
+  }, [currentViewNode, rootNode, drawTreemap, activeCategoryFilter, searchQuery, viewMode])
+
+  useEffect(() => {
+    updateLayout()
+
+    const container = containerRef.current
+    if (!container) return
+
+    const resizeObserver = new ResizeObserver(() => {
+      updateLayout()
+    })
+    resizeObserver.observe(container)
+
+    return () => resizeObserver.disconnect()
+  }, [updateLayout])
+
+  // Canvas paint effect: Multi-Level Nested Treemap on layout or hover update
+  useEffect(() => {
+    drawTreemap(layoutRects, hoveredRect)
+  }, [layoutRects, hoveredRect, drawTreemap])
+
+  // Dismiss context menu on outside click or Escape key
+  useEffect(() => {
+    if (!contextMenu.visible) return
+
+    const handleOutsideClick = () => {
+      setContextMenu({ visible: false, x: 0, y: 0, rect: null })
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setContextMenu({ visible: false, x: 0, y: 0, rect: null })
+      }
+    }
+
+    window.addEventListener('click', handleOutsideClick)
+    window.addEventListener('contextmenu', handleOutsideClick)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('click', handleOutsideClick)
+      window.removeEventListener('contextmenu', handleOutsideClick)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [contextMenu.visible])
 
   // Mouse move hit-testing using hierarchical innermost finder
   const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
@@ -284,8 +345,9 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
     const my = e.clientY - rect.top
 
     const target = findInnermostRect(layoutRects, mx, my) || hoveredRect
-    if (target && target.node.type === 'directory') {
-      if (target.node.children && target.node.children.length > 0) {
+    if (target) {
+      setSelectedTableNode(target.node)
+      if (target.node.type === 'directory' && target.node.children && target.node.children.length > 0) {
         onDrillDown(target.node)
       }
     }
@@ -324,11 +386,6 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
   const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const handleRevealInExplorer = () => {
-    if (!isPro) {
-      setContextMenu({ visible: false, x: 0, y: 0, rect: null })
-      openUpgradeModal("One-click 'Show in Explorer'")
-      return
-    }
     if (contextMenu.rect?.node.path && window.electronAPI) {
       window.electronAPI.revealInExplorer(contextMenu.rect.node.path)
     }
@@ -413,6 +470,34 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
     setContextMenu({ visible: false, x: 0, y: 0, rect: null })
   }
 
+  const handleRevealPath = (targetPath: string) => {
+    if (targetPath && window.electronAPI) {
+      window.electronAPI.revealInExplorer(targetPath)
+    }
+  }
+
+  const handleDeleteItem = (targetNode: FileNode, permanent: boolean) => {
+    if (!isPro) {
+      openUpgradeModal('Delete files within the app')
+      return
+    }
+    setConfirmModal({
+      isOpen: true,
+      node: targetNode,
+      permanent,
+      isDeleting: false,
+      errorMessage: null,
+    })
+  }
+
+  const handleCopyAnyPath = (targetPath: string) => {
+    if (targetPath) {
+      navigator.clipboard.writeText(targetPath)
+      setCopiedNotification(true)
+      setTimeout(() => setCopiedNotification(false), 2000)
+    }
+  }
+
   const handleDrillFromMenu = () => {
     if (contextMenu.rect?.node.type === 'directory') {
       onDrillDown(contextMenu.rect.node)
@@ -448,13 +533,214 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
     return () => window.removeEventListener('click', handleGlobalClick)
   }, [contextMenu.visible])
 
+  // Storage Audit Report Exporter (Pro)
+  const handleExportReport = (format: 'csv' | 'html') => {
+    if (!isPro) {
+      openUpgradeModal('Storage Audit Reports (CSV & HTML Export)')
+      return
+    }
+    if (!currentViewNode) return
+
+    const items = currentViewNode.children || []
+    const totalSize = currentViewNode.size || 1
+
+    if (format === 'csv') {
+      const headers = ['Name', 'Path', 'Type', 'Category', 'Size (Bytes)', 'Formatted Size', 'Share (%)']
+      const rows = items.map((item) => {
+        const share = ((item.size / totalSize) * 100).toFixed(2)
+        return `"${item.name.replace(/"/g, '""')}","${item.path.replace(/"/g, '""')}","${item.type}","${item.category}",${item.size},"${formatBytes(item.size)}","${share}%"`
+      })
+      const csvContent = [headers.join(','), ...rows].join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `fernum-storage-audit-${Date.now()}.csv`
+      link.click()
+      URL.revokeObjectURL(url)
+      setToastMessage('Storage audit CSV exported successfully!')
+      setTimeout(() => setToastMessage(null), 3000)
+    } else {
+      const rowsHtml = items.slice(0, 50).map((item) => {
+        const share = ((item.size / totalSize) * 100).toFixed(1)
+        return `
+          <tr>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #27272a; font-weight: 500;">${item.name}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #27272a; font-family: monospace; color: #a1a1aa; font-size: 11px;">${item.path}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #27272a; text-transform: capitalize; color: #60a5fa;">${item.category}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #27272a; text-align: right; font-family: monospace; font-weight: bold; color: #38bdf8;">${formatBytes(item.size)}</td>
+            <td style="padding: 8px 12px; border-bottom: 1px solid #27272a; text-align: right; color: #e4e4e7;">${share}%</td>
+          </tr>
+        `
+      }).join('')
+
+      const htmlContent = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Fernum Storage Audit - ${currentViewNode.name}</title>
+  <style>
+    body { font-family: system-ui, -apple-system, sans-serif; background: #0f1117; color: #f4f4f5; margin: 0; padding: 32px; }
+    .card { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 24px; max-width: 960px; margin: 0 auto; box-shadow: 0 8px 30px rgba(0,0,0,0.5); }
+    h1 { margin-top: 0; font-size: 20px; color: #ffffff; display: flex; align-items: center; justify-content: space-between; }
+    .meta { font-size: 13px; color: #a1a1aa; margin-bottom: 24px; }
+    .stats { display: flex; gap: 16px; margin-bottom: 24px; }
+    .stat-box { background: #27272a; border-radius: 8px; padding: 12px 16px; flex: 1; }
+    .stat-label { font-size: 11px; text-transform: uppercase; color: #a1a1aa; letter-spacing: 0.5px; }
+    .stat-val { font-size: 20px; font-weight: bold; color: #38bdf8; margin-top: 4px; font-family: monospace; }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th { background: #27272a; padding: 10px 12px; font-weight: 600; color: #e4e4e7; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1><span>Fernum Storage Audit Report</span><span style="font-size: 11px; background: rgba(59,130,246,0.2); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); padding: 4px 8px; border-radius: 4px;">Verified Pro Report</span></h1>
+    <div class="meta">Target: <strong>${currentViewNode.path}</strong> &bull; Generated on: ${new Date().toLocaleString()}</div>
+    <div class="stats">
+      <div class="stat-box"><div class="stat-label">Total Volume Analyzed</div><div class="stat-val">${formatBytes(currentViewNode.size)}</div></div>
+      <div class="stat-box"><div class="stat-label">Sub-items Count</div><div class="stat-val" style="color: #e4e4e7;">${items.length}</div></div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Item Name</th>
+          <th>File Path</th>
+          <th>Category</th>
+          <th style="text-align: right;">Size</th>
+          <th style="text-align: right;">Share</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>`
+
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `fernum-storage-report-${Date.now()}.html`
+      link.click()
+      URL.revokeObjectURL(url)
+      setToastMessage('Storage audit HTML report exported!')
+      setTimeout(() => setToastMessage(null), 3000)
+    }
+  }
+
+  const isLowSpace = Boolean(
+    selectedDrive &&
+    selectedDrive.totalBytes > 0 &&
+    (selectedDrive.freeBytes / selectedDrive.totalBytes) < 0.15
+  )
+
   const totalChildCount = currentViewNode?.children?.length || 0
   const canGoBack = breadcrumbs.length > 1
 
+  const renderCanvasContent = () => (
+    <>
+      {/* Non-blocking Floating Scanning HUD Bar */}
+      {isScanning && (
+        <div className="absolute top-3 left-4 right-4 z-30 flex items-center justify-between px-3.5 py-2 rounded-lg bg-slate-900/95 border border-white/[0.1] shadow-lg text-xs animate-fade-in pointer-events-auto">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-6 h-6 rounded bg-blue-600 text-white flex items-center justify-center shrink-0">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-slate-100">Scanning Disk</span>
+                <span className="text-blue-400 font-mono text-[11px]">
+                  {scannedFiles.toLocaleString()} files ({formatBytes(scannedBytes)})
+                </span>
+              </div>
+              <p className="text-[10px] text-slate-400 truncate max-w-lg font-mono">
+                {currentScanPath || 'Traversing folders…'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="w-28 h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
+              <div
+                className="h-full bg-blue-500 transition-all duration-300 rounded-full"
+                style={{ width: `${Math.max(5, scanProgressPercentage)}%` }}
+              />
+            </div>
+            {onCancelScan && (
+              <button
+                onClick={onCancelScan}
+                className="px-2.5 py-0.5 rounded text-xs font-medium bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 border border-rose-500/30 transition-colors"
+              >
+                Stop
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <canvas
+        ref={canvasRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+        onClick={handleClick}
+        onContextMenu={handleContextMenu}
+        className="w-full h-full block cursor-pointer"
+      />
+
+      {/* Floating Tooltip Card */}
+      {hoveredRect && (
+        <div
+          className="fixed z-50 pointer-events-none p-3 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 text-white shadow-2xl text-xs space-y-1.5 max-w-xs transition-all transform -translate-y-full -translate-x-1/2"
+          style={{
+            left: `${tooltipPos.x}px`,
+            top: `${tooltipPos.y - 12}px`,
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <span
+              className="w-3 h-3 rounded-xs flex-shrink-0"
+              style={{ backgroundColor: hoveredRect.color }}
+            />
+            <span className="font-bold truncate text-slate-100">
+              {hoveredRect.node.name}
+            </span>
+          </div>
+          <div className="text-[11px] text-slate-400 font-mono truncate">
+            {hoveredRect.node.path || 'Aggregated group'}
+          </div>
+          <div className="pt-1 border-t border-slate-800 flex justify-between items-center text-[11px]">
+            <span className="font-semibold text-blue-400">
+              {hoveredRect.formattedSize}
+            </span>
+            <span className="text-slate-400">
+              {hoveredRect.percentageOfParent}% of parent
+            </span>
+          </div>
+          {hoveredRect.node.type === 'directory' && (
+            <div className="text-[10px] text-blue-300 font-medium flex items-center gap-1">
+              <span>📁 Click to drill down into folder</span>
+            </div>
+          )}
+          {hoveredRect.node.truncatedAtDepth && (
+            <div className="text-[10px] text-amber-300 font-medium flex items-center gap-1">
+              <span>⚠️ Max scan depth reached — contents not fully indexed</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Floating Cleanup Queue in bottom right */}
+      <CleanupQueueDrawer />
+    </>
+  )
+
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-[#191d24] rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-xs relative select-none">
-      {/* Header bar with Navigation, Breadcrumbs & Stats */}
-      <div className="flex flex-wrap items-center justify-between gap-2 p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-[#15181f]">
+    <div className="flex flex-col h-full bg-[#0c0e12] overflow-hidden select-none">
+      {/* Header bar with Navigation, Breadcrumbs & Stats (rendered when in split/table mode or drilled down) */}
+      {(viewMode !== 'treemap' || breadcrumbs.length > 1) && (
+        <div className="flex flex-wrap items-center justify-between gap-2 p-2 border-b border-[#1f2229] bg-[#111317]">
         <div className="flex items-center gap-2 min-w-0">
           <div className="flex items-center gap-1.5">
             <LayoutGrid className="w-4 h-4 text-blue-500 flex-shrink-0" />
@@ -476,6 +762,53 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
 
           {breadcrumbs.length > 0 && (
             <Breadcrumb items={breadcrumbs} onSelect={onDrillUp} />
+          )}
+
+          {/* View Mode Segmented Controls */}
+          {rootNode && (
+            <div className="flex items-center rounded-lg bg-[#242429] border border-[#2f2f36] p-0.5 text-xs ml-1 shrink-0">
+              <button
+                type="button"
+                onClick={() => setViewMode('split')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-all cursor-pointer ${
+                  viewMode === 'split'
+                    ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+                title="Split View: Organized Table & Treemap together"
+              >
+                <Columns className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Split</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode('table')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-all cursor-pointer ${
+                  viewMode === 'table'
+                    ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+                title="File List: Organized table sorted by size & type"
+              >
+                <List className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">File List</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setViewMode('treemap')}
+                className={`flex items-center gap-1 px-2.5 py-1 rounded text-[11px] font-medium transition-all cursor-pointer ${
+                  viewMode === 'treemap'
+                    ? 'bg-blue-600 text-white font-semibold shadow-xs'
+                    : 'text-zinc-400 hover:text-zinc-200'
+                }`}
+                title="Treemap: Full visual squarified treemap"
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">Treemap</span>
+              </button>
+            </div>
           )}
         </div>
 
@@ -502,8 +835,47 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
               </div>
             ))}
           </div>
+
+          {/* Export Report Buttons */}
+          <div className="flex items-center gap-1.5 ml-1">
+            <button
+              onClick={() => handleExportReport('csv')}
+              title={isPro ? "Export storage audit CSV" : "Pro Feature: Export storage audit CSV"}
+              className="flex items-center gap-1 px-2 py-1 rounded bg-[#28282e] hover:bg-[#32323a] text-zinc-300 border border-[#363640] text-[11px] transition-colors"
+            >
+              <Download className="w-3 h-3 text-blue-400" />
+              <span>CSV</span>
+              {!isPro && <span className="text-[8px] bg-amber-500/20 text-amber-300 px-1 rounded font-bold">PRO</span>}
+            </button>
+            <button
+              onClick={() => handleExportReport('html')}
+              title={isPro ? "Export storage audit HTML report" : "Pro Feature: Export storage audit HTML report"}
+              className="flex items-center gap-1 px-2 py-1 rounded bg-[#28282e] hover:bg-[#32323a] text-zinc-300 border border-[#363640] text-[11px] transition-colors"
+            >
+              <Download className="w-3 h-3 text-emerald-400" />
+              <span>HTML</span>
+              {!isPro && <span className="text-[8px] bg-amber-500/20 text-amber-300 px-1 rounded font-bold">PRO</span>}
+            </button>
+          </div>
         </div>
-      </div>
+        </div>
+      )}
+
+      {/* Low Disk Space Guardian Banner */}
+      {isLowSpace && selectedDrive && (
+        <div className="mx-3 mt-2 px-4 py-2 rounded-xl border border-rose-500/40 bg-rose-500/10 backdrop-blur-md text-rose-200 text-xs flex items-center justify-between shadow-md shrink-0 z-10 animate-fade-in">
+          <div className="flex items-center gap-2.5">
+            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <span>
+              <strong>Storage Guardian:</strong> {selectedDrive.name} has only{' '}
+              <strong className="font-mono text-white">{(selectedDrive.freeBytes / (1024 ** 3)).toFixed(1)} GB</strong> free ({Math.round((selectedDrive.freeBytes / selectedDrive.totalBytes) * 100)}%). Run Disk Cleanup or Duplicate Hunter to reclaim space.
+            </span>
+          </div>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-rose-300 bg-rose-500/20 px-2 py-0.5 rounded border border-rose-500/30">
+            Low Storage Alert
+          </span>
+        </div>
+      )}
 
       {/* Free Tier 70GB Capped Banner */}
       {rootNode && rootNode?.capped && !isPro && (
@@ -534,145 +906,70 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
       )}
 
       {/* Main Canvas Area */}
-      <div
-        ref={containerRef}
-        className="relative flex-1 min-h-[380px] p-2 bg-slate-950 flex items-center justify-center overflow-hidden"
-      >
-        {/* Non-blocking Floating Scanning HUD Bar */}
-        {isScanning && (
-          <div className="absolute top-3 left-4 right-4 z-30 flex items-center justify-between px-3.5 py-2 rounded-lg bg-slate-900/95 border border-white/[0.1] shadow-lg text-xs animate-fade-in pointer-events-auto">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-6 h-6 rounded bg-blue-600 text-white flex items-center justify-center shrink-0">
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-slate-100">Scanning Disk</span>
-                  <span className="text-blue-400 font-mono text-[11px]">
-                    {scannedFiles.toLocaleString()} files ({formatBytes(scannedBytes)})
-                  </span>
-                </div>
-                <p className="text-[10px] text-slate-400 truncate max-w-lg font-mono">
-                  {currentScanPath || 'Traversing folders…'}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3 shrink-0">
-              <div className="w-28 h-1.5 rounded-full bg-white/[0.08] overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 transition-all duration-300 rounded-full"
-                  style={{ width: `${Math.max(5, scanProgressPercentage)}%` }}
-                />
-              </div>
-              {onCancelScan && (
-                <button
-                  onClick={onCancelScan}
-                  className="px-2.5 py-0.5 rounded text-xs font-medium bg-rose-500/15 text-rose-300 hover:bg-rose-500/25 border border-rose-500/30 transition-colors"
-                >
-                  Stop
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {rootNode && currentViewNode && currentViewNode.children && currentViewNode.children.length > 0 ? (
-          <canvas
-            ref={canvasRef}
-            onMouseMove={handleMouseMove}
-            onMouseLeave={handleMouseLeave}
-            onClick={handleClick}
-            onContextMenu={handleContextMenu}
-            className="w-full h-full block cursor-pointer"
-          />
-        ) : isScanning ? (
-          <div className="w-full max-w-sm p-6 rounded-xl bg-slate-900/80 border border-white/[0.08] text-center space-y-3 shadow-lg animate-fade-in">
-            <div className="w-10 h-10 mx-auto rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-blue-400">
-              <Loader2 className="w-5 h-5 animate-spin" />
-            </div>
-            <div className="space-y-1">
-              <h4 className="text-xs font-semibold text-slate-100">Scanning Filesystem…</h4>
-              <p className="text-[11px] text-slate-400 font-mono truncate max-w-xs mx-auto px-2 py-0.5 rounded bg-black/30 border border-white/[0.04]">
-                {currentScanPath || 'Locating files…'}
-              </p>
-            </div>
-            <p className="text-[11px] text-slate-400 font-mono">
-              {scannedFiles.toLocaleString()} files scanned so far
-            </p>
-          </div>
-        ) : rootNode ? (
-          <div className="w-full max-w-sm p-6 rounded-xl bg-slate-900/80 border border-white/[0.08] text-center space-y-3 shadow-lg animate-fade-in">
-            <div className="w-10 h-10 mx-auto rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-slate-400">
-              <Folder className="w-5 h-5" />
-            </div>
-            <div className="space-y-1">
-              <h4 className="text-xs font-semibold text-slate-100">{currentViewNode?.name || 'Folder'} is Empty</h4>
-              <p className="text-[11px] text-slate-400">
-                This folder contains no files or subdirectories to display.
-              </p>
-            </div>
-            {breadcrumbs.length > 1 && (
-              <button
-                onClick={() => onDrillUp(breadcrumbs.length - 2)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-white/[0.06] hover:bg-white/[0.1] text-slate-200 border border-white/[0.08] transition-colors cursor-pointer"
-              >
-                <ArrowUpLeft className="w-3.5 h-3.5" />
-                Go Back Up
-              </button>
-            )}
-          </div>
-        ) : (
-          <EmptyState
-            icon={<LayoutGrid className="w-7 h-7" />}
-            title="No Active Drive Scan"
-            description="Select a drive or click 'Scan Home' to generate an interactive squarified treemap of your disk space."
-            className="w-full max-w-lg border-none bg-transparent"
-          />
-        )}
-
-        {/* Floating Tooltip Card */}
-        {hoveredRect && (
-          <div
-            className="fixed z-50 pointer-events-none p-3 rounded-xl bg-slate-900/95 backdrop-blur-md border border-slate-700/80 text-white shadow-2xl text-xs space-y-1.5 max-w-xs transition-all transform -translate-y-full -translate-x-1/2"
-            style={{
-              left: `${tooltipPos.x}px`,
-              top: `${tooltipPos.y - 12}px`,
+      {viewMode === 'table' ? (
+        <div className="flex-1 min-h-[400px] flex flex-col overflow-hidden bg-[#13151b]">
+          <FileTableView
+            currentViewNode={currentViewNode || rootNode || DEMO_ROOT_NODE}
+            selectedNode={selectedTableNode}
+            onSelectNode={(node) => {
+              setSelectedTableNode(node)
             }}
-          >
-            <div className="flex items-center gap-2">
-              <span
-                className="w-3 h-3 rounded-xs flex-shrink-0"
-                style={{ backgroundColor: hoveredRect.color }}
-              />
-              <span className="font-bold truncate text-slate-100">
-                {hoveredRect.node.name}
-              </span>
-            </div>
-            <div className="text-[11px] text-slate-400 font-mono truncate">
-              {hoveredRect.node.path || 'Aggregated group'}
-            </div>
-            <div className="pt-1 border-t border-slate-800 flex justify-between items-center text-[11px]">
-              <span className="font-semibold text-blue-400">
-                {hoveredRect.formattedSize}
-              </span>
-              <span className="text-slate-400">
-                {hoveredRect.percentageOfParent}% of parent
-              </span>
-            </div>
-            {hoveredRect.node.type === 'directory' && (
-              <div className="text-[10px] text-blue-300 font-medium flex items-center gap-1">
-                <span>📁 Click to drill down into folder</span>
-              </div>
-            )}
-            {hoveredRect.node.truncatedAtDepth && (
-              <div className="text-[10px] text-amber-300 font-medium flex items-center gap-1">
-                <span>⚠️ Max scan depth reached — contents not fully indexed</span>
-              </div>
-            )}
+            onDrillDown={(node) => {
+              onDrillDown(node)
+              setSelectedTableNode(null)
+            }}
+            onRevealInExplorer={handleRevealPath}
+            onDeleteNode={handleDeleteItem}
+            onCopyPath={handleCopyAnyPath}
+            searchQuery={searchQuery}
+            onSearchQueryChange={setSearchQuery}
+            activeCategoryFilter={activeCategoryFilter}
+            onCategoryFilterChange={setActiveCategoryFilter}
+            className="flex-1 h-full"
+          />
+        </div>
+      ) : viewMode === 'split' ? (
+        <div className="flex-1 min-h-[460px] flex flex-col overflow-hidden">
+          {/* Top Panel: Organized File Explorer Table */}
+          <div className="h-[46%] min-h-[190px] border-b border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden bg-[#13151b]">
+            <FileTableView
+              currentViewNode={currentViewNode || rootNode || DEMO_ROOT_NODE}
+              selectedNode={selectedTableNode}
+              onSelectNode={(node) => {
+                setSelectedTableNode(node)
+              }}
+              onDrillDown={(node) => {
+                onDrillDown(node)
+                setSelectedTableNode(null)
+              }}
+              onRevealInExplorer={handleRevealPath}
+              onDeleteNode={handleDeleteItem}
+              onCopyPath={handleCopyAnyPath}
+              searchQuery={searchQuery}
+              onSearchQueryChange={setSearchQuery}
+              activeCategoryFilter={activeCategoryFilter}
+              onCategoryFilterChange={setActiveCategoryFilter}
+              className="flex-1 h-full"
+            />
           </div>
-        )}
-      </div>
+
+          {/* Bottom Panel: Interactive Squarified Treemap */}
+          <div
+            ref={containerRef}
+            className="relative flex-1 min-h-[220px] bg-[#0c0e12] flex items-center justify-center overflow-hidden"
+          >
+            {renderCanvasContent()}
+          </div>
+        </div>
+      ) : (
+        /* Full Treemap Mode */
+        <div
+          ref={containerRef}
+          className="relative flex-1 min-h-[380px] bg-[#0c0e12] flex items-center justify-center overflow-hidden"
+        >
+          {renderCanvasContent()}
+        </div>
+      )}
 
       {/* Right-Click Context Menu */}
       {contextMenu.visible && contextMenu.rect && (

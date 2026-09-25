@@ -5,16 +5,20 @@ import renderer from 'vite-plugin-electron-renderer'
 import path from 'node:path'
 import { devApiServerPlugin } from './server/devApiServer'
 
+const isWebOnly = process.env.WEB_ONLY === 'true'
+
 export default defineConfig({
   plugins: [
     devApiServerPlugin(),
     react(),
-    electron([
-      {
-        entry: 'electron/main.ts',
-        onstart(options) {
-          options.startup()
-        },
+    ...(!isWebOnly
+      ? [
+          electron([
+            {
+              entry: 'electron/main.ts',
+              onstart(options) {
+                options.startup()
+              },
         vite: {
           build: {
             outDir: 'dist-electron',
@@ -67,7 +71,9 @@ export default defineConfig({
         },
       },
     ]),
-    renderer(),
+      renderer(),
+    ]
+  : []),
   ],
   resolve: {
     alias: {

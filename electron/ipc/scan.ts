@@ -94,7 +94,7 @@ export function registerScanIpc(getWindow: () => BrowserWindow | null): void {
       if (cachedRoot && options.isPro && cachedRoot.capped) {
         cachedRoot = null
       }
-      if (cachedRoot) {
+      if (cachedRoot && cachedRoot.children && cachedRoot.children.length > 0) {
         // Instantly notify renderer in < 20ms with interactive treemap!
         notifyScanProgress(win, {
           status: 'completed',

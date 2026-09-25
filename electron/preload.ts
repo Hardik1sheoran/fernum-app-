@@ -19,6 +19,8 @@ import type {
   JunkCategoryType,
   JunkScanResult,
   JunkCleanResult,
+  DuplicateScanOptions,
+  DuplicateScanResult,
 } from '../shared/types'
 
 const api: ElectronAPI = {
@@ -92,6 +94,13 @@ const api: ElectronAPI = {
     options: SearchQueryOptions
   ): Promise<SearchResultItem[] | SearchResultResponse> => {
     return ipcRenderer.invoke('search:files', options)
+  },
+
+  // Duplicates IPC
+  scanDuplicates: (
+    options?: DuplicateScanOptions
+  ): Promise<DuplicateScanResult> => {
+    return ipcRenderer.invoke('duplicates:scan', options)
   },
 
   // Applications IPC

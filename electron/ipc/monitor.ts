@@ -4,6 +4,7 @@ import os from 'node:os'
 import { spawn, type ChildProcess } from 'node:child_process'
 import type { SystemStats, ProcessStats, SystemSpecs } from '../../shared/types'
 import { sortProcesses } from '../../shared/monitorUtils'
+import { getRealSystemSpecs, calculateCpuUsage } from '../services/monitorService'
 
 let statsInterval: NodeJS.Timeout | null = null
 let processInterval: NodeJS.Timeout | null = null
@@ -229,7 +230,7 @@ export async function collectFastMetrics(): Promise<Omit<SystemStats, 'topProces
     return {
       timestamp: Date.now(),
       cpu: {
-        usagePercent: 20,
+        usagePercent: calculateCpuUsage(),
         model: cpuInfo.model,
         cores: cpuInfo.cores,
       },
@@ -380,93 +381,8 @@ export function registerMonitorIpc(getWindow: () => BrowserWindow | null): void 
     return collectRealtimeStats()
   })
 
-  let cachedSystemSpecs: SystemSpecs | null = null
   ipcMain.handle('monitor:get-system-specs', async (): Promise<SystemSpecs> => {
-    if (cachedSystemSpecs) return cachedSystemSpecs
-
-    try {
-      const [osInfo, cpuInfo, memInfo, diskLayout, bat, gfx] = await Promise.all([
-        si.osInfo(),
-        si.cpu(),
-        si.mem(),
-        si.diskLayout(),
-        si.battery().catch(() => ({ hasBattery: false, percent: 0, isCharging: false })),
-        si.graphics().catch(() => null),
-      ])
-
-      const primaryGpu = gfx?.controllers && gfx.controllers.length > 0 ? gfx.controllers[0] : null
-
-      cachedSystemSpecs = {
-        os: {
-          distro: osInfo.distro || os.type(),
-          release: osInfo.release || os.release(),
-          arch: osInfo.arch || os.arch(),
-          hostname: osInfo.hostname || os.hostname(),
-          uptime: os.uptime ? Math.floor(os.uptime()) : undefined,
-        },
-        cpu: {
-          brand: cpuInfo.brand || os.cpus()[0]?.model || 'Processor',
-          cores: cpuInfo.cores || os.cpus().length,
-          physicalCores: cpuInfo.physicalCores || Math.max(1, Math.floor(os.cpus().length / 2)),
-          speed: cpuInfo.speed || (os.cpus()[0]?.speed ? os.cpus()[0].speed / 1000 : 2.0),
-        },
-        memory: {
-          totalBytes: memInfo.total || os.totalmem(),
-        },
-        disks: Array.isArray(diskLayout) && diskLayout.length > 0
-          ? diskLayout.map((d) => ({
-              name: d.name || 'Local Storage Disk',
-              type: d.type || 'SSD',
-              size: d.size || 0,
-              interfaceType: d.interfaceType || 'NVMe/SATA',
-            }))
-          : [{
-              name: 'Primary System Disk',
-              type: 'SSD',
-              size: os.totalmem() * 10,
-              interfaceType: 'NVMe',
-            }],
-        graphics: primaryGpu
-          ? {
-              model: primaryGpu.model || 'Display Controller',
-              vramMb: primaryGpu.vram || undefined,
-            }
-          : undefined,
-        battery: bat && bat.hasBattery
-          ? {
-              hasBattery: true,
-              percent: bat.percent ?? 100,
-              isCharging: Boolean(bat.isCharging),
-            }
-          : undefined,
-      }
-
-      return cachedSystemSpecs
-    } catch {
-      return {
-        os: {
-          distro: 'Microsoft Windows',
-          release: os.release(),
-          arch: os.arch(),
-          hostname: os.hostname(),
-        },
-        cpu: {
-          brand: os.cpus()[0]?.model || 'Intel / AMD Processor',
-          cores: os.cpus().length,
-          physicalCores: Math.max(1, Math.floor(os.cpus().length / 2)),
-          speed: (os.cpus()[0]?.speed || 2000) / 1000,
-        },
-        memory: {
-          totalBytes: os.totalmem(),
-        },
-        disks: [{
-          name: 'Primary Windows Drive',
-          type: 'SSD',
-          size: 512 * 1024 * 1024 * 1024,
-          interfaceType: 'NVMe',
-        }],
-      }
-    }
+    return getRealSystemSpecs()
   })
 
   ipcMain.handle('monitor:start-collecting', async (): Promise<boolean> => {

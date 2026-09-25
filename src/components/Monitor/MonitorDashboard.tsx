@@ -27,8 +27,8 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = t
   const [stats, setStats] = useState<SystemStats | null>(null)
   const [specs, setSpecs] = useState<SystemSpecs | null>(null)
   const [history, setHistory] = useState<{ cpu: number[]; memory: number[] }>({
-    cpu: [12, 14, 18, 22, 20, 15, 19, 25, 22, 18, 16, 20, 24, 21, 19],
-    memory: [46, 46, 47, 47, 48, 48, 48, 49, 49, 48, 48, 49, 49, 50, 49],
+    cpu: [],
+    memory: [],
   })
   const [processSortBy, setProcessSortBy] = useState<'memory' | 'cpu'>('memory')
 
@@ -46,7 +46,13 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = t
       }
 
       window.electronAPI.getSystemStats().then((initialStats) => {
-        setStats(initialStats)
+        if (initialStats) {
+          setStats(initialStats)
+          setHistory({
+            cpu: [initialStats.cpu.usagePercent],
+            memory: [initialStats.memory.usagePercent],
+          })
+        }
       })
 
       unsubscribeStats = window.electronAPI.subscribeSystemStats((newStats) => {
@@ -99,7 +105,14 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = t
 
   // Helper to construct an SVG smooth area path for sparklines
   const buildSvgPath = (data: number[], width: number, height: number): { linePath: string; areaPath: string } => {
-    if (data.length < 2) return { linePath: '', areaPath: '' }
+    if (data.length < 2) {
+      if (data.length === 1) {
+        const clamped = Math.max(0, Math.min(100, data[0]))
+        const y = height - (clamped / 100) * (height - 8) - 4
+        return { linePath: `M 0,${y} L ${width},${y}`, areaPath: `M 0,${y} L ${width},${y} L ${width},${height} L 0,${height} Z` }
+      }
+      return { linePath: '', areaPath: '' }
+    }
     const stepX = width / (data.length - 1)
     const points = data.map((val, idx) => {
       const clamped = Math.max(0, Math.min(100, val))
@@ -158,7 +171,7 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = t
       {/* Grid of 4 Telemetry Metrics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 flex-shrink-0">
         {/* 1. CPU Usage */}
-        <div className="bg-[#202024] border border-[#2d2d33] p-3.5 rounded-lg space-y-3">
+        <div className="glass-card p-3.5 rounded-xl space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <Cpu className="w-4 h-4 text-blue-400" />
@@ -188,7 +201,7 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = t
         </div>
 
         {/* 2. RAM Usage */}
-        <div className="bg-[#202024] border border-[#2d2d33] p-3.5 rounded-lg space-y-3">
+        <div className="glass-card p-3.5 rounded-xl space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <Database className="w-4 h-4 text-indigo-400" />
@@ -212,7 +225,7 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = t
         </div>
 
         {/* 3. Disk I/O */}
-        <div className="bg-[#202024] border border-[#2d2d33] p-3.5 rounded-lg space-y-3">
+        <div className="glass-card p-3.5 rounded-xl space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <HardDrive className="w-4 h-4 text-emerald-400" />
@@ -240,7 +253,7 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = t
         </div>
 
         {/* 4. Network */}
-        <div className="bg-[#202024] border border-[#2d2d33] p-3.5 rounded-lg space-y-3">
+        <div className="glass-card p-3.5 rounded-xl space-y-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <Wifi className="w-4 h-4 text-amber-400" />
@@ -266,7 +279,7 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = t
       {/* Realtime 30-Second Rolling Sparklines */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 min-h-[160px] flex-shrink-0">
         {/* CPU Sparkline Card */}
-        <div className="bg-[#202024] border border-[#2d2d33] p-4 rounded-lg flex flex-col justify-between">
+        <div className="glass-card p-4 rounded-xl flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-zinc-200 flex items-center gap-2">
               <Cpu className="w-4 h-4 text-blue-400" />
@@ -290,7 +303,7 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = t
         </div>
 
         {/* Memory Sparkline Card */}
-        <div className="bg-[#202024] border border-[#2d2d33] p-4 rounded-lg flex flex-col justify-between">
+        <div className="glass-card p-4 rounded-xl flex flex-col justify-between">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-zinc-200 flex items-center gap-2">
               <Database className="w-4 h-4 text-indigo-400" />
@@ -315,7 +328,7 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = t
       </div>
 
       {/* PC Hardware & System Specifications (Pro Feature) */}
-      <div className="bg-[#202024] border border-[#2d2d33] rounded-lg p-3.5 space-y-3 flex-shrink-0">
+      <div className="glass-card rounded-xl p-3.5 space-y-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Monitor className="w-4 h-4 text-amber-400" />
@@ -472,7 +485,7 @@ export const MonitorDashboard: React.FC<MonitorDashboardProps> = ({ isActive = t
       </div>
 
       {/* Top Active Processes Table */}
-      <div className="bg-[#202024] rounded-lg border border-[#2d2d33] overflow-hidden flex flex-col flex-1 min-h-[220px]">
+      <div className="glass-card rounded-xl overflow-hidden flex flex-col flex-1 min-h-[220px]">
         <div className="p-3 border-b border-[#2d2d33] flex items-center justify-between">
           <div>
             <h3 className="text-xs font-semibold text-zinc-100 flex items-center gap-2">
