@@ -30,6 +30,14 @@ export interface FileNode {
   cappedAtBytes?: number
 }
 
+export interface CleanupQueueItem {
+  id: string
+  name: string
+  path: string
+  size: number
+  category: string
+}
+
 export interface DriveInfo {
   id: string
   name: string

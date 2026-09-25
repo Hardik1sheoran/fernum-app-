@@ -12,7 +12,7 @@ interface LicenseState {
   triggerFeature: string | null
   isValidating: boolean
 
-  activateLicense: (key?: string) => { success: boolean; message: string }
+  activateLicense: (key?: string) => Promise<{ success: boolean; message: string }>
   activateOnlineLicense: (key: string) => Promise<{ success: boolean; message: string }>
   deactivateLicense: () => Promise<void>
   openUpgradeModal: (feature?: string) => void

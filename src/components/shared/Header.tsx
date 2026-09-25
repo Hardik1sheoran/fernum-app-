@@ -37,15 +37,32 @@ export const Header: React.FC<HeaderProps> = ({
   onRefreshDrives,
   onOpenExclusions,
   onOpenPrivacy,
-  searchQuery = '',
+  searchQuery,
   onSearchChange,
   onRevealExplorer,
 }) => {
   const { theme, setTheme } = useTheme()
-  const { selectedDrive, isLoadingDrives, drives, setSelectedDrive, currentViewNode } = useScanStore()
+  const {
+    selectedDrive,
+    isLoadingDrives,
+    drives,
+    setSelectedDrive,
+    currentViewNode,
+    rootNode,
+    scanProgress,
+    searchQuery: storeSearchQuery,
+    setSearchQuery: storeSetSearchQuery,
+  } = useScanStore()
   const { isPro, openUpgradeModal } = useLicenseStore()
   const [isDriveMenuOpen, setIsDriveMenuOpen] = useState(false)
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false)
+  const [searchScope, setSearchScope] = useState<'Home' | 'Drive' | 'Folder'>('Home')
+
+  const query = searchQuery !== undefined ? searchQuery : storeSearchQuery
+  const handleQueryChange = (val: string) => {
+    if (onSearchChange) onSearchChange(val)
+    storeSetSearchQuery(val)
+  }
 
   const handleThemeChange = (newTheme: ThemeMode) => {
     setTheme(newTheme)
@@ -102,14 +119,22 @@ export const Header: React.FC<HeaderProps> = ({
             <input
               type="text"
               placeholder="Quick power search..."
-              value={searchQuery}
-              onChange={(e) => onSearchChange?.(e.target.value)}
+              value={query}
+              onChange={(e) => handleQueryChange(e.target.value)}
               className="bg-transparent border-none outline-none w-full text-xs text-zinc-200 placeholder-zinc-500 font-normal"
             />
             {/* Scope Pill inside search */}
-            <div className="ml-2 flex items-center gap-1 px-2 py-0.5 rounded bg-[#282c37] border border-[#373c4a] text-zinc-300 text-[11px] font-medium shrink-0 cursor-pointer hover:bg-[#323745]">
+            <div
+              onClick={() =>
+                setSearchScope((prev) =>
+                  prev === 'Home' ? 'Drive' : prev === 'Drive' ? 'Folder' : 'Home'
+                )
+              }
+              className="ml-2 flex items-center gap-1 px-2 py-0.5 rounded bg-[#282c37] border border-[#373c4a] text-zinc-300 text-[11px] font-medium shrink-0 cursor-pointer hover:bg-[#323745] transition-colors"
+              title="Click to toggle search scope (Home / Drive / Folder)"
+            >
               <Home className="w-3 h-3 text-zinc-400" />
-              <span>Home</span>
+              <span>{searchScope}</span>
               <ChevronDown className="w-2.5 h-2.5 text-zinc-400 ml-0.5" />
             </div>
           </div>
@@ -267,7 +292,11 @@ export const Header: React.FC<HeaderProps> = ({
           <span>
             {currentViewNode?.children?.length
               ? `${currentViewNode.children.length.toLocaleString()} items`
-              : '320,488 items'}
+              : rootNode?.children?.length
+              ? `${rootNode.children.length.toLocaleString()} items`
+              : scanProgress.scannedFiles > 0
+              ? `${scanProgress.scannedFiles.toLocaleString()} files scanned`
+              : 'Ready to scan'}
           </span>
           <button
             onClick={onRevealExplorer}

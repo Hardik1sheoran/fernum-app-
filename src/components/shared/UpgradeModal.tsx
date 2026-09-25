@@ -21,7 +21,6 @@ export const UpgradeModal: React.FC = () => {
     activateLicense,
     activateOnlineLicense,
     deactivateLicense,
-    openCheckout,
     closeUpgradeModal,
   } = useLicenseStore()
 
@@ -91,8 +90,8 @@ export const UpgradeModal: React.FC = () => {
     }
   }
 
-  const handleInstantUnlock = () => {
-    const res = activateLicense(`FERNUM-PRO-LIFETIME-${Date.now().toString(36).toUpperCase()}`)
+  const handleInstantUnlock = async () => {
+    const res = await activateLicense(`FERNUM-PRO-LIFETIME-${Date.now().toString(36).toUpperCase()}`)
     setStatusMessage({ text: res.message, isError: false })
     setTimeout(() => {
       closeUpgradeModal()

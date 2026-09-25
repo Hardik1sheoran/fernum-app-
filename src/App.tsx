@@ -17,6 +17,7 @@ import { useLicenseStore } from './stores/licenseStore'
 import { useTheme } from './hooks/useTheme'
 import { RainbowMarblingCanvas } from './components/RainbowMarbling/RainbowMarblingCanvas'
 import { AuroraCanvas } from './components/Aurora/AuroraCanvas'
+import { DEMO_ROOT_NODE } from './components/Treemap/demoTreeData'
 import type { DriveInfo, QuickFolderInfo, ScanProgress, FileNode } from '@shared/types'
 
 export const App: React.FC = () => {
@@ -130,6 +131,37 @@ export const App: React.FC = () => {
           error: message,
         })
       }
+    } else {
+      // Browser mode: simulate lively scan progress
+      setScanProgress({
+        status: 'scanning',
+        currentPath: drive.path,
+        scannedFiles: 0,
+        scannedBytes: 0,
+        percentage: 0,
+      })
+      let p = 0
+      const timer = setInterval(() => {
+        p += 25
+        setScanProgress({
+          status: 'scanning',
+          currentPath: `${drive.path}Users\\hardi\\AppData...`,
+          scannedFiles: Math.round((p / 100) * 14200),
+          scannedBytes: Math.round((p / 100) * (drive.usedBytes || 225 * 1024 ** 3)),
+          percentage: p,
+        })
+        if (p >= 100) {
+          clearInterval(timer)
+          setRootNode(DEMO_ROOT_NODE)
+          setScanProgress({
+            status: 'completed',
+            currentPath: drive.path,
+            scannedFiles: 14200,
+            scannedBytes: drive.usedBytes || 225 * 1024 ** 3,
+            percentage: 100,
+          })
+        }
+      }, 150)
     }
   }, [setRootNode, setScanProgress])
 
@@ -356,6 +388,24 @@ export const App: React.FC = () => {
         const message = err instanceof Error ? err.message : String(err)
         setDriveError(message)
       }
+    } else {
+      const customPath = window.prompt('Enter folder path to analyze:', 'C:\\Users\\hardi\\Projects')
+      if (!customPath) return
+      const folderName = customPath.split(/[\\/]/).filter(Boolean).pop() || customPath
+      const customFolderDrive: DriveInfo = {
+        id: customPath,
+        name: `Folder: ${folderName}`,
+        path: customPath,
+        totalBytes: 512 * 1024 ** 3,
+        freeBytes: 120 * 1024 ** 3,
+        usedBytes: 392 * 1024 ** 3,
+        isSystem: false,
+      }
+      if (!drives.some((d) => d.path === customPath)) {
+        setDrives([customFolderDrive, ...drives])
+      }
+      setSelectedDrive(customFolderDrive)
+      handleStartScan(customFolderDrive, true, false)
     }
   }
 

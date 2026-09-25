@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import {
   FolderOpen,
   HardDrive,
@@ -12,8 +12,10 @@ import {
   Archive,
   Smartphone,
   Layers,
+  RotateCcw,
 } from 'lucide-react'
 import type { DriveInfo, QuickFolderInfo, FileNode } from '@shared/types'
+import { useScanStore } from '../../stores/scanStore'
 
 interface DrivePickerProps {
   drives: DriveInfo[]
@@ -34,11 +36,14 @@ interface DrivePickerProps {
 export const DrivePicker: React.FC<DrivePickerProps> = ({
   drives,
   selectedDrive,
+  currentViewNode,
   onStartScan,
   onScanHome,
   onSelectCustomFolder,
   isScanning,
 }) => {
+  const { sidebarFilters, toggleSidebarFilter, resetSidebarFilters } = useScanStore()
+
   const active = selectedDrive || drives[0] || {
     id: 'C:',
     name: 'Local Disk (C:)',
@@ -49,29 +54,16 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
     isSystem: true,
   }
 
-  // Quick categories checklist state matching screenshot (Android checked by default)
-  const [checkedCategories, setCheckedCategories] = useState<Record<string, boolean>>({
-    trash: false,
-    nodejs: false,
-    xcode: false,
-    buildArtifacts: false,
-    android: true,
-    docker: false,
-    videos: false,
-    diskImages: false,
-    archives: false,
-    iosBackups: false,
-  })
-
-  const toggleCategory = (key: string) => {
-    setCheckedCategories((prev) => ({
-      ...prev,
-      [key]: !prev[key],
-    }))
-  }
-
-  const percentage = 92
+  const percentage =
+    active.totalBytes > 0
+      ? Math.min(100, Math.max(0, Math.round((active.usedBytes / active.totalBytes) * 100)))
+      : 0
   const strokeDashoffset = 175.93 * (1 - percentage / 100)
+  const totalGB = (active.totalBytes / 1024 ** 3).toFixed(2)
+  const usedGB = (active.usedBytes / 1024 ** 3).toFixed(2)
+  const freeGB = (active.freeBytes / 1024 ** 3).toFixed(2)
+
+  const hasAnyFilterActive = Object.values(sidebarFilters).some(Boolean)
 
   return (
     <aside className="w-64 h-full flex flex-col justify-between bg-[#111317] border-r border-[#1f2229] select-none text-zinc-300 p-3 overflow-y-auto">
@@ -111,8 +103,11 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
             <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
               DISK STORAGE
             </span>
-            <span className="text-[10px] font-mono text-zinc-500">
-              VS Code
+            <span
+              className="text-[10px] font-mono text-zinc-400 truncate max-w-[120px]"
+              title={currentViewNode?.name || active.name}
+            >
+              {currentViewNode?.name || active.name || 'Local Disk (C:)'}
             </span>
           </div>
 
@@ -145,7 +140,7 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
                 <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
                   <HardDrive className="w-3.5 h-3.5 text-zinc-400 mb-0.5" />
                   <span className="text-[11px] font-black text-white leading-none">
-                    92%
+                    {percentage}%
                   </span>
                 </div>
               </div>
@@ -154,15 +149,15 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
               <div className="space-y-1 text-[11px] font-mono leading-tight flex-1">
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-400 text-[10px] font-sans">Total</span>
-                  <span className="text-zinc-100 font-semibold">245.11 GB</span>
+                  <span className="text-zinc-100 font-semibold">{totalGB} GB</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-400 text-[10px] font-sans">Used</span>
-                  <span className="text-[#f43f5e] font-semibold">225.14 GB</span>
+                  <span className="text-[#f43f5e] font-semibold">{usedGB} GB</span>
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-zinc-400 text-[10px] font-sans">Available</span>
-                  <span className="text-[#10b981] font-semibold">19.97 GB</span>
+                  <span className="text-[#10b981] font-semibold">{freeGB} GB</span>
                 </div>
               </div>
             </div>
@@ -170,8 +165,8 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
             {/* Coral Gradient Bar */}
             <div className="h-1.5 w-full rounded-full bg-zinc-800/80 overflow-hidden">
               <div
-                className="h-full rounded-full bg-gradient-to-r from-[#f43f5e] to-[#fb7185]"
-                style={{ width: '92%' }}
+                className="h-full rounded-full bg-gradient-to-r from-[#f43f5e] to-[#fb7185] transition-all duration-500"
+                style={{ width: `${percentage}%` }}
               />
             </div>
           </div>
@@ -179,10 +174,21 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
 
         {/* 4. System Backups / Quick Categories Checklist */}
         <div className="space-y-1 pt-1">
-          <span className="text-[10px] font-medium text-zinc-500 block mb-1">
-            System Backups
-          </span>
-
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] font-medium text-zinc-500">
+              System Backups
+            </span>
+            {hasAnyFilterActive && (
+              <button
+                onClick={resetSidebarFilters}
+                className="text-[10px] text-blue-400 hover:text-blue-300 flex items-center gap-1 cursor-pointer"
+                title="Reset all filters"
+              >
+                <RotateCcw className="w-2.5 h-2.5" />
+                <span>Show All</span>
+              </button>
+            )}
+          </div>
           <div className="space-y-0.5 text-xs">
             {[
               { id: 'trash', label: 'Trash', icon: Trash2 },
@@ -196,12 +202,12 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
               { id: 'archives', label: 'Archives', icon: Archive },
               { id: 'iosBackups', label: 'iOS Backups', icon: Smartphone },
             ].map((item) => {
-              const isChecked = checkedCategories[item.id]
+              const isChecked = Boolean(sidebarFilters[item.id])
               const Icon = item.icon
               return (
                 <div
                   key={item.id}
-                  onClick={() => toggleCategory(item.id)}
+                  onClick={() => toggleSidebarFilter(item.id)}
                   className={`flex items-center gap-2 px-2 py-1.5 rounded-md cursor-pointer transition-colors ${
                     isChecked
                       ? 'bg-[#1b2230] text-white'

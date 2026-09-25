@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { DriveInfo, QuickFolderInfo, FileNode, ScanProgress } from '@shared/types'
+import type { DriveInfo, QuickFolderInfo, FileNode, ScanProgress, CleanupQueueItem } from '@shared/types'
 
 function cloneTree(node: FileNode): FileNode {
   return {
@@ -55,6 +55,9 @@ interface ScanState {
   breadcrumbs: FileNode[]
   isLoadingDrives: boolean
   reclaimedBytes: number
+  searchQuery: string
+  sidebarFilters: Record<string, boolean>
+  cleanupQueue: CleanupQueueItem[]
 
   setDrives: (drives: DriveInfo[]) => void
   setQuickFolders: (folders: QuickFolderInfo[]) => void
@@ -62,6 +65,12 @@ interface ScanState {
   setScanProgress: (progress: ScanProgress) => void
   setRootNode: (node: FileNode | null) => void
   setCurrentViewNode: (node: FileNode | null) => void
+  setSearchQuery: (query: string) => void
+  toggleSidebarFilter: (key: string) => void
+  resetSidebarFilters: () => void
+  addToCleanupQueue: (item: CleanupQueueItem | FileNode) => void
+  removeFromCleanupQueue: (idOrPath: string) => void
+  clearCleanupQueue: () => void
   drillDown: (node: FileNode) => void
   drillUp: (targetIndex: number) => void
   resetView: () => void
@@ -86,6 +95,25 @@ export const useScanStore = create<ScanState>((set, get) => ({
   breadcrumbs: [],
   isLoadingDrives: false,
   reclaimedBytes: 0,
+  searchQuery: '',
+  sidebarFilters: {
+    trash: false,
+    nodejs: false,
+    xcode: false,
+    buildArtifacts: false,
+    android: false,
+    docker: false,
+    videos: false,
+    diskImages: false,
+    archives: false,
+    iosBackups: false,
+  },
+  cleanupQueue: [
+    { id: 'cleanup-android', name: 'Android build cache (.gradle)', path: 'C:\\Users\\hardi\\.gradle\\caches', size: 3050000000, category: 'Dev' },
+    { id: 'cleanup-chrome', name: 'Google Chrome Profile Cache', path: 'C:\\Users\\hardi\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache', size: 889000000, category: 'Cache' },
+    { id: 'cleanup-ollama', name: 'Ollama Model Weights Blob', path: 'C:\\Users\\hardi\\.ollama\\models\\blobs', size: 2020000000, category: 'Model' },
+    { id: 'cleanup-node', name: 'Node.js global build cache', path: 'C:\\Users\\hardi\\AppData\\Local\\npm-cache', size: 1200000000, category: 'Dev' },
+  ],
 
   setDrives: (drives) =>
     set((state) => ({
@@ -102,6 +130,52 @@ export const useScanStore = create<ScanState>((set, get) => ({
       breadcrumbs: rootNode ? [rootNode] : [],
     }),
   setCurrentViewNode: (currentViewNode) => set({ currentViewNode }),
+  setSearchQuery: (searchQuery) => set({ searchQuery }),
+  toggleSidebarFilter: (key) =>
+    set((state) => ({
+      sidebarFilters: {
+        ...state.sidebarFilters,
+        [key]: !state.sidebarFilters[key],
+      },
+    })),
+  resetSidebarFilters: () =>
+    set({
+      sidebarFilters: {
+        trash: false,
+        nodejs: false,
+        xcode: false,
+        buildArtifacts: false,
+        android: false,
+        docker: false,
+        videos: false,
+        diskImages: false,
+        archives: false,
+        iosBackups: false,
+      },
+    }),
+  addToCleanupQueue: (item) =>
+    set((state) => {
+      const isFileNode = 'type' in item
+      const newItem: CleanupQueueItem = isFileNode
+        ? {
+            id: item.id || item.path,
+            name: item.name,
+            path: item.path,
+            size: item.size,
+            category: item.category || 'File',
+          }
+        : item
+
+      if (state.cleanupQueue.some((q) => q.path === newItem.path || q.id === newItem.id)) {
+        return state
+      }
+      return { cleanupQueue: [...state.cleanupQueue, newItem] }
+    }),
+  removeFromCleanupQueue: (idOrPath) =>
+    set((state) => ({
+      cleanupQueue: state.cleanupQueue.filter((q) => q.id !== idOrPath && q.path !== idOrPath),
+    })),
+  clearCleanupQueue: () => set({ cleanupQueue: [] }),
   drillDown: (node) =>
     set((state) => ({
       currentViewNode: node,

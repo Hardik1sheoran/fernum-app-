@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   Columns,
   List,
+  PlusCircle,
 } from 'lucide-react'
 import type { FileNode } from '@shared/types'
 import {
@@ -24,6 +25,42 @@ import {
   formatBytes,
   type NestedTreemapRect,
 } from './treemapLayout'
+
+function nodeMatchesSidebarFilters(node: FileNode, filters: Record<string, boolean>): boolean {
+  const activeKeys = Object.keys(filters).filter((k) => filters[k])
+  if (activeKeys.length === 0) return true
+
+  const name = (node.name || '').toLowerCase()
+  const p = (node.path || '').toLowerCase()
+  const cat = node.category || ''
+
+  return activeKeys.some((k) => {
+    switch (k) {
+      case 'trash':
+        return name.includes('recycle') || p.includes('recycle') || name.includes('trash')
+      case 'nodejs':
+        return name.includes('node_modules') || p.includes('node_modules') || (cat === 'code' && /\.(js|ts|jsx|tsx|json)$/i.test(name))
+      case 'xcode':
+        return name.includes('xcode') || p.includes('deriveddata')
+      case 'buildArtifacts':
+        return /^(build|dist|target|bin|obj|\.next|\.turbo|out)$/i.test(name) || p.includes('\\target\\') || p.includes('\\dist\\') || p.includes('\\build\\')
+      case 'android':
+        return name.includes('android') || p.includes('android') || name.includes('.gradle') || p.includes('.gradle')
+      case 'docker':
+        return name.includes('docker') || p.includes('docker') || p.includes('wsl')
+      case 'videos':
+        return cat === 'video' || /\.(mp4|mkv|mov|avi|webm|flv|wmv)$/i.test(name)
+      case 'diskImages':
+        return /\.(iso|img|vhd|vhdx|vmdk|dmg)$/i.test(name)
+      case 'archives':
+        return cat === 'archive' || /\.(zip|rar|7z|tar|gz|bz2|xz)$/i.test(name)
+      case 'iosBackups':
+        return name.includes('mobilesync') || p.includes('mobilesync') || name.includes('backup')
+      default:
+        return false
+    }
+  })
+}
 import { Breadcrumb } from '../shared/Breadcrumb'
 import { ConfirmDeleteModal } from '../shared/ConfirmDeleteModal'
 import { FileTableView } from './FileTableView'
@@ -71,6 +108,16 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const containerRef = useRef<HTMLDivElement | null>(null)
+
+  const {
+    selectedDrive,
+    deleteNodeFromTree,
+    sidebarFilters,
+    searchQuery: storeSearchQuery,
+    cleanupQueue,
+    addToCleanupQueue,
+    removeFromCleanupQueue,
+  } = useScanStore()
 
   const [layoutRects, setLayoutRects] = useState<NestedTreemapRect[]>([])
   const [hoveredRect, setHoveredRect] = useState<NestedTreemapRect | null>(null)
@@ -248,9 +295,20 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
       }
     }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim()
-      nodesToRender = nodesToRender.filter((n) => n.name.toLowerCase().includes(q) || (n.path && n.path.toLowerCase().includes(q)))
+    const hasActiveSidebarFilter = Object.values(sidebarFilters).some(Boolean)
+    if (hasActiveSidebarFilter) {
+      nodesToRender = nodesToRender.filter((n) => {
+        if (nodeMatchesSidebarFilters(n, sidebarFilters)) return true
+        if (n.children && n.children.length > 0) {
+          return n.children.some((c) => nodeMatchesSidebarFilters(c, sidebarFilters))
+        }
+        return false
+      })
+    }
+
+    const effectiveQuery = (searchQuery.trim() || storeSearchQuery.trim()).toLowerCase()
+    if (effectiveQuery) {
+      nodesToRender = nodesToRender.filter((n) => n.name.toLowerCase().includes(effectiveQuery) || (n.path && n.path.toLowerCase().includes(effectiveQuery)))
     }
 
     const computed = computeNestedTreemapLayout(
@@ -261,7 +319,7 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
     )
     setLayoutRects(computed)
     drawTreemap(computed, hoveredRectRef.current)
-  }, [currentViewNode, rootNode, drawTreemap, activeCategoryFilter, searchQuery, viewMode])
+  }, [currentViewNode, rootNode, drawTreemap, activeCategoryFilter, searchQuery, storeSearchQuery, sidebarFilters, viewMode])
 
   useEffect(() => {
     updateLayout()
@@ -365,9 +423,29 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
     })
   }
 
-  const { deleteNodeFromTree } = useScanStore()
   const { addExcludedPath } = useSettingsStore()
   const { isPro, openUpgradeModal } = useLicenseStore()
+
+  const isItemInCleanupQueue = Boolean(
+    contextMenu.rect?.node &&
+      cleanupQueue.some(
+        (q) => q.path === contextMenu.rect?.node.path || q.id === contextMenu.rect?.node.id
+      )
+  )
+
+  const handleToggleCleanupQueue = () => {
+    if (!contextMenu.rect?.node) return
+    const n = contextMenu.rect.node
+    if (isItemInCleanupQueue) {
+      removeFromCleanupQueue(n.path || n.id)
+      setToastMessage(`Removed "${n.name}" from Cleanup Queue`)
+    } else {
+      addToCleanupQueue(n)
+      setToastMessage(`Added "${n.name}" to Cleanup Queue`)
+    }
+    setTimeout(() => setToastMessage(null), 3000)
+    setContextMenu({ visible: false, x: 0, y: 0, rect: null })
+  }
 
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean
@@ -1018,6 +1096,14 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
               )}
 
               <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
+
+              <button
+                onClick={handleToggleCleanupQueue}
+                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg hover:bg-amber-500/10 text-amber-400 text-left transition-colors font-medium"
+              >
+                <PlusCircle className="w-3.5 h-3.5 text-amber-400" />
+                <span>{isItemInCleanupQueue ? 'Remove from Cleanup Queue' : 'Add to Cleanup Queue'}</span>
+              </button>
 
               <button
                 onClick={() => handleOpenDeleteModal(false)}

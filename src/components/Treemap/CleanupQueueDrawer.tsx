@@ -1,34 +1,66 @@
 import React, { useState } from 'react'
-import { Trash2, ChevronUp, ChevronDown, Check } from 'lucide-react'
+import { Trash2, ChevronUp, ChevronDown, Check, X, Loader2 } from 'lucide-react'
 import { formatBytes } from './treemapLayout'
+import { useScanStore } from '../../stores/scanStore'
 
 export const CleanupQueueDrawer: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false)
+  const [isCleaning, setIsCleaning] = useState(false)
   const [isCleaned, setIsCleaned] = useState(false)
-  const [items, setItems] = useState([
-    { id: '1', name: 'Android build cache', size: 3050000000, category: 'Dev' },
-    { id: '2', name: 'Google Chrome Profile 5 Cache', size: 889000000, category: 'Cache' },
-    { id: '3', name: 'sha256-dde5aa3fc5... blob', size: 2020000000, category: 'Model' },
-    { id: '4', name: 'Node.js build artifacts', size: 1200000000, category: 'Dev' },
-  ])
+  const [cleanedFreedBytes, setCleanedFreedBytes] = useState(0)
 
-  const totalBytes = items.reduce((acc, item) => acc + item.size, 0)
+  const {
+    cleanupQueue,
+    removeFromCleanupQueue,
+    clearCleanupQueue,
+    deleteNodesFromTree,
+  } = useScanStore()
 
-  const handleClean = () => {
+  const totalBytes = cleanupQueue.reduce((acc, item) => acc + item.size, 0)
+
+  const handleClean = async () => {
+    if (cleanupQueue.length === 0 || isCleaning) return
+
+    setIsCleaning(true)
+    const paths = cleanupQueue.map((item) => item.path).filter(Boolean)
+    const currentTotal = totalBytes
+
+    try {
+      if (paths.length > 0 && window.electronAPI?.trashMany) {
+        await window.electronAPI.trashMany(paths)
+      } else if (paths.length > 0 && window.electronAPI?.moveToTrash) {
+        for (const p of paths) {
+          try {
+            await window.electronAPI.moveToTrash(p)
+          } catch {
+            // continue
+          }
+        }
+      }
+    } catch (err) {
+      console.warn('Queue clean warning:', err)
+    }
+
+    // Update treemap in-memory tree & accumulate reclaimed bytes
+    deleteNodesFromTree(paths)
+    setCleanedFreedBytes(currentTotal)
     setIsCleaned(true)
+    setIsCleaning(false)
+
     setTimeout(() => {
-      setItems([])
+      clearCleanupQueue()
       setIsOpen(false)
       setIsCleaned(false)
-    }, 1200)
+      setCleanedFreedBytes(0)
+    }, 1500)
   }
 
-  if (items.length === 0) return null
+  if (cleanupQueue.length === 0 && !isCleaned) return null
 
   return (
-    <div className="absolute bottom-4 right-4 z-40 select-none font-sans">
+    <div className="absolute bottom-4 right-4 z-50 select-none font-sans">
       {isOpen ? (
-        <div className="w-80 rounded-xl bg-[#14161c]/95 backdrop-blur-xl border border-[#282d38] shadow-2xl p-3 space-y-3 animate-fade-in text-xs">
+        <div className="w-84 rounded-xl bg-[#14161c]/95 backdrop-blur-xl border border-[#282d38] shadow-2xl p-3 space-y-3 animate-fade-in text-xs">
           {/* Header */}
           <div className="flex items-center justify-between border-b border-[#222733] pb-2">
             <div className="flex items-center gap-2">
@@ -37,7 +69,7 @@ export const CleanupQueueDrawer: React.FC = () => {
               </div>
               <span className="font-bold text-zinc-100">Cleanup Queue</span>
               <span className="rounded-full bg-rose-500/20 text-rose-300 text-[10px] font-bold px-1.5 py-0.2">
-                {items.length}
+                {cleanupQueue.length}
               </span>
             </div>
             <button
@@ -49,19 +81,28 @@ export const CleanupQueueDrawer: React.FC = () => {
           </div>
 
           {/* Items List */}
-          <div className="space-y-1.5 max-h-48 overflow-y-auto">
-            {items.map((item) => (
+          <div className="space-y-1.5 max-h-52 overflow-y-auto pr-0.5">
+            {cleanupQueue.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between p-2 rounded-lg bg-[#1c2029] border border-[#2a303e] text-zinc-200"
+                className="group flex items-center justify-between p-2 rounded-lg bg-[#1c2029] border border-[#2a303e] text-zinc-200 hover:border-zinc-600 transition-colors"
               >
-                <div className="truncate mr-2">
+                <div className="truncate mr-2 flex-1 min-w-0">
                   <p className="font-medium truncate text-zinc-200 text-[11px]">{item.name}</p>
-                  <span className="text-[10px] text-zinc-500">{item.category}</span>
+                  <span className="text-[10px] text-zinc-500 truncate block">{item.category} • {item.path}</span>
                 </div>
-                <span className="font-mono text-zinc-400 shrink-0 text-[11px]">
-                  {formatBytes(item.size)}
-                </span>
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="font-mono text-zinc-400 text-[11px]">
+                    {formatBytes(item.size)}
+                  </span>
+                  <button
+                    onClick={() => removeFromCleanupQueue(item.id)}
+                    className="p-1 rounded text-zinc-500 hover:text-rose-400 hover:bg-white/[0.06] transition-colors"
+                    title="Remove from queue"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -70,13 +111,18 @@ export const CleanupQueueDrawer: React.FC = () => {
           <div className="pt-1">
             <button
               onClick={handleClean}
-              disabled={isCleaned}
+              disabled={isCleaning || isCleaned || cleanupQueue.length === 0}
               className="w-full py-2 px-3 rounded-lg bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-70"
             >
-              {isCleaned ? (
+              {isCleaning ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <span>Moving to Recycle Bin…</span>
+                </>
+              ) : isCleaned ? (
                 <>
                   <Check className="w-3.5 h-3.5" />
-                  <span>Cleaned {formatBytes(totalBytes)}!</span>
+                  <span>Cleaned {formatBytes(cleanedFreedBytes)}!</span>
                 </>
               ) : (
                 <>
@@ -89,13 +135,14 @@ export const CleanupQueueDrawer: React.FC = () => {
         </div>
       ) : (
         <button
+          id="btn-cleanup-queue"
           onClick={() => setIsOpen(true)}
           className="flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#181a21]/95 hover:bg-[#20232d] backdrop-blur-md border border-[#2f3542] text-zinc-100 shadow-xl transition-all hover:scale-102 cursor-pointer group"
         >
           <Trash2 className="w-3.5 h-3.5 text-rose-400 group-hover:text-rose-300 transition-colors" />
           <span className="text-xs font-semibold">Cleanup Queue</span>
           <span className="w-4 h-4 rounded-full bg-rose-500 text-white text-[10px] font-black flex items-center justify-center shadow-xs">
-            {items.length}
+            {cleanupQueue.length}
           </span>
           <ChevronUp className="w-3.5 h-3.5 text-zinc-400 ml-0.5 group-hover:text-zinc-200" />
         </button>
