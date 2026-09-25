@@ -215,10 +215,10 @@ export async function scanDirectory(
     children: [],
   }
 
-  let entryNames: string[] = []
+  let entries: import('node:fs').Dirent[] = []
   try {
-    // Read names only (bounded semaphore pool) to avoid whole-directory EPERM on Windows junctions/reparse points
-    entryNames = await ctx.dirSemaphore.run(() => fs.readdir(normalizedPath))
+    // Read directory with file types: Windows libuv provides Dirent with type flags (no lstat syscalls needed)
+    entries = await ctx.dirSemaphore.run(() => fs.readdir(normalizedPath, { withFileTypes: true }))
   } catch {
     // Inaccessible directory (permissions, locked)
     return null
@@ -228,40 +228,48 @@ export async function scanDirectory(
 
   const childNodes: FileNode[] = []
   const dirNames: string[] = []
-  const fileItems: { name: string; size: number; mtimeMs?: number }[] = []
+  const fileNamesToStat: string[] = []
 
-  // Concurrently inspect entries with lstat, catching errors per-entry so a single junction doesn't abort the folder
-  const LSTAT_BATCH_SIZE = 64
-  for (let i = 0; i < entryNames.length; i += LSTAT_BATCH_SIZE) {
+  for (const entry of entries) {
+    const lower = entry.name.toLowerCase()
+    if (
+      lower === 'pagefile.sys' ||
+      lower === 'hiberfil.sys' ||
+      lower === 'swapfile.sys' ||
+      lower === 'dumpstack.log.tmp'
+    ) {
+      continue
+    }
+
+    // Skip junctions and symlinks safely without any syscall (e.g. "C:\Documents and Settings", "Application Data")
+    if (entry.isSymbolicLink()) {
+      continue
+    }
+
+    const fullPath = path.join(normalizedPath, entry.name)
+    if (ctx.excludedSet.has(fullPath.toLowerCase())) continue
+
+    if (entry.isDirectory()) {
+      dirNames.push(entry.name)
+    } else if (entry.isFile()) {
+      fileNamesToStat.push(entry.name)
+    }
+  }
+
+  // Stat files in concurrent batches to get exact size and mtimeMs
+  const fileItems: { name: string; size: number; mtimeMs?: number }[] = []
+  const STAT_BATCH_SIZE = 128
+  for (let i = 0; i < fileNamesToStat.length; i += STAT_BATCH_SIZE) {
     if (isCancelled || ctx.isCapped) return null
-    const batch = entryNames.slice(i, i + LSTAT_BATCH_SIZE)
+    const batch = fileNamesToStat.slice(i, i + STAT_BATCH_SIZE)
     await Promise.all(
       batch.map(async (name) => {
-        const lower = name.toLowerCase()
-        if (
-          lower === 'pagefile.sys' ||
-          lower === 'hiberfil.sys' ||
-          lower === 'swapfile.sys' ||
-          lower === 'dumpstack.log.tmp'
-        ) {
-          return
-        }
-
         const fullPath = path.join(normalizedPath, name)
-        if (ctx.excludedSet.has(fullPath.toLowerCase())) return
-
         try {
-          const stats = await fs.lstat(fullPath)
-          if (stats.isSymbolicLink()) {
-            return // Skip junctions and symlinks safely (e.g. "C:\Documents and Settings")
-          }
-          if (stats.isDirectory()) {
-            dirNames.push(name)
-          } else if (stats.isFile()) {
-            fileItems.push({ name, size: stats.size || 0, mtimeMs: stats.mtimeMs })
-          }
+          const stats = await fs.stat(fullPath)
+          fileItems.push({ name, size: stats.size || 0, mtimeMs: stats.mtimeMs })
         } catch {
-          // Inaccessible entry (EPERM, EACCES, locked) - skip individually without aborting directory
+          // File inaccessible (EPERM, EBUSY, locked) - skip individually
         }
       })
     )

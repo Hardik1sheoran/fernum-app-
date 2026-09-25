@@ -20,6 +20,7 @@ import {
   cleanLeftoverDirectories,
   queryInstalledApps,
   parseUninstallCommand,
+  clearAppsCache,
 } from '../electron/services/appsService'
 import { loadScanCache } from '../electron/services/scanCache'
 import { getRealSystemSpecs, getFastSystemStats } from '../electron/services/monitorService'
@@ -287,8 +288,9 @@ Get-CimInstance -ClassName Win32_LogicalDisk | Select-Object DeviceID, VolumeNam
 
         // Real Installed Apps
         if (pathname === '/api/apps') {
+          const forceRefresh = url.searchParams.get('refresh') === 'true'
           try {
-            const apps = await queryInstalledApps(false)
+            const apps = await queryInstalledApps(forceRefresh)
             res.writeHead(200, { 'Content-Type': 'application/json' })
             res.end(JSON.stringify(apps))
           } catch (err) {
@@ -543,6 +545,7 @@ if (Test-Path -LiteralPath $targetPath -PathType Container) {
                     windowsHide: true,
                   })
                   child.unref()
+                  clearAppsCache()
                   res.writeHead(200, { 'Content-Type': 'application/json' })
                   res.end(JSON.stringify({ success: true, message: `Uninstaller launched for "${matched.name}". Follow the on-screen prompts.` }))
                   return

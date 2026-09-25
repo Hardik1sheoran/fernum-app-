@@ -17,12 +17,103 @@ import {
 const execAsync = promisify(exec)
 
 let cachedApps: InstalledApp[] = []
+let lastAppsFetch = 0
+const APPS_CACHE_TTL = 8000 // 8 second TTL
+
+export function clearAppsCache(): void {
+  cachedApps = []
+  lastAppsFetch = 0
+}
+
+/**
+ * Verifies that an app entry actually exists on the filesystem and is not an uninstalled ghost.
+ */
+export function isAppPhysicallyPresent(item: InstalledApp): boolean {
+  const loc = item.installLocation ? item.installLocation.trim() : ''
+  const un = item.uninstallString ? item.uninstallString.trim() : ''
+
+  let hasLoc = false
+  if (loc) {
+    try {
+      hasLoc = fs.existsSync(loc)
+    } catch {}
+  }
+
+  let hasUninstaller = false
+  let isMsi = false
+  if (un) {
+    if (/\bmsiexec(\.exe)?\b/i.test(un)) {
+      isMsi = true
+    } else {
+      const parsed = parseUninstallCommand(un)
+      if (parsed && parsed.filePath) {
+        hasUninstaller = true
+      }
+    }
+  }
+
+  // 1. If install location was explicitly registered and missing from disk, it was deleted:
+  if (loc && !hasLoc) {
+    return false
+  }
+
+  // If install location exists, but the folder is completely empty and has no uninstaller:
+  if (loc && hasLoc) {
+    try {
+      const entries = fs.readdirSync(loc)
+      if (entries.length === 0 && !hasUninstaller) {
+        return false
+      }
+    } catch {}
+  }
+
+  // 2. If an executable uninstaller was explicitly specified on disk and does not exist, and no valid install location:
+  if (un && !isMsi && !hasUninstaller && !hasLoc) {
+    return false
+  }
+
+  // 3. If neither location nor uninstaller was provided or both are empty:
+  if (!loc && !un) {
+    return false
+  }
+
+  return true
+}
+
+/**
+ * Fast directory size calculation for installed apps without blocking.
+ */
+export async function getFastDirectorySize(dirPath: string, maxDepth = 2): Promise<number> {
+  let total = 0
+  async function walk(d: string, depth: number) {
+    if (depth > maxDepth) return
+    try {
+      const entries = await fs.promises.readdir(d, { withFileTypes: true })
+      for (const entry of entries) {
+        if (entry.isSymbolicLink()) continue
+        const full = path.join(d, entry.name)
+        if (entry.isFile()) {
+          try {
+            const st = await fs.promises.stat(full)
+            total += st.size
+          } catch {}
+        } else if (entry.isDirectory() && depth < maxDepth) {
+          await walk(full, depth + 1)
+        }
+      }
+    } catch {}
+  }
+  await walk(dirPath, 0)
+  return total
+}
 
 /**
  * Queries Windows registry for installed applications across 32-bit, 64-bit, and user scopes.
+ * Filters out ghost/deleted applications whose files have been removed from disk.
  */
 export async function queryInstalledApps(forceRefresh = false): Promise<InstalledApp[]> {
-  if (!forceRefresh && cachedApps.length > 0) {
+  const now = Date.now()
+  if (!forceRefresh && cachedApps.length > 0 && now - lastAppsFetch < APPS_CACHE_TTL) {
     return cachedApps
   }
   const psScript = `
@@ -52,8 +143,35 @@ $items | ConvertTo-Json -Compress
     // Isolate JSON starting token to strip CLIXML or progress warnings
     const firstChar = stdout.search(/[{\[]/)
     const jsonStr = firstChar !== -1 ? stdout.slice(firstChar).trim() : stdout.trim()
-    const apps = parseRegistryApps(jsonStr)
+    const rawApps = parseRegistryApps(jsonStr)
+
+    // Filter out apps that have been physically deleted from disk
+    const apps = rawApps.filter(isAppPhysicallyPresent)
+
+    // Enrich apps missing estimatedSizeBytes with real filesystem directory size
+    for (const app of apps) {
+      if ((!app.estimatedSizeBytes || app.estimatedSizeBytes === 0) && app.installLocation) {
+        try {
+          if (fs.existsSync(app.installLocation)) {
+            const realSize = await getFastDirectorySize(app.installLocation)
+            if (realSize > 0) {
+              app.estimatedSizeBytes = realSize
+            }
+          }
+        } catch {}
+      }
+    }
+
+    // Sort descending by size, then alphabetically by name
+    apps.sort((a, b) => {
+      const sizeA = a.estimatedSizeBytes || 0
+      const sizeB = b.estimatedSizeBytes || 0
+      if (sizeB !== sizeA) return sizeB - sizeA
+      return a.name.localeCompare(b.name)
+    })
+
     cachedApps = apps
+    lastAppsFetch = Date.now()
     return apps
   } catch (err) {
     console.error('[AppsService] Failed to query installed applications:', err)
@@ -262,6 +380,7 @@ if (Test-Path -LiteralPath $targetPath -PathType Container) {
     }
   }
 
+  clearAppsCache()
   return {
     success: failed.length === 0,
     cleanedBytes,

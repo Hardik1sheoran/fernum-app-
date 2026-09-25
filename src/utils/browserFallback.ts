@@ -143,7 +143,7 @@ export function initBrowserFallback(): void {
     scanDuplicates: (options?: DuplicateScanOptions): Promise<DuplicateScanResult> => api<DuplicateScanResult>('/api/duplicates/scan', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(options || {}),
     }),
-    listInstalledApps: () => api<InstalledApp[]>('/api/apps'),
+    listInstalledApps: (forceRefresh?: boolean) => api<InstalledApp[]>(`/api/apps${forceRefresh ? '?refresh=true' : ''}`),
     uninstallApp: (appId: string) => api<{ success: boolean; message?: string }>('/api/apps/uninstall', {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ appId }),
     }),

@@ -9,6 +9,7 @@ import {
   scanLeftoverCandidates,
   cleanLeftoverDirectories,
   parseUninstallCommand,
+  clearAppsCache,
 } from '../services/appsService'
 
 export {
@@ -117,6 +118,8 @@ export function registerAppsIpc(): void {
       if (!installedApp) {
         return { success: false, message: 'Application was not found in the current registry snapshot.' }
       }
+      clearAppsCache()
+      cachedApps = []
       return launchNativeUninstaller(installedApp)
     }
   )
