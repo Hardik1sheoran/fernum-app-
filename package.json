@@ -14,10 +14,15 @@
     "preview": "vite preview",
     "test": "vitest run",
     "build:win": "npm run build && electron-builder --win",
+    "start:server": "node server/index.js",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "clsx": "^2.1.1",
+    "cors": "^2.8.6",
+    "dodopayments": "^2.52.0",
+    "dotenv": "^18.0.4",
+    "express": "^5.2.1",
     "lucide-react": "^1.16.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
@@ -26,6 +31,8 @@
     "zustand": "^5.0.3"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/node": "^22.13.9",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",

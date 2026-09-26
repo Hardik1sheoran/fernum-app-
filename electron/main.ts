@@ -1,4 +1,5 @@
 process.env.UV_THREADPOOL_SIZE = '64'
+import 'dotenv/config'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -10,6 +11,7 @@ import { registerSearchIpc } from './ipc/search'
 import { registerMonitorIpc, stopMonitorIpc } from './ipc/monitor'
 import { registerCleanerIpc } from './ipc/cleaner'
 import { registerDuplicatesIpc } from './ipc/duplicates'
+import { registerLicenseIpc } from './ipc/license'
 
 // Register deep link protocol
 if (process.defaultApp) {
@@ -216,6 +218,7 @@ app.whenReady().then(() => {
   registerMonitorIpc(() => mainWindow)
   registerCleanerIpc()
   registerDuplicatesIpc()
+  registerLicenseIpc()
 
   // External URL opening helper
   ipcMain.handle('system:open-external', async (_event, url: string) => {

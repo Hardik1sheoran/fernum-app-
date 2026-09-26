@@ -1,6 +1,7 @@
 import { ipcMain, shell } from 'electron'
 import os from 'node:os'
 import type { DodoActivationResult, DodoValidationResult } from '../../shared/types'
+import { dodo } from '../services/dodo'
 
 // Default Dodo Payments checkout URL (test / live hosted checkout)
 export const DODO_CHECKOUT_URL =
@@ -40,7 +41,7 @@ export function registerLicenseIpc(): void {
     }
   })
 
-  // 3. Activate Dodo License Key via Public API
+  // 3. Activate Dodo License Key
   ipcMain.handle('dodo:activate-license', async (_event, rawKey: string): Promise<DodoActivationResult> => {
     const key = (rawKey || '').trim()
     if (!key) {
@@ -62,6 +63,32 @@ export function registerLicenseIpc(): void {
     }
 
     const deviceName = `${os.hostname()} (${os.platform()} ${os.arch()})`
+
+    // Attempt official Dodo Payments Node SDK first if configured with API key
+    if (process.env.DODO_PAYMENTS_API_KEY) {
+      try {
+        const sdkRes = await dodo.licenses.activate({
+          license_key: key,
+          name: deviceName,
+        })
+        if (sdkRes) {
+          return {
+            success: true,
+            message: 'Lifetime Pro activated successfully via Dodo Payments!',
+            licenseId: (sdkRes as any).license_key_instance_id || (sdkRes as any).id || `lic_${Date.now().toString(36)}`,
+            status: (sdkRes as any).status || 'active',
+          }
+        }
+      } catch (sdkErr: any) {
+        console.warn('[Dodo SDK] License activation failed, trying fallback:', sdkErr?.message || sdkErr)
+        if (sdkErr?.status === 400 || sdkErr?.status === 404 || sdkErr?.status === 422) {
+          return {
+            success: false,
+            message: sdkErr?.error?.message || sdkErr?.message || 'Invalid license key or activation limit reached.',
+          }
+        }
+      }
+    }
 
     // Attempt activation via Dodo Payments Live API first, fallback to Test API
     for (const baseUrl of [DODO_API_LIVE, DODO_API_TEST]) {
@@ -136,6 +163,19 @@ export function registerLicenseIpc(): void {
       return { valid: true }
     }
 
+    if (process.env.DODO_PAYMENTS_API_KEY) {
+      try {
+        const valRes = await dodo.licenses.validate({
+          license_key: key,
+        })
+        if (valRes) {
+          return { valid: (valRes as any).status !== 'expired' && (valRes as any).status !== 'revoked' }
+        }
+      } catch (err: any) {
+        console.warn('[Dodo SDK] Validate error:', err?.message || err)
+      }
+    }
+
     for (const baseUrl of [DODO_API_LIVE, DODO_API_TEST]) {
       try {
         const response = await fetch(`${baseUrl}/licenses/validate`, {
@@ -162,10 +202,22 @@ export function registerLicenseIpc(): void {
     return { valid: true, message: 'Offline validation preserved.' }
   })
 
-  // 5. Deactivate Dodo License Key via Public API
-  ipcMain.handle('dodo:deactivate-license', async (_event, rawKey: string) => {
+  // 5. Deactivate Dodo License Key
+  ipcMain.handle('dodo:deactivate-license', async (_event, rawKey: string, instanceId?: string) => {
     const key = (rawKey || '').trim()
     if (!key) return { success: true }
+
+    if (process.env.DODO_PAYMENTS_API_KEY && instanceId) {
+      try {
+        await dodo.licenses.deactivate({
+          license_key: key,
+          license_key_instance_id: instanceId,
+        })
+        return { success: true }
+      } catch (err: any) {
+        console.warn('[Dodo SDK] Deactivation error:', err?.message || err)
+      }
+    }
 
     try {
       await fetch(`${DODO_API_LIVE}/licenses/deactivate`, {
