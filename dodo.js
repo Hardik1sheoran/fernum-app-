@@ -1,10 +1,13 @@
 import DodoPayments from 'dodopayments';
 import 'dotenv/config';
 
+const apiKey = process.env.DODO_PAYMENTS_API_KEY;
+const hasValidKey = apiKey && !apiKey.startsWith('your_dodo_api_key');
+
 export const dodo = new DodoPayments({
-  bearerToken: process.env.DODO_PAYMENTS_API_KEY,
+  bearerToken: hasValidKey ? apiKey : 'placeholder_token_fernum_desktop',
   webhookKey: process.env.DODO_WEBHOOK_SECRET,
-  environment: 'test_mode', // switch to 'live_mode' when live
+  environment: process.env.DODO_ENVIRONMENT || 'test_mode',
 });
 
 // Helper for dodo.webhooks.verify to wrap unwrap verification

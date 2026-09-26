@@ -65,7 +65,7 @@ export function registerLicenseIpc(): void {
     const deviceName = `${os.hostname()} (${os.platform()} ${os.arch()})`
 
     // Attempt official Dodo Payments Node SDK first if configured with API key
-    if (process.env.DODO_PAYMENTS_API_KEY) {
+    if (process.env.DODO_PAYMENTS_API_KEY && !process.env.DODO_PAYMENTS_API_KEY.startsWith('your_dodo_api_key')) {
       try {
         const sdkRes = await dodo.licenses.activate({
           license_key: key,
@@ -163,7 +163,7 @@ export function registerLicenseIpc(): void {
       return { valid: true }
     }
 
-    if (process.env.DODO_PAYMENTS_API_KEY) {
+    if (process.env.DODO_PAYMENTS_API_KEY && !process.env.DODO_PAYMENTS_API_KEY.startsWith('your_dodo_api_key')) {
       try {
         const valRes = await dodo.licenses.validate({
           license_key: key,
@@ -207,7 +207,7 @@ export function registerLicenseIpc(): void {
     const key = (rawKey || '').trim()
     if (!key) return { success: true }
 
-    if (process.env.DODO_PAYMENTS_API_KEY && instanceId) {
+    if (process.env.DODO_PAYMENTS_API_KEY && !process.env.DODO_PAYMENTS_API_KEY.startsWith('your_dodo_api_key') && instanceId) {
       try {
         await dodo.licenses.deactivate({
           license_key: key,
