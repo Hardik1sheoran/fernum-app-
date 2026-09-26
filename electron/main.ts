@@ -1,5 +1,4 @@
 process.env.UV_THREADPOOL_SIZE = '64'
-import 'dotenv/config'
 import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import path from 'node:path'
 import fs from 'node:fs'
@@ -12,6 +11,31 @@ import { registerMonitorIpc, stopMonitorIpc } from './ipc/monitor'
 import { registerCleanerIpc } from './ipc/cleaner'
 import { registerDuplicatesIpc } from './ipc/duplicates'
 import { registerLicenseIpc } from './ipc/license'
+
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
+// Native, safe .env loader for Electron without CJS 'require' bundling issues
+try {
+  const envPath = path.resolve(__dirname, '../.env')
+  if (fs.existsSync(envPath)) {
+    const content = fs.readFileSync(envPath, 'utf-8')
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim()
+      if (!trimmed || trimmed.startsWith('#')) continue
+      const eqIdx = trimmed.indexOf('=')
+      if (eqIdx > 0) {
+        const key = trimmed.slice(0, eqIdx).trim()
+        const val = trimmed.slice(eqIdx + 1).trim().replace(/^["']|["']$/g, '')
+        if (key && process.env[key] === undefined) {
+          process.env[key] = val
+        }
+      }
+    }
+  }
+} catch {
+  // Ignore if .env is missing in packaged builds
+}
 
 // Register deep link protocol
 if (process.defaultApp) {
@@ -35,9 +59,6 @@ const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
   app.exit(0)
 }
-
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = path.dirname(__filename)
 
 const appLaunchStart = Date.now()
 
