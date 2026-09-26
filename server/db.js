@@ -77,6 +77,17 @@ export const licenseDb = {
     }
     return false;
   },
+
+  deleteLicense(deviceId) {
+    if (!deviceId) return false;
+    const db = readDb();
+    if (db[deviceId]) {
+      delete db[deviceId];
+      writeDb(db);
+      return true;
+    }
+    return false;
+  },
 };
 
 export default licenseDb;

@@ -5,7 +5,7 @@ describe('Fernum License Database & Service', () => {
   const testDevice = 'test-device-uuid-999';
 
   beforeEach(() => {
-    licenseDb.revokeLicense(testDevice);
+    licenseDb.deleteLicense(testDevice);
   });
 
   it('initially reports an unknown device as not licensed', () => {
