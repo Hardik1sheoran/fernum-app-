@@ -208,14 +208,14 @@ export const DrivePicker: React.FC<DrivePickerProps> = ({
             {[
               { id: 'trash', label: 'Trash', icon: Trash2 },
               { id: 'nodejs', label: 'Node.js', icon: Code2 },
-              { id: 'xcode', label: 'Xcode', icon: Code2 },
+              { id: 'vscode', label: 'VS Code', icon: Code2 },
               { id: 'buildArtifacts', label: 'Build Artifacts', icon: Layers },
               { id: 'android', label: 'Android', icon: Smartphone },
               { id: 'docker', label: 'Docker', icon: Boxes },
               { id: 'videos', label: 'Videos', icon: Film },
               { id: 'diskImages', label: 'Disk Images', icon: Disc },
               { id: 'archives', label: 'Archives', icon: Archive },
-              { id: 'iosBackups', label: 'iOS Backups', icon: Smartphone },
+              { id: 'iosBackups', label: 'System Backups', icon: HardDrive },
             ].map((item) => {
               const isChecked = Boolean(sidebarFilters[item.id])
               const Icon = item.icon

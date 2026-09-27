@@ -225,6 +225,14 @@ export const DEMO_ROOT_NODE: FileNode = {
               type: 'file',
               category: 'code',
             },
+            {
+              id: 'file-vscode-extensions',
+              name: '.vscode Extensions',
+              path: 'C:\\Users\\User\\.vscode\\extensions',
+              size: 1600000000,
+              type: 'file',
+              category: 'code',
+            },
           ],
         },
         {
@@ -614,6 +622,32 @@ export const DEMO_ROOT_NODE: FileNode = {
       size: 1100000000,
       type: 'file',
       category: 'code',
+    },
+    {
+      id: 'dir-recycle-bin',
+      name: 'Trash ($Recycle.Bin)',
+      path: 'C:\\$Recycle.Bin',
+      size: 3200000000,
+      type: 'directory',
+      category: 'other',
+      children: [
+        {
+          id: 'file-trash-archive',
+          name: 'OldProjectArchive.zip',
+          path: 'C:\\$Recycle.Bin\\OldProjectArchive.zip',
+          size: 1800000000,
+          type: 'file',
+          category: 'archive',
+        },
+        {
+          id: 'file-trash-video',
+          name: 'RawRecording_4k.mp4',
+          path: 'C:\\$Recycle.Bin\\RawRecording_4k.mp4',
+          size: 1400000000,
+          type: 'file',
+          category: 'video',
+        },
+      ],
     },
   ],
 }

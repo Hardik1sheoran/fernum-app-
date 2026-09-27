@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { DriveInfo, QuickFolderInfo, FileNode, ScanProgress, CleanupQueueItem } from '@shared/types'
+import { DEMO_ROOT_NODE } from '../components/Treemap/demoTreeData'
 
 function cloneTree(node: FileNode): FileNode {
   return {
@@ -90,16 +91,16 @@ export const useScanStore = create<ScanState>((set, get) => ({
     scannedBytes: 0,
     percentage: 0,
   },
-  rootNode: null,
-  currentViewNode: null,
-  breadcrumbs: [],
+  rootNode: DEMO_ROOT_NODE,
+  currentViewNode: DEMO_ROOT_NODE,
+  breadcrumbs: [DEMO_ROOT_NODE],
   isLoadingDrives: false,
   reclaimedBytes: 0,
   searchQuery: '',
   sidebarFilters: {
     trash: false,
     nodejs: false,
-    xcode: false,
+    vscode: false,
     buildArtifacts: false,
     android: false,
     docker: false,

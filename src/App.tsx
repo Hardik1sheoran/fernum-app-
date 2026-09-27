@@ -209,37 +209,7 @@ export const App: React.FC = () => {
 
         // Primary drive discovery
         const primaryDrive = detectedDrives.find((d) => d.isSystem) || detectedDrives[0] || fallbackDrive
-        const targetForInitial = primaryDrive?.path || 'C:\\'
         setSelectedDrive(primaryDrive)
-
-        // Part 1: Warm cache check or automatic background scan
-        let loadedCache = false
-        const isPro = useSettingsStore.getState().isPro || useLicenseStore.getState().isPro
-        if (window.electronAPI.getCachedScan) {
-          try {
-            const cached = await window.electronAPI.getCachedScan(targetForInitial)
-            if (cached && !(isPro && cached.capped) && cached.children && cached.children.length > 0) {
-              loadedCache = true
-              setRootNode(cached)
-              setScanProgress({
-                status: 'completed',
-                currentPath: targetForInitial,
-                scannedFiles: cached.children?.length || 0,
-                scannedBytes: cached.size,
-                percentage: 100,
-                capped: cached.capped,
-                cappedAtBytes: cached.cappedAtBytes,
-              })
-            }
-          } catch {
-            // Ignored on initial warm load
-          }
-        }
-
-        // Automatic background scan: kick off primary drive scan if not cached and idle
-        if (!loadedCache && useScanStore.getState().scanProgress.status === 'idle') {
-          handleStartScan(primaryDrive, false, false)
-        }
       } else {
         // Browser fallback / Electron bridge loading
         setDrives([fallbackDrive])

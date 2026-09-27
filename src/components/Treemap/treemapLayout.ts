@@ -24,15 +24,15 @@ export interface NestedTreemapRect extends TreemapRect {
 }
 
 export const CATEGORY_COLORS: Record<FileCategory, string> = {
-  video: '#8b5cf6', // Violet
-  image: '#ec4899', // Pink
-  audio: '#f59e0b', // Amber
-  document: '#3b82f6', // Blue
-  archive: '#10b981', // Emerald
-  code: '#06b6d4', // Cyan
-  system: '#ef4444', // Red
-  cache: '#64748b', // Slate
-  other: '#94a3b8', // Gray
+  video: '#8b5cf6', // Purple (Video - Image 3)
+  image: '#eab308', // Yellow (Image - Image 3)
+  audio: '#64748b', // Slate (Other - Image 3)
+  document: '#3b82f6', // Blue (Doc - Image 3)
+  archive: '#ef4444', // Red (Archive - Image 3)
+  code: '#10b981', // Green (Dev - Image 3)
+  system: '#ef4444', // Red (Archive/System - Image 1 & 3)
+  cache: '#64748b', // Slate (Other - Image 3)
+  other: '#64748b', // Slate (Other - Image 3)
 }
 
 export const CONTAINER_BORDER_PALETTE = [
@@ -411,14 +411,16 @@ export function computeNestedTreemapLayout(
         : (node.category && CATEGORY_COLORS[node.category]) || '#3b82f6'
 
     if (node.name === 'Fernum-Setup.exe') {
-      leafColor = '#2563eb'
+      leafColor = '#3b82f6' // Doc / Binary Blue
     } else if (node.name.includes('fernum.online')) {
-      leafColor = '#10b981'
+      leafColor = '#10b981' // Dev Green
     } else if (node.path && (node.path.includes('.gradle') || node.name.includes('transforms'))) {
-      const gradlePal = ['#f59e0b', '#d97706', '#fbbf24', '#b45309', '#f97316']
+      const gradlePal = ['#eab308', '#f59e0b', '#d97706', '#fbbf24', '#f97316']
       leafColor = gradlePal[idx % gradlePal.length]
     } else if (node.name.startsWith('sha256-')) {
-      leafColor = '#3b485d'
+      leafColor = '#475569' // Slate / Other
+    } else if (node.name.includes('Application Support') || node.name.includes('UnzipAnyFile')) {
+      leafColor = '#ef4444' // Red / Archive
     }
 
     nestedRects.push({

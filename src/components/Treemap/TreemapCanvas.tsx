@@ -26,41 +26,129 @@ import {
   type NestedTreemapRect,
 } from './treemapLayout'
 
-function nodeMatchesSidebarFilters(node: FileNode, filters: Record<string, boolean>): boolean {
-  const activeKeys = Object.keys(filters).filter((k) => filters[k])
-  if (activeKeys.length === 0) return true
-
+function nodeMatchesSingleFilter(node: FileNode, filterKey: string): boolean {
   const name = (node.name || '').toLowerCase()
   const p = (node.path || '').toLowerCase()
   const cat = node.category || ''
 
-  return activeKeys.some((k) => {
-    switch (k) {
-      case 'trash':
-        return name.includes('recycle') || p.includes('recycle') || name.includes('trash')
-      case 'nodejs':
-        return name.includes('node_modules') || p.includes('node_modules') || (cat === 'code' && /\.(js|ts|jsx|tsx|json)$/i.test(name))
-      case 'xcode':
-        return name.includes('xcode') || p.includes('deriveddata')
-      case 'buildArtifacts':
-        return /^(build|dist|target|bin|obj|\.next|\.turbo|out)$/i.test(name) || p.includes('\\target\\') || p.includes('\\dist\\') || p.includes('\\build\\')
-      case 'android':
-        return name.includes('android') || p.includes('android') || name.includes('.gradle') || p.includes('.gradle')
-      case 'docker':
-        return name.includes('docker') || p.includes('docker') || p.includes('wsl')
-      case 'videos':
-        return cat === 'video' || /\.(mp4|mkv|mov|avi|webm|flv|wmv)$/i.test(name)
-      case 'diskImages':
-        return /\.(iso|img|vhd|vhdx|vmdk|dmg)$/i.test(name)
-      case 'archives':
-        return cat === 'archive' || /\.(zip|rar|7z|tar|gz|bz2|xz)$/i.test(name)
-      case 'iosBackups':
-        return name.includes('mobilesync') || p.includes('mobilesync') || name.includes('backup')
-      default:
-        return false
-    }
-  })
+  switch (filterKey) {
+    case 'trash':
+      return name.includes('recycle') || p.includes('recycle') || name.includes('trash') || p.includes('$recycle.bin')
+    case 'nodejs':
+      return (
+        name.includes('node_modules') ||
+        p.includes('node_modules') ||
+        name.includes('npm') ||
+        p.includes('npm') ||
+        name.includes('yarn') ||
+        name.includes('pnpm') ||
+        name.includes('typescript') ||
+        name.includes('electron') ||
+        name.includes('.bun') ||
+        (cat === 'code' && /\.(js|ts|jsx|tsx|json|mjs|cjs)$/i.test(name))
+      )
+    case 'vscode':
+    case 'xcode':
+      return (
+        name.includes('vscode') ||
+        p.includes('vscode') ||
+        name.includes('.vscode') ||
+        p.includes('.vscode') ||
+        name.includes('code user') ||
+        p.includes('code user') ||
+        name.includes('cursor') ||
+        p.includes('cursor') ||
+        name.includes('code.exe') ||
+        name.includes('visual studio') ||
+        name.includes('ide')
+      )
+    case 'buildArtifacts':
+      return (
+        /^(build|dist|target|bin|obj|\.next|\.turbo|out)$/i.test(name) ||
+        p.includes('\\target\\') ||
+        p.includes('\\dist\\') ||
+        p.includes('\\build\\') ||
+        name.includes('transforms') ||
+        name.includes('modules-2') ||
+        name.includes('dist nod') ||
+        name.includes('build-')
+      )
+    case 'android':
+      return (
+        name.includes('android') ||
+        p.includes('android') ||
+        name.includes('.gradle') ||
+        p.includes('.gradle') ||
+        name.includes('gradle') ||
+        name.includes('ndk') ||
+        name.includes('sdk') ||
+        name.includes('toolchains')
+      )
+    case 'docker':
+      return (
+        name.includes('docker') ||
+        p.includes('docker') ||
+        name.includes('wsl') ||
+        p.includes('wsl') ||
+        name.includes('containers') ||
+        p.includes('containers')
+      )
+    case 'videos':
+      return cat === 'video' || /\.(mp4|mkv|mov|avi|webm|flv|wmv)$/i.test(name) || name.includes('movie') || name.includes('video')
+    case 'diskImages':
+      return (
+        /\.(iso|img|vhd|vhdx|vmdk|dmg)$/i.test(name) ||
+        name.includes('setup') ||
+        name.includes('fernum-setup') ||
+        name.includes('installer') ||
+        name.includes('disk')
+      )
+    case 'archives':
+      return (
+        cat === 'archive' ||
+        /\.(zip|rar|7z|tar|gz|bz2|xz)$/i.test(name) ||
+        name.includes('unzip') ||
+        name.includes('archive') ||
+        name.includes('bun ins')
+      )
+    case 'iosBackups':
+    case 'systemBackups':
+      return (
+        name.includes('backup') ||
+        p.includes('backup') ||
+        name.includes('mobilesync') ||
+        name.includes('system.analysis') ||
+        name.includes('windows.system') ||
+        name.includes('restore')
+      )
+    default:
+      return false
+  }
 }
+
+function filterNodeRecursively(node: FileNode, activeKeys: string[]): FileNode | null {
+  if (activeKeys.some((k) => nodeMatchesSingleFilter(node, k))) {
+    return node
+  }
+
+  if (node.children && node.children.length > 0) {
+    const matchingChildren = node.children
+      .map((c) => filterNodeRecursively(c, activeKeys))
+      .filter((c): c is FileNode => c !== null)
+
+    if (matchingChildren.length > 0) {
+      const sumSize = matchingChildren.reduce((acc, c) => acc + (c.size || 0), 0)
+      return {
+        ...node,
+        size: sumSize,
+        children: matchingChildren,
+      }
+    }
+  }
+
+  return null
+}
+
 import { Breadcrumb } from '../shared/Breadcrumb'
 import { ConfirmDeleteModal } from '../shared/ConfirmDeleteModal'
 import { FileTableView } from './FileTableView'
@@ -295,15 +383,16 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
       }
     }
 
-    const hasActiveSidebarFilter = Object.values(sidebarFilters).some(Boolean)
-    if (hasActiveSidebarFilter) {
-      nodesToRender = nodesToRender.filter((n) => {
-        if (nodeMatchesSidebarFilters(n, sidebarFilters)) return true
-        if (n.children && n.children.length > 0) {
-          return n.children.some((c) => nodeMatchesSidebarFilters(c, sidebarFilters))
-        }
-        return false
-      })
+    const activeFilterKeys = Object.keys(sidebarFilters).filter((k) => sidebarFilters[k])
+    if (activeFilterKeys.length > 0) {
+      const filtered: FileNode[] = []
+      for (const n of nodesToRender) {
+        const res = filterNodeRecursively(n, activeFilterKeys)
+        if (res) filtered.push(res)
+      }
+      if (filtered.length > 0) {
+        nodesToRender = filtered
+      }
     }
 
     const effectiveQuery = (searchQuery.trim() || storeSearchQuery.trim()).toLowerCase()
