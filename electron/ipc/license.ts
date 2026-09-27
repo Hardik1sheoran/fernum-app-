@@ -7,10 +7,11 @@ import { getOrCreateDeviceId } from '../services/deviceService'
 export const FERNUM_LICENSE_API_URL =
   process.env.LICENSE_SERVER_URL || 'https://fernum-license-api.onrender.com'
 
-// Default Dodo Payments checkout URL (test / live hosted checkout fallback)
 export const DODO_CHECKOUT_URL =
   process.env.DODO_CHECKOUT_URL ||
-  'https://checkout.dodopayments.com/buy/pdt_0NoW9L6402z2V4u404hDk'
+  (process.env.DODO_PRODUCT_ID
+    ? `https://checkout.dodopayments.com/buy/${process.env.DODO_PRODUCT_ID}`
+    : 'https://checkout.dodopayments.com/buy/pdt_fernum_pro_lifetime')
 
 const DODO_API_LIVE = 'https://live.dodopayments.com'
 const DODO_API_TEST = 'https://test.dodopayments.com'
