@@ -179,6 +179,41 @@ export function initBrowserFallback(): void {
     },
     startMonitoring: async () => true,
     stopMonitoring: async () => true,
+    getDeviceId: async () => {
+      let id = localStorage.getItem('fernum_device_id')
+      if (!id) {
+        id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `dev_${Date.now()}`
+        localStorage.setItem('fernum_device_id', id)
+      }
+      return id
+    },
+    createCheckout: async (params) => {
+      try {
+        const res = await fetch('https://fernum-license-api.onrender.com/api/create-checkout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(params),
+        })
+        const data = await res.json()
+        if (data.checkout_url) {
+          window.open(data.checkout_url, '_blank')
+          return { success: true, checkout_url: data.checkout_url }
+        }
+        return { success: false, error: data.error || 'Failed to create checkout' }
+      } catch (err: any) {
+        return { success: false, error: err?.message || 'Network error' }
+      }
+    },
+    checkLicense: async (deviceId) => {
+      const id = deviceId || localStorage.getItem('fernum_device_id') || 'browser-demo-device'
+      try {
+        const res = await fetch(`https://fernum-license-api.onrender.com/api/license/${encodeURIComponent(id)}`)
+        const data = await res.json()
+        return { success: true, licensed: Boolean(data.licensed), details: data }
+      } catch {
+        return { success: false, licensed: false, offline: true, error: 'Offline fallback' }
+      }
+    },
     setTheme: async () => true,
     openExternalUrl: async (url: string) => {
       window.open(url, '_blank')

@@ -2,8 +2,12 @@ import { ipcMain, shell } from 'electron'
 import os from 'node:os'
 import type { DodoActivationResult, DodoValidationResult } from '../../shared/types'
 import { dodo } from '../services/dodo'
+import { getOrCreateDeviceId } from '../services/deviceService'
 
-// Default Dodo Payments checkout URL (test / live hosted checkout)
+export const FERNUM_LICENSE_API_URL =
+  process.env.LICENSE_SERVER_URL || 'https://fernum-license-api.onrender.com'
+
+// Default Dodo Payments checkout URL (test / live hosted checkout fallback)
 export const DODO_CHECKOUT_URL =
   process.env.DODO_CHECKOUT_URL ||
   'https://test.dodopayments.com/buy/pdt_fernum_pro_lifetime'
@@ -15,6 +19,108 @@ const DODO_API_TEST = 'https://test.dodopayments.com'
  * Register Dodo Payments & Licensing IPC handlers
  */
 export function registerLicenseIpc(): void {
+  // 0. Get or initialize persistent device UUID from userData/device-id.txt
+  ipcMain.handle('license:get-device-id', async () => {
+    return getOrCreateDeviceId()
+  })
+
+  // 1. Create checkout via Render license server and open in user browser
+  ipcMain.handle(
+    'license:create-checkout',
+    async (_event, params: { email?: string; name?: string; deviceId?: string }) => {
+      const deviceId = params?.deviceId || getOrCreateDeviceId()
+      const payload = {
+        email: params?.email?.trim() || undefined,
+        name: params?.name?.trim() || undefined,
+        deviceId,
+      }
+
+      try {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 12000)
+
+        const res = await fetch(`${FERNUM_LICENSE_API_URL}/api/create-checkout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+          },
+          body: JSON.stringify(payload),
+          signal: controller.signal,
+        })
+        clearTimeout(timeout)
+
+        if (!res.ok) {
+          const errData: any = await res.json().catch(() => ({}))
+          const errorMsg = errData?.error || `Server responded with status ${res.status}`
+          return { success: false, error: errorMsg }
+        }
+
+        const data: any = await res.json()
+        if (!data?.checkout_url) {
+          return { success: false, error: 'Checkout URL was not returned by server' }
+        }
+
+        // Open returned checkout URL directly in user's default OS browser
+        await shell.openExternal(data.checkout_url)
+
+        return {
+          success: true,
+          checkout_url: data.checkout_url,
+          session_id: data.session_id,
+        }
+      } catch (err: any) {
+        console.error('[LicenseIPC] create-checkout error:', err)
+        const isAbort = err?.name === 'AbortError'
+        return {
+          success: false,
+          error: isAbort
+            ? 'Connection timed out contacting license server. Please try again.'
+            : err?.message || 'Failed to connect to license server',
+        }
+      }
+    }
+  )
+
+  // 2. Check license status for a given deviceId
+  ipcMain.handle('license:check', async (_event, deviceIdParam?: string) => {
+    const deviceId = deviceIdParam || getOrCreateDeviceId()
+
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 9000)
+
+      const res = await fetch(`${FERNUM_LICENSE_API_URL}/api/license/${encodeURIComponent(deviceId)}`, {
+        method: 'GET',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+
+      if (!res.ok) {
+        return {
+          success: false,
+          licensed: false,
+          error: `License server returned HTTP ${res.status}`,
+        }
+      }
+
+      const data: any = await res.json()
+      return {
+        success: true,
+        licensed: Boolean(data?.licensed),
+        details: data,
+      }
+    } catch (err: any) {
+      console.warn('[LicenseIPC] check license error (graceful fallback):', err?.message || err)
+      return {
+        success: false,
+        licensed: false,
+        offline: true,
+        error: 'Unable to reach license server. Operating in offline mode.',
+      }
+    }
+  })
   // 1. Open external checkout link in default OS browser
   ipcMain.handle('dodo:open-checkout', async (_event, customUrl?: string) => {
     const targetUrl = customUrl || DODO_CHECKOUT_URL

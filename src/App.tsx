@@ -39,6 +39,12 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     console.log(`[PERF] App interactive: ${performance.now().toFixed(1)} ms`)
+    // Dodo Payments Licensing: load/generate device-id.txt from userData and verify license on launch
+    const { initDeviceId, checkDeviceLicense } = useLicenseStore.getState()
+    void initDeviceId().then((deviceId) => {
+      console.log(`[License] Initialized Device ID: ${deviceId}`)
+      void checkDeviceLicense()
+    })
   }, [])
 
   const handleSelectTab = useCallback((tab: TabKey) => {

@@ -12,6 +12,7 @@ import {
   ExternalLink,
   ShieldCheck,
   SlidersHorizontal,
+  CreditCard,
 } from 'lucide-react'
 import { useTheme } from '../../hooks/useTheme'
 import { useScanStore } from '../../stores/scanStore'
@@ -54,7 +55,8 @@ export const Header: React.FC<HeaderProps> = ({
     searchQuery: storeSearchQuery,
     setSearchQuery: storeSetSearchQuery,
   } = useScanStore()
-  const { isPro, openUpgradeModal } = useLicenseStore()
+  const { isPro, openUpgradeModal, refreshLicense, isCheckingLicense } = useLicenseStore()
+  const [refreshToast, setRefreshToast] = useState<string | null>(null)
   const [isDriveMenuOpen, setIsDriveMenuOpen] = useState(false)
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false)
   const [searchScope, setSearchScope] = useState<'Home' | 'Drive' | 'Folder'>('Home')
@@ -238,21 +240,59 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
 
-          {/* PRO ACTIVATED Badge */}
+          {/* Licensing Controls: Buy License & Refresh License */}
           {isPro ? (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/35 text-amber-300 text-xs font-bold shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>PRO ACTIVATED</span>
+            <div className="flex items-center gap-1.5">
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-300 text-xs font-bold shadow-xs">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-400" />
+                <span>PRO ACTIVATED</span>
+              </div>
+              <button
+                onClick={async () => {
+                  setRefreshToast('Checking license…')
+                  const res = await refreshLicense()
+                  setRefreshToast(res.message)
+                  setTimeout(() => setRefreshToast(null), 3000)
+                }}
+                disabled={isCheckingLicense}
+                className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+                title="Verify License Status"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isCheckingLicense ? 'animate-spin text-emerald-400' : ''}`} />
+              </button>
             </div>
           ) : (
-            <button
-              onClick={() => openUpgradeModal()}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 text-xs font-bold shadow-xs transition-all cursor-pointer"
-              title="Unlock Lifetime Pro for $12.99"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-              <span>PRO ACTIVATED</span>
-            </button>
+            <div className="flex items-center gap-1.5">
+              <button
+                id="btn-buy-license"
+                onClick={() => openUpgradeModal()}
+                className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                title="Buy Fernum Lifetime License for $12.99"
+              >
+                <CreditCard className="w-3.5 h-3.5" />
+                <span>Buy License</span>
+              </button>
+              <button
+                id="btn-refresh-license"
+                onClick={async () => {
+                  setRefreshToast('Checking license…')
+                  const res = await refreshLicense()
+                  setRefreshToast(res.message)
+                  setTimeout(() => setRefreshToast(null), 3000)
+                }}
+                disabled={isCheckingLicense}
+                className="p-1.5 rounded text-zinc-400 hover:text-white hover:bg-white/[0.06] transition-colors cursor-pointer"
+                title="Refresh License Status from Server"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isCheckingLicense ? 'animate-spin text-blue-400' : ''}`} />
+              </button>
+            </div>
+          )}
+
+          {refreshToast && (
+            <div className="absolute right-36 top-10 px-3 py-1.5 rounded-lg bg-[#181a20] border border-[#2e323e] text-[11px] text-zinc-200 shadow-xl z-50 animate-fade-in flex items-center gap-1.5">
+              <span>{refreshToast}</span>
+            </div>
           )}
 
           {/* Offline Local Privacy */}

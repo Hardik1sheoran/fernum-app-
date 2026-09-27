@@ -153,12 +153,29 @@ const api: ElectronAPI = {
     return ipcRenderer.invoke('monitor:stop-collecting')
   },
 
+  // Licensing & Dodo Payments IPC
+  getDeviceId: (): Promise<string> => {
+    return ipcRenderer.invoke('license:get-device-id')
+  },
+  createCheckout: (params: {
+    email?: string
+    name?: string
+    deviceId?: string
+  }): Promise<{ success: boolean; checkout_url?: string; session_id?: string; error?: string }> => {
+    return ipcRenderer.invoke('license:create-checkout', params)
+  },
+  checkLicense: (
+    deviceId?: string
+  ): Promise<{ success: boolean; licensed: boolean; details?: any; offline?: boolean; error?: string }> => {
+    return ipcRenderer.invoke('license:check', deviceId)
+  },
+
   // System & Window IPC
   setTheme: (theme: 'dark' | 'light'): Promise<boolean> => {
     return ipcRenderer.invoke('app:set-theme', theme)
   },
   openExternalUrl: (url: string): Promise<boolean> => {
-    return ipcRenderer.invoke('system:open-external', url)
+    return ipcRenderer.invoke('app:open-external', url)
   },
   onDeepLinkLicense: (callback: (licenseKey: string) => void) => {
     const handler = (_event: IpcRendererEvent, key: string) => callback(key)

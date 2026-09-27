@@ -336,6 +336,15 @@ export interface ElectronAPI {
   stopMonitoring: () => Promise<boolean>
 
   // System, Licensing & Window IPC
+  getDeviceId?: () => Promise<string>
+  createCheckout?: (params: {
+    email?: string
+    name?: string
+    deviceId?: string
+  }) => Promise<{ success: boolean; checkout_url?: string; session_id?: string; error?: string }>
+  checkLicense?: (
+    deviceId?: string
+  ) => Promise<{ success: boolean; licensed: boolean; details?: any; offline?: boolean; error?: string }>
   setTheme: (theme: 'dark' | 'light') => Promise<boolean>
   openExternalUrl?: (url: string) => Promise<boolean>
   onDeepLinkLicense?: (callback: (licenseKey: string) => void) => () => void

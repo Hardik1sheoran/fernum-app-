@@ -21,6 +21,8 @@ export interface DodoLicenseDetails {
   maxActivations?: number
 }
 
+export const FERNUM_LICENSE_SERVER_URL = 'https://fernum-license-api.onrender.com'
+
 // Configurable constants with fallbacks
 export const DODO_CHECKOUT_URL =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DODO_PAYMENT_URL) ||
@@ -29,6 +31,84 @@ export const DODO_CHECKOUT_URL =
 export const DODO_API_BASE =
   (typeof import.meta !== 'undefined' && import.meta.env?.VITE_DODO_API_BASE) ||
   'https://api.dodopayments.com'
+
+export interface CreateCheckoutParams {
+  email?: string
+  name?: string
+  deviceId: string
+}
+
+/**
+ * Creates a Dodo checkout session via Render backend API with deviceId in metadata,
+ * then opens the returned checkout URL in external browser.
+ */
+export async function createDodoCheckout(
+  params: CreateCheckoutParams
+): Promise<{ success: boolean; checkout_url?: string; session_id?: string; error?: string }> {
+  if (window.electronAPI?.createCheckout) {
+    return window.electronAPI.createCheckout(params)
+  }
+
+  try {
+    const res = await fetch(`${FERNUM_LICENSE_SERVER_URL}/api/create-checkout`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify(params),
+    })
+
+    if (!res.ok) {
+      const errData: any = await res.json().catch(() => ({}))
+      return { success: false, error: errData?.error || `Server returned ${res.status}` }
+    }
+
+    const data = await res.json()
+    if (data?.checkout_url) {
+      if (window.electronAPI?.openExternalUrl) {
+        await window.electronAPI.openExternalUrl(data.checkout_url)
+      } else {
+        window.open(data.checkout_url, '_blank')
+      }
+      return { success: true, checkout_url: data.checkout_url, session_id: data.session_id }
+    }
+    return { success: false, error: 'Checkout URL was not returned by server' }
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to connect to checkout server' }
+  }
+}
+
+/**
+ * Queries Render backend GET /api/license/:deviceId for activation status.
+ */
+export async function checkDeviceLicenseStatus(
+  deviceId: string
+): Promise<{ success: boolean; licensed: boolean; details?: any; offline?: boolean; error?: string }> {
+  if (window.electronAPI?.checkLicense) {
+    return window.electronAPI.checkLicense(deviceId)
+  }
+
+  try {
+    const res = await fetch(`${FERNUM_LICENSE_SERVER_URL}/api/license/${encodeURIComponent(deviceId)}`, {
+      headers: { Accept: 'application/json' },
+    })
+
+    if (!res.ok) {
+      return { success: false, licensed: false, error: `License check returned status ${res.status}` }
+    }
+
+    const data = await res.json()
+    return { success: true, licensed: Boolean(data?.licensed), details: data }
+  } catch (err: any) {
+    return {
+      success: false,
+      licensed: false,
+      offline: true,
+      error: 'Unable to contact license server. Operating in offline mode.',
+    }
+  }
+}
 
 /**
  * Generates the user-facing Dodo checkout session URL with tracking parameters.
