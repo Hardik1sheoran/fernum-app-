@@ -40,7 +40,7 @@ app.post('/api/create-checkout', async (req, res) => {
       });
     }
 
-    const productId = process.env.DODO_PRODUCT_ID || 'prod_yourlicense';
+    const productId = process.env.DODO_PRODUCT_ID || 'pdt_0NoW9L6402z2V4u404hDk';
 
     // Create checkout session with Dodo Payments
     const session = await dodo.checkoutSessions.create({

@@ -10,7 +10,7 @@ export const FERNUM_LICENSE_API_URL =
 // Default Dodo Payments checkout URL (test / live hosted checkout fallback)
 export const DODO_CHECKOUT_URL =
   process.env.DODO_CHECKOUT_URL ||
-  'https://test.dodopayments.com/buy/pdt_fernum_pro_lifetime'
+  'https://checkout.dodopayments.com/buy/pdt_0NoW9L6402z2V4u404hDk'
 
 const DODO_API_LIVE = 'https://live.dodopayments.com'
 const DODO_API_TEST = 'https://test.dodopayments.com'
