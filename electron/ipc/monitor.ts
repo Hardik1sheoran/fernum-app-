@@ -66,20 +66,6 @@ export async function initCpuInfo() {
   return cachedCpuInfo
 }
 
-function timeoutPromise<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
-  return new Promise((resolve) => {
-    const timer = setTimeout(() => resolve(fallback), ms)
-    promise
-      .then((val) => {
-        clearTimeout(timer)
-        resolve(val)
-      })
-      .catch(() => {
-        clearTimeout(timer)
-        resolve(fallback)
-      })
-  })
-}
 
 let lastKnownNetRx = 0
 let lastKnownNetTx = 0
@@ -91,125 +77,45 @@ let lastKnownNetTx = 0
 export async function collectFastMetrics(): Promise<Omit<SystemStats, 'topProcesses'>> {
   const cpuInfo = cachedCpuInfo || (await initCpuInfo())
 
-  try {
-    const [loadRes, memRes, diskRes, netRes] = await Promise.allSettled([
-      timeoutPromise(si.currentLoad(), 1200, { currentLoad: 0 } as any),
-      timeoutPromise(si.mem(), 600, null as any),
-      timeoutPromise(si.disksIO(), 400, null as any),
-      timeoutPromise(si.networkStats(), 1500, [] as any),
-    ])
+  const cpuPercent = calculateCpuUsage()
+  const totalMem = os.totalmem()
+  const freeMem = os.freemem()
+  const usedMem = Math.max(0, totalMem - freeMem)
+  const memPercent = Math.round((usedMem / totalMem) * 100)
 
-    // 1. CPU Usage
-    let cpuPercent = 0
-    if (loadRes.status === 'fulfilled') {
-      cpuPercent = Math.max(0, Math.min(100, Math.round(loadRes.value.currentLoad)))
-    } else {
-      const cpus = os.cpus()
-      let idle = 0
-      let total = 0
-      for (const c of cpus) {
-        for (const t in c.times) {
-          total += c.times[t as keyof typeof c.times]
-        }
-        idle += c.times.idle
-      }
-      cpuPercent = total > 0 ? Math.max(0, Math.min(100, Math.round(100 - (idle / total) * 100))) : 0
-    }
+  let diskReadSpeed = getLiveDiskRead()
+  let diskWriteSpeed = getLiveDiskWrite()
+  let netRxSpeed = getLiveNetRx()
+  let netTxSpeed = getLiveNetTx()
 
-    // 2. Memory Usage
-    let totalMem = os.totalmem()
-    let usedMem = totalMem - os.freemem()
-    let freeMem = os.freemem()
-    let memPercent = Math.round((usedMem / totalMem) * 100)
+  if (netRxSpeed > 0) lastKnownNetRx = netRxSpeed
+  else netRxSpeed = lastKnownNetRx
 
-    if (memRes.status === 'fulfilled' && memRes.value) {
-      const m = memRes.value
-      totalMem = m.total || totalMem
-      usedMem = m.active || m.used || usedMem
-      freeMem = m.available || m.free || freeMem
-      memPercent = Math.round((usedMem / totalMem) * 100)
-    }
+  if (netTxSpeed > 0) lastKnownNetTx = netTxSpeed
+  else netTxSpeed = lastKnownNetTx
 
-    // 3. Disk I/O Read/Write (bytes/sec) - Live Windows PDH kernel counters
-    let diskReadSpeed = getLiveDiskRead()
-    let diskWriteSpeed = getLiveDiskWrite()
-    if (diskReadSpeed === 0 && diskWriteSpeed === 0 && diskRes.status === 'fulfilled' && diskRes.value) {
-      diskReadSpeed = Math.max(0, Math.round(diskRes.value.rIO_sec || 0))
-      diskWriteSpeed = Math.max(0, Math.round(diskRes.value.wIO_sec || 0))
-    }
-
-    // 4. Network Throughput (bytes/sec) - Live Windows PDH kernel counters
-    let netRxSpeed = getLiveNetRx()
-    let netTxSpeed = getLiveNetTx()
-    if (netRxSpeed === 0 && netTxSpeed === 0 && netRes.status === 'fulfilled' && Array.isArray(netRes.value) && netRes.value.length > 0) {
-      let currentRx = 0
-      let currentTx = 0
-      for (const iface of netRes.value) {
-        currentRx += Math.max(0, Math.round(iface.rx_sec || 0))
-        currentTx += Math.max(0, Math.round(iface.tx_sec || 0))
-      }
-      if (currentRx > 0) lastKnownNetRx = currentRx
-      if (currentTx > 0) lastKnownNetTx = currentTx
-      netRxSpeed = currentRx
-      netTxSpeed = currentTx
-    } else if (netRxSpeed > 0 || netTxSpeed > 0) {
-      lastKnownNetRx = netRxSpeed
-      lastKnownNetTx = netTxSpeed
-    } else {
-      netRxSpeed = lastKnownNetRx
-      netTxSpeed = lastKnownNetTx
-    }
-
-    return {
-      timestamp: Date.now(),
-      cpu: {
-        usagePercent: cpuPercent,
-        model: cpuInfo.model,
-        cores: cpuInfo.cores,
-        speedGhz: cpuInfo.speedGhz,
-      },
-      memory: {
-        totalBytes: totalMem,
-        usedBytes: usedMem,
-        freeBytes: freeMem,
-        usagePercent: memPercent,
-      },
-      disk: {
-        readSpeedBytesPerSec: diskReadSpeed,
-        writeSpeedBytesPerSec: diskWriteSpeed,
-      },
-      network: {
-        rxSpeedBytesPerSec: netRxSpeed,
-        txSpeedBytesPerSec: netTxSpeed,
-      },
-    }
-  } catch (err) {
-    console.error('[MonitorIPC] Error collecting fast telemetry:', err)
-    // Absolute fallback
-    const totalMem = os.totalmem()
-    const freeMem = os.freemem()
-    return {
-      timestamp: Date.now(),
-      cpu: {
-        usagePercent: calculateCpuUsage(),
-        model: cpuInfo.model,
-        cores: cpuInfo.cores,
-      },
-      memory: {
-        totalBytes: totalMem,
-        usedBytes: totalMem - freeMem,
-        freeBytes: freeMem,
-        usagePercent: Math.round(((totalMem - freeMem) / totalMem) * 100),
-      },
-      disk: {
-        readSpeedBytesPerSec: 0,
-        writeSpeedBytesPerSec: 0,
-      },
-      network: {
-        rxSpeedBytesPerSec: 0,
-        txSpeedBytesPerSec: 0,
-      },
-    }
+  return {
+    timestamp: Date.now(),
+    cpu: {
+      usagePercent: cpuPercent,
+      model: cpuInfo.model,
+      cores: cpuInfo.cores,
+      speedGhz: cpuInfo.speedGhz,
+    },
+    memory: {
+      totalBytes: totalMem,
+      usedBytes: usedMem,
+      freeBytes: freeMem,
+      usagePercent: memPercent,
+    },
+    disk: {
+      readSpeedBytesPerSec: diskReadSpeed,
+      writeSpeedBytesPerSec: diskWriteSpeed,
+    },
+    network: {
+      rxSpeedBytesPerSec: netRxSpeed,
+      txSpeedBytesPerSec: netTxSpeed,
+    },
   }
 }
 
@@ -241,7 +147,8 @@ export async function collectTopProcesses(): Promise<ProcessStats[]> {
 export async function collectRealtimeStats(): Promise<SystemStats> {
   const fastMetrics = await collectFastMetrics()
   if (lastKnownProcesses.length === 0) {
-    await collectTopProcesses()
+    // Non-blocking trigger in background so initial tab open renders in < 1ms
+    void collectTopProcesses()
   }
   return {
     ...fastMetrics,

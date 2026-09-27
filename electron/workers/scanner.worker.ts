@@ -3,6 +3,10 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { FREE_TIER_BYTE_CAP, type ScanOptions, type ScanProgress, type FileNode, type FileCategory } from '../../shared/types'
 
+if (!process.env.UV_THREADPOOL_SIZE) {
+  process.env.UV_THREADPOOL_SIZE = '64'
+}
+
 let isCancelled = false
 
 /**
@@ -86,6 +90,9 @@ const DEFAULT_IGNORED_DIRS = new Set([
   'system volume information',
   'config.msi',
   'recovery',
+  '$windows.~bt',
+  '$windows.~ws',
+  'deliveryoptimization',
 ])
 
 const OPAQUE_BUNDLE_DIRS = new Set([
@@ -256,9 +263,14 @@ export async function scanDirectory(
     }
   }
 
+  if (isOpaque && opaqueDepth >= 2) {
+    // Treat as opaque bundle leaf: stop diving deeper into internal bundle subdirectories
+    dirNames.length = 0
+  }
+
   // Stat files in concurrent batches to get exact size and mtimeMs
   const fileItems: { name: string; size: number; mtimeMs?: number }[] = []
-  const STAT_BATCH_SIZE = 128
+  const STAT_BATCH_SIZE = 64
   for (let i = 0; i < fileNamesToStat.length; i += STAT_BATCH_SIZE) {
     if (isCancelled || ctx.isCapped) return null
     const batch = fileNamesToStat.slice(i, i + STAT_BATCH_SIZE)
@@ -517,7 +529,7 @@ export async function performScan(options: ScanOptions): Promise<FileNode | null
     lastPartialTime: Date.now(),
     targetPath,
     excludedSet,
-    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 20),
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 30 : 9),
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
     deepScan: Boolean(options.deepScan),
@@ -550,7 +562,7 @@ async function runScan(options: ScanOptions): Promise<void> {
     lastPartialTime: Date.now(),
     targetPath,
     excludedSet,
-    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 20),
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 30 : 9),
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
     deepScan: Boolean(options.deepScan),
@@ -654,7 +666,7 @@ export async function runScanDirectly(
     lastPartialTime: Date.now(),
     targetPath,
     excludedSet,
-    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 35 : 20),
+    maxDepth: options.maxDepth !== undefined ? options.maxDepth : (options.deepScan ? 30 : 9),
     dirSemaphore: new AsyncSemaphore(CONCURRENT_DIR_SCANS),
     cachedDirMap: options.cachedRoot ? buildDirMtimeMap(options.cachedRoot) : undefined,
     onPartialUpdate: callbacks?.onPartial,

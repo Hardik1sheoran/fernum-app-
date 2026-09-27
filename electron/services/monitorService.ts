@@ -55,18 +55,45 @@ export async function getRealSystemSpecs(): Promise<SystemSpecs> {
   const fallbackSpeed = primaryCpu?.speed ? Number((primaryCpu.speed / 1000).toFixed(2)) : 2.4
   const totalMemory = os.totalmem()
 
-  try {
-    const [osInfo, cpuInfo, memInfo, diskLayout, bat, gfx] = await Promise.all([
-      si.osInfo().catch(() => null),
-      si.cpu().catch(() => null),
-      si.mem().catch(() => null),
-      si.diskLayout().catch(() => []),
-      si.battery().catch(() => null),
-      si.graphics().catch(() => null),
-    ])
+  // 1. Immediately create instant specs from native OS module (< 0.1ms)
+  cachedSpecs = {
+    os: {
+      distro: process.platform === 'win32' ? 'Microsoft Windows' : os.type(),
+      release: os.release(),
+      arch: os.arch(),
+      hostname: os.hostname(),
+      uptime: Math.floor(os.uptime()),
+    },
+    cpu: {
+      brand: fallbackModel,
+      cores: cpus.length || 8,
+      physicalCores: Math.max(1, Math.floor((cpus.length || 8) / 2)),
+      speed: fallbackSpeed,
+    },
+    memory: {
+      totalBytes: totalMemory,
+    },
+    disks: [
+      {
+        name: 'Primary Storage Disk',
+        type: 'SSD',
+        size: totalMemory * 10,
+        interfaceType: 'NVMe',
+      },
+    ],
+  }
 
+  // 2. Non-blocking background hardware enrichment
+  Promise.all([
+    si.osInfo().catch(() => null),
+    si.cpu().catch(() => null),
+    si.mem().catch(() => null),
+    si.diskLayout().catch(() => []),
+    si.battery().catch(() => null),
+    si.graphics().catch(() => null),
+  ]).then(([osInfo, cpuInfo, memInfo, diskLayout, bat, gfx]) => {
+    if (!cachedSpecs) return
     const primaryGpu = gfx?.controllers && gfx.controllers.length > 0 ? gfx.controllers[0] : null
-
     const disks = Array.isArray(diskLayout) && diskLayout.length > 0
       ? diskLayout.map((d) => ({
           name: d.name || 'Local Storage Disk',
@@ -74,31 +101,24 @@ export async function getRealSystemSpecs(): Promise<SystemSpecs> {
           size: d.size || totalMemory * 10,
           interfaceType: d.interfaceType || 'NVMe/SATA',
         }))
-      : [
-          {
-            name: 'Primary Storage Disk',
-            type: 'SSD',
-            size: totalMemory * 10,
-            interfaceType: 'NVMe',
-          },
-        ]
+      : cachedSpecs.disks
 
     cachedSpecs = {
       os: {
-        distro: osInfo?.distro || (process.platform === 'win32' ? 'Microsoft Windows' : os.type()),
-        release: osInfo?.release || os.release(),
-        arch: osInfo?.arch || os.arch(),
-        hostname: osInfo?.hostname || os.hostname(),
+        distro: osInfo?.distro || cachedSpecs.os.distro,
+        release: osInfo?.release || cachedSpecs.os.release,
+        arch: osInfo?.arch || cachedSpecs.os.arch,
+        hostname: osInfo?.hostname || cachedSpecs.os.hostname,
         uptime: Math.floor(os.uptime()),
       },
       cpu: {
-        brand: cpuInfo?.brand ? cpuInfo.brand.trim() : fallbackModel,
-        cores: cpuInfo?.cores || cpus.length || 8,
-        physicalCores: cpuInfo?.physicalCores || Math.max(1, Math.floor((cpus.length || 8) / 2)),
-        speed: cpuInfo?.speed || fallbackSpeed,
+        brand: cpuInfo?.brand ? cpuInfo.brand.trim() : cachedSpecs.cpu.brand,
+        cores: cpuInfo?.cores || cachedSpecs.cpu.cores,
+        physicalCores: cpuInfo?.physicalCores || cachedSpecs.cpu.physicalCores,
+        speed: cpuInfo?.speed || cachedSpecs.cpu.speed,
       },
       memory: {
-        totalBytes: memInfo?.total || totalMemory,
+        totalBytes: memInfo?.total || cachedSpecs.memory.totalBytes,
       },
       disks,
       graphics: primaryGpu
@@ -115,37 +135,9 @@ export async function getRealSystemSpecs(): Promise<SystemSpecs> {
           }
         : undefined,
     }
+  }).catch(() => {})
 
-    return cachedSpecs
-  } catch {
-    cachedSpecs = {
-      os: {
-        distro: process.platform === 'win32' ? 'Microsoft Windows' : os.type(),
-        release: os.release(),
-        arch: os.arch(),
-        hostname: os.hostname(),
-        uptime: Math.floor(os.uptime()),
-      },
-      cpu: {
-        brand: fallbackModel,
-        cores: cpus.length || 8,
-        physicalCores: Math.max(1, Math.floor((cpus.length || 8) / 2)),
-        speed: fallbackSpeed,
-      },
-      memory: {
-        totalBytes: totalMemory,
-      },
-      disks: [
-        {
-          name: 'Primary Storage Disk',
-          type: 'SSD',
-          size: totalMemory * 10,
-          interfaceType: 'NVMe',
-        },
-      ],
-    }
-    return cachedSpecs
-  }
+  return cachedSpecs
 }
 
 // --------------------------------------------------------------------------
