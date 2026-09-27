@@ -1037,7 +1037,7 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
           <div className="flex items-center gap-3">
             <span className="w-2.5 h-2.5 rounded-full bg-amber-500 dark:bg-amber-400 animate-pulse shadow-[0_0_8px_rgba(251,191,36,0.7)] flex-shrink-0" />
             <span className="font-medium tracking-tight">
-              Free version shows the first 70GB scanned. Upgrade to Pro to see your entire drive.
+              Free version shows the first 70GB scanned. Upgrade to Pro to unlock the full Storage Manager.
             </span>
           </div>
           <button
@@ -1045,7 +1045,7 @@ export const TreemapCanvas: React.FC<TreemapCanvasProps> = ({
             className="px-3.5 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-zinc-950 shadow-md transition-all flex items-center gap-1.5 flex-shrink-0 active:scale-95 cursor-pointer font-sans"
           >
             <Sparkles className="w-3.5 h-3.5 fill-current" />
-            Upgrade to Pro
+            Buy License
           </button>
         </div>
       )}

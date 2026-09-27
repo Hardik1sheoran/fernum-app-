@@ -24,12 +24,12 @@ export const TabNavigation: React.FC<TabNavigationProps> = ({ activeTab, onSelec
   }[] = [
     {
       key: 'storage',
-      label: 'Storage',
+      label: 'Storage Manager',
       icon: <HardDrive className="w-4 h-4" />,
     },
     {
       key: 'cleaner',
-      label: 'Disk Cleanup',
+      label: 'Disk Space Cleaner',
       icon: <Trash2 className="w-4 h-4" />,
       isProFeature: true,
     },

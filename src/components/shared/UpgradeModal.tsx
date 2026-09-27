@@ -157,8 +157,9 @@ export const UpgradeModal: React.FC = () => {
 
   const powerSuiteFeatures = [
     'Everything in Free +',
+    'Storage Manager (Unlock full interactive drive space management)',
+    'The disk space analyzer that clears your Windows (Purge system junk, logs & caches)',
     'Uncapped Storage Scanning (Bypass 70GB Free-tier limit)',
-    'Disk Cleanup (System Junk, Logs & Windows Caches)',
     'Deep Duplicate File Hunter (SHA-256 detection & 1-click clean)',
     'Complete App Uninstaller with leftover residue cleaner',
     'Full PC Deep Scan (unthrottled Windows & leaf directory scan)',

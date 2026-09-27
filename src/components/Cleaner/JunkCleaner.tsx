@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Folder,
   Code2,
+  Lock,
 } from 'lucide-react'
 import type { JunkCategoryItem, JunkCategoryType, JunkCleanResult } from '@shared/types'
 import { formatBytes } from '../Treemap/treemapLayout'
@@ -216,6 +217,33 @@ export const JunkCleaner: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Trial / Locked State Banner */}
+      {!isPro && (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-amber-500/10 border border-amber-500/30 p-3.5 text-xs text-amber-200 animate-fade-in shadow-md">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/20 border border-amber-500/40 flex items-center justify-center flex-shrink-0">
+              <Lock className="w-4 h-4 text-amber-400" />
+            </div>
+            <div>
+              <span className="font-bold text-amber-100 text-sm">
+                Trial Mode: The disk space analyzer that clears your Windows is locked
+              </span>
+              <p className="text-xs text-amber-300/80 mt-0.5">
+                You can scan and preview reclaimable junk, but purging files requires a Lifetime License.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={() => openUpgradeModal('The disk space analyzer that clears your Windows')}
+            className="bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-white font-bold py-1.5 px-3 text-xs shadow-md cursor-pointer"
+          >
+            Buy License ($12.99)
+          </Button>
+        </div>
+      )}
 
       {/* Error Banner */}
       {errorMessage && (
