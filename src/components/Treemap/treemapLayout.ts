@@ -36,7 +36,7 @@ export const CATEGORY_COLORS: Record<FileCategory, string> = {
 }
 
 export const CONTAINER_BORDER_PALETTE = [
-  '#c084fc', // Purple (DissectMac Library / Ollama)
+  '#c084fc', // Purple (Application Assets)
   '#38bdf8', // Light Blue / Sky
   '#34d399', // Emerald
   '#fbbf24', // Amber
@@ -346,7 +346,7 @@ export function computeNestedTreemapLayout(
     const lowerName = node.name.toLowerCase()
     if (lowerName.includes('gradle')) {
       borderColor = '#f59e0b'
-    } else if (lowerName.includes('ollama')) {
+    } else if (lowerName.includes('cache')) {
       borderColor = '#38bdf8'
     } else if (lowerName.includes('library')) {
       borderColor = '#34d399'

@@ -1,13 +1,17 @@
 import { create } from 'zustand'
 import {
-  activateDodoLicense,
-  deactivateDodoLicense,
   createDodoCheckout,
   checkDeviceLicenseStatus,
 } from '../services/dodoPayments'
 import { useSettingsStore } from './settingsStore'
 
 export type LicenseTier = 'free' | 'premium'
+
+export interface LicenseServerCache {
+  deviceId: string
+  licensed: boolean
+  confirmedAt: number
+}
 
 interface LicenseState {
   tier: LicenseTier
@@ -36,17 +40,59 @@ interface LicenseState {
   closeUpgradeModal: () => void
 }
 
-const STORAGE_TIER_KEY = 'fernum_license_tier'
-const STORAGE_KEY_KEY = 'fernum_license_key'
-const STORAGE_DEVICE_ID = 'fernum_device_id'
-const STORAGE_EMAIL_KEY = 'fernum_customer_email'
-const STORAGE_NAME_KEY = 'fernum_customer_name'
+export const STORAGE_TIER_KEY = 'fernum_license_tier'
+export const STORAGE_KEY_KEY = 'fernum_license_key'
+export const STORAGE_DEVICE_ID = 'fernum_device_id'
+export const STORAGE_EMAIL_KEY = 'fernum_customer_email'
+export const STORAGE_NAME_KEY = 'fernum_customer_name'
+export const STORAGE_LICENSE_CACHE_KEY = 'fernum_license_confirmed_cache'
+export const LICENSE_GRACE_PERIOD_MS = 7 * 24 * 60 * 60 * 1000 // 7 days limited grace period
+
+function getLocalStorage(): Storage | null {
+  try {
+    if (typeof localStorage !== 'undefined') return localStorage
+    if (typeof window !== 'undefined' && window.localStorage) return window.localStorage
+  } catch {}
+  return null
+}
+
+/**
+ * Validates whether cached license data was previously confirmed by the server
+ * for this exact deviceId and is within the allowed grace period.
+ */
+export function getValidCachedLicense(deviceId: string | null, maxGraceMs = LICENSE_GRACE_PERIOD_MS): boolean {
+  if (!deviceId) return false
+  try {
+    const storage = getLocalStorage()
+    const raw = storage ? storage.getItem(STORAGE_LICENSE_CACHE_KEY) : null
+    if (!raw) return false
+    const parsed: LicenseServerCache = JSON.parse(raw)
+    if (!parsed || typeof parsed !== 'object') return false
+    if (parsed.deviceId !== deviceId) return false
+    if (parsed.licensed !== true) return false
+    const confirmedAt = Number(parsed.confirmedAt)
+    if (!confirmedAt || Number.isNaN(confirmedAt)) return false
+    const elapsed = Date.now() - confirmedAt
+    if (elapsed < 0 || elapsed > maxGraceMs) return false
+    return true
+  } catch {
+    return false
+  }
+}
+
+const getInitialDeviceId = (): string | null => {
+  try {
+    return getLocalStorage()?.getItem(STORAGE_DEVICE_ID) || null
+  } catch {
+    return null
+  }
+}
 
 const getInitialTier = (): LicenseTier => {
   try {
-    const saved = localStorage.getItem(STORAGE_TIER_KEY)
-    if (saved === 'premium' || saved === 'free') {
-      return saved
+    const id = getInitialDeviceId()
+    if (getValidCachedLicense(id)) {
+      return 'premium'
     }
   } catch {
     // LocalStorage unavailable
@@ -54,25 +100,9 @@ const getInitialTier = (): LicenseTier => {
   return 'free'
 }
 
-const getInitialKey = (): string | null => {
-  try {
-    return localStorage.getItem(STORAGE_KEY_KEY)
-  } catch {
-    return null
-  }
-}
-
-const getInitialDeviceId = (): string | null => {
-  try {
-    return localStorage.getItem(STORAGE_DEVICE_ID)
-  } catch {
-    return null
-  }
-}
-
 const getInitialEmail = (): string => {
   try {
-    return localStorage.getItem(STORAGE_EMAIL_KEY) || ''
+    return getLocalStorage()?.getItem(STORAGE_EMAIL_KEY) || ''
   } catch {
     return ''
   }
@@ -80,7 +110,7 @@ const getInitialEmail = (): string => {
 
 const getInitialName = (): string => {
   try {
-    return localStorage.getItem(STORAGE_NAME_KEY) || ''
+    return getLocalStorage()?.getItem(STORAGE_NAME_KEY) || ''
   } catch {
     return ''
   }
@@ -90,7 +120,7 @@ const initialTier = getInitialTier()
 
 export const useLicenseStore = create<LicenseState>((set, get) => ({
   tier: initialTier,
-  licenseKey: getInitialKey(),
+  licenseKey: null,
   deviceId: getInitialDeviceId(),
   customerEmail: getInitialEmail(),
   customerName: getInitialName(),
@@ -116,14 +146,14 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
 
     if (!id) {
       try {
-        id = localStorage.getItem(STORAGE_DEVICE_ID)
+        id = getLocalStorage()?.getItem(STORAGE_DEVICE_ID) || null
       } catch {}
     }
 
     if (!id) {
       id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `dev_${Date.now()}`
       try {
-        localStorage.setItem(STORAGE_DEVICE_ID, id)
+        getLocalStorage()?.setItem(STORAGE_DEVICE_ID, id)
       } catch {}
     }
 
@@ -133,8 +163,8 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
 
   setCustomerInfo: (email: string, name: string) => {
     try {
-      localStorage.setItem(STORAGE_EMAIL_KEY, email)
-      localStorage.setItem(STORAGE_NAME_KEY, name)
+      getLocalStorage()?.setItem(STORAGE_EMAIL_KEY, email)
+      getLocalStorage()?.setItem(STORAGE_NAME_KEY, name)
     } catch {}
     set({ customerEmail: email, customerName: name })
   },
@@ -148,9 +178,16 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
       if (result.success) {
         const isLicensed = Boolean(result.licensed)
         if (isLicensed) {
+          // Strictly verified: server confirmed licensed: true for this deviceId
+          const cacheEntry: LicenseServerCache = {
+            deviceId: id,
+            licensed: true,
+            confirmedAt: Date.now(),
+          }
           try {
-            localStorage.setItem(STORAGE_TIER_KEY, 'premium')
-            localStorage.setItem('fernum_is_pro', 'true')
+            getLocalStorage()?.setItem(STORAGE_LICENSE_CACHE_KEY, JSON.stringify(cacheEntry))
+            getLocalStorage()?.setItem(STORAGE_TIER_KEY, 'premium')
+            getLocalStorage()?.setItem('fernum_is_pro', 'true')
           } catch {}
           useSettingsStore.getState().setIsPro(true)
           set({
@@ -161,35 +198,60 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
           })
           return { licensed: true }
         } else {
-          // If not licensed remotely, check if an existing local license key overrides
-          const currentKey = get().licenseKey
-          const hasManualKey = currentKey && (currentKey.includes('PRO') || currentKey.includes('DODO'))
-          if (!hasManualKey) {
-            try {
-              localStorage.setItem(STORAGE_TIER_KEY, 'free')
-              localStorage.setItem('fernum_is_pro', 'false')
-            } catch {}
-            useSettingsStore.getState().setIsPro(false)
-            set({
-              tier: 'free',
-              isPro: false,
-              lastCheckedAt: Date.now(),
-            })
-          }
-          return { licensed: get().isPro }
+          // Server explicitly returned licensed: false! Revoke Pro immediately and clear cache.
+          try {
+            getLocalStorage()?.removeItem(STORAGE_LICENSE_CACHE_KEY)
+            getLocalStorage()?.setItem(STORAGE_TIER_KEY, 'free')
+            getLocalStorage()?.setItem('fernum_is_pro', 'false')
+          } catch {}
+          useSettingsStore.getState().setIsPro(false)
+          set({
+            tier: 'free',
+            isPro: false,
+            lastCheckedAt: Date.now(),
+          })
+          return { licensed: false }
         }
       } else {
-        // Failed to connect (e.g. offline, timeout) - fail open or preserve state gracefully without hard-locking
-        set({
-          licenseError: result.error || 'Could not reach license server. Operating in offline mode.',
-          lastCheckedAt: Date.now(),
-        })
-        return { licensed: get().isPro, error: result.error }
+        // Failed to connect (network error, timeout, server offline).
+        // Fail-open ONLY if previously confirmed by server for this exact deviceId within grace period.
+        const hasValidCache = getValidCachedLicense(id)
+        if (hasValidCache) {
+          useSettingsStore.getState().setIsPro(true)
+          set({
+            tier: 'premium',
+            isPro: true,
+            licenseError: result.error || 'Server unreachable. Using verified offline grace period.',
+            lastCheckedAt: Date.now(),
+          })
+          return { licensed: true, error: result.error }
+        } else {
+          // Never confirmed by server, or expired grace period, or different device: MUST STAY FREE
+          try {
+            getLocalStorage()?.removeItem(STORAGE_LICENSE_CACHE_KEY)
+            getLocalStorage()?.setItem(STORAGE_TIER_KEY, 'free')
+            getLocalStorage()?.setItem('fernum_is_pro', 'false')
+          } catch {}
+          useSettingsStore.getState().setIsPro(false)
+          set({
+            tier: 'free',
+            isPro: false,
+            licenseError: result.error || 'Could not reach license server.',
+            lastCheckedAt: Date.now(),
+          })
+          return { licensed: false, error: result.error }
+        }
       }
     } catch (err: any) {
       const errMsg = err?.message || 'Error checking license'
-      set({ licenseError: errMsg })
-      return { licensed: get().isPro, error: errMsg }
+      const id = get().deviceId
+      const hasValidCache = getValidCachedLicense(id)
+      if (hasValidCache) {
+        set({ licenseError: errMsg })
+        return { licensed: true, error: errMsg }
+      }
+      set({ tier: 'free', isPro: false, licenseError: errMsg })
+      return { licensed: false, error: errMsg }
     } finally {
       set({ isCheckingLicense: false })
     }
@@ -220,67 +282,28 @@ export const useLicenseStore = create<LicenseState>((set, get) => ({
     return { licensed: false, message: 'No active license found for this device.' }
   },
 
-  activateLicense: async (key?: string) => {
-    const effectiveKey = key?.trim() || `FERNUM-PRO-${Date.now().toString(36).toUpperCase()}`
-
-    // Validate format: accept any key containing PRO, FERNUM, DODO, or standard license pattern
-    const isRecognized =
-      effectiveKey.toUpperCase().includes('PRO') ||
-      effectiveKey.toUpperCase().startsWith('FERNUM-') ||
-      effectiveKey.toUpperCase().startsWith('DODO-') ||
-      effectiveKey.length >= 16
-
-    if (key && key.trim().length > 0 && !isRecognized && key.length < 8) {
-      return { success: false, message: 'Invalid license key format. Keys start with FERNUM-PRO or DODO-.' }
+  // Mock / demo key activations removed. Pro only unlocks via server confirmation.
+  activateLicense: async () => {
+    return {
+      success: false,
+      message: 'License activation is tied directly to your Device ID. Please click "Refresh License" to verify your status.',
     }
-
-    try {
-      localStorage.setItem(STORAGE_TIER_KEY, 'premium')
-      localStorage.setItem(STORAGE_KEY_KEY, effectiveKey)
-      localStorage.setItem('fernum_is_pro', 'true')
-    } catch {}
-
-    useSettingsStore.getState().setIsPro(true)
-
-    set({
-      tier: 'premium',
-      licenseKey: effectiveKey,
-      isPro: true,
-      isUpgradeModalOpen: false,
-      triggerFeature: null,
-      licenseError: null,
-    })
-
-    return { success: true, message: 'Lifetime Pro activated successfully!' }
   },
 
-  activateOnlineLicense: async (key: string) => {
-    set({ isValidating: true })
-    try {
-      const result = await activateDodoLicense(key)
-      if (result.success) {
-        get().activateLicense(result.licenseKey)
-        return { success: true, message: result.message }
-      }
-      return { success: false, message: result.message }
-    } finally {
-      set({ isValidating: false })
+  activateOnlineLicense: async () => {
+    return {
+      success: false,
+      message: 'License activation is tied directly to your Device ID. Please click "Refresh License" to verify your status.',
     }
   },
 
   deactivateLicense: async () => {
-    const currentKey = get().licenseKey
-    if (currentKey) {
-      void deactivateDodoLicense(currentKey).catch(() => {})
-    }
-
     try {
+      localStorage.removeItem(STORAGE_LICENSE_CACHE_KEY)
       localStorage.setItem(STORAGE_TIER_KEY, 'free')
       localStorage.removeItem(STORAGE_KEY_KEY)
       localStorage.setItem('fernum_is_pro', 'false')
-    } catch {
-      // Ignore
-    }
+    } catch {}
 
     useSettingsStore.getState().setIsPro(false)
 

@@ -1,6 +1,6 @@
 {
   "name": "fernum",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "description": "Fernum - Native-feeling Windows storage analyzer and disk cleaner",
   "author": "Fernum",
@@ -24,6 +24,7 @@
     "dotenv": "^18.0.4",
     "express": "^5.2.1",
     "lucide-react": "^1.16.0",
+    "pg": "^8.23.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "systeminformation": "^5.33.10",
@@ -34,6 +35,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^22.13.9",
+    "@types/pg": "^8.23.1",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",

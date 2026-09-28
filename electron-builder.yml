@@ -7,6 +7,14 @@ files:
   - dist/**
   - dist-electron/**
   - package.json
+  - "!server/**"
+  - "!data/**"
+  - "!.env*"
+  - "!scratch/**"
+  - "!tests/**"
+  - "!dodo.js"
+  - "!render.yaml"
+  - "!**/*.map"
 asarUnpack:
   - "dist-electron/workers/**"
 win:

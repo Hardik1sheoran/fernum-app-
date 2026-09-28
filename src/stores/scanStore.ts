@@ -1,6 +1,5 @@
 import { create } from 'zustand'
 import type { DriveInfo, QuickFolderInfo, FileNode, ScanProgress, CleanupQueueItem } from '@shared/types'
-import { DEMO_ROOT_NODE } from '../components/Treemap/demoTreeData'
 
 function cloneTree(node: FileNode): FileNode {
   return {
@@ -91,9 +90,9 @@ export const useScanStore = create<ScanState>((set, get) => ({
     scannedBytes: 0,
     percentage: 0,
   },
-  rootNode: DEMO_ROOT_NODE,
-  currentViewNode: DEMO_ROOT_NODE,
-  breadcrumbs: [DEMO_ROOT_NODE],
+  rootNode: null,
+  currentViewNode: null,
+  breadcrumbs: [],
   isLoadingDrives: false,
   reclaimedBytes: 0,
   searchQuery: '',
@@ -109,12 +108,7 @@ export const useScanStore = create<ScanState>((set, get) => ({
     archives: false,
     iosBackups: false,
   },
-  cleanupQueue: [
-    { id: 'cleanup-android', name: 'Android build cache (.gradle)', path: 'C:\\Users\\hardi\\.gradle\\caches', size: 3050000000, category: 'Dev' },
-    { id: 'cleanup-chrome', name: 'Google Chrome Profile Cache', path: 'C:\\Users\\hardi\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Cache', size: 889000000, category: 'Cache' },
-    { id: 'cleanup-ollama', name: 'Ollama Model Weights Blob', path: 'C:\\Users\\hardi\\.ollama\\models\\blobs', size: 2020000000, category: 'Model' },
-    { id: 'cleanup-node', name: 'Node.js global build cache', path: 'C:\\Users\\hardi\\AppData\\Local\\npm-cache', size: 1200000000, category: 'Dev' },
-  ],
+  cleanupQueue: [],
 
   setDrives: (drives) =>
     set((state) => ({

@@ -45,7 +45,7 @@ export interface CreateCheckoutParams {
 export async function createDodoCheckout(
   params: CreateCheckoutParams
 ): Promise<{ success: boolean; checkout_url?: string; session_id?: string; error?: string }> {
-  if (window.electronAPI?.createCheckout) {
+  if (typeof window !== 'undefined' && window.electronAPI?.createCheckout) {
     return window.electronAPI.createCheckout(params)
   }
 
@@ -66,9 +66,9 @@ export async function createDodoCheckout(
 
     const data = await res.json()
     if (data?.checkout_url) {
-      if (window.electronAPI?.openExternalUrl) {
+      if (typeof window !== 'undefined' && window.electronAPI?.openExternalUrl) {
         await window.electronAPI.openExternalUrl(data.checkout_url)
-      } else {
+      } else if (typeof window !== 'undefined' && window.open) {
         window.open(data.checkout_url, '_blank')
       }
       return { success: true, checkout_url: data.checkout_url, session_id: data.session_id }
@@ -84,8 +84,8 @@ export async function createDodoCheckout(
  */
 export async function checkDeviceLicenseStatus(
   deviceId: string
-): Promise<{ success: boolean; licensed: boolean; details?: any; offline?: boolean; error?: string }> {
-  if (window.electronAPI?.checkLicense) {
+): Promise<{ success: boolean; licensed: boolean; offline?: boolean; error?: string }> {
+  if (typeof window !== 'undefined' && window.electronAPI?.checkLicense) {
     return window.electronAPI.checkLicense(deviceId)
   }
 
@@ -99,7 +99,7 @@ export async function checkDeviceLicenseStatus(
     }
 
     const data = await res.json()
-    return { success: true, licensed: Boolean(data?.licensed), details: data }
+    return { success: true, licensed: Boolean(data?.licensed) }
   } catch (err: any) {
     return {
       success: false,
@@ -214,18 +214,11 @@ export async function activateDodoLicense(licenseKey: string): Promise<DodoActiv
         message: 'Maximum activations reached for this license key. Please deactivate another device first.',
       }
     }
-  } catch {
-    // Network failed or offline - fall back to local offline validation
-  }
-
-  // 3. Offline fallback validation:
-  // If the key adheres to standard license structure, allow activation offline so users aren't locked out
-  if (isRecognizedPattern) {
+  } catch (err: any) {
     return {
-      success: true,
+      success: false,
       licenseKey: cleanKey,
-      isOffline: true,
-      message: 'Lifetime Pro activated successfully (Offline Mode).',
+      message: err?.message || 'Could not connect to license server. Please verify your internet connection.',
     }
   }
 
@@ -259,12 +252,10 @@ export async function validateDodoLicense(licenseKey: string): Promise<boolean> 
       const data = await response.json().catch(() => ({}))
       return data.status === 'active' || data.valid === true
     }
+    return false
   } catch {
-    // In case of network glitch, preserve offline active state
-    return true
+    return false
   }
-
-  return true
 }
 
 /**

@@ -344,7 +344,7 @@ export interface ElectronAPI {
   }) => Promise<{ success: boolean; checkout_url?: string; session_id?: string; error?: string }>
   checkLicense?: (
     deviceId?: string
-  ) => Promise<{ success: boolean; licensed: boolean; details?: any; offline?: boolean; error?: string }>
+  ) => Promise<{ success: boolean; licensed: boolean; offline?: boolean; error?: string }>
   setTheme: (theme: 'dark' | 'light') => Promise<boolean>
   openExternalUrl?: (url: string) => Promise<boolean>
   onDeepLinkLicense?: (callback: (licenseKey: string) => void) => () => void

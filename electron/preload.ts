@@ -166,7 +166,7 @@ const api: ElectronAPI = {
   },
   checkLicense: (
     deviceId?: string
-  ): Promise<{ success: boolean; licensed: boolean; details?: any; offline?: boolean; error?: string }> => {
+  ): Promise<{ success: boolean; licensed: boolean; offline?: boolean; error?: string }> => {
     return ipcRenderer.invoke('license:check', deviceId)
   },
 

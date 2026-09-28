@@ -11,7 +11,6 @@ interface SettingsState {
   addExcludedPath: (path: string) => void
   removeExcludedPath: (path: string) => void
   setIsPro: (isPro: boolean) => void
-  togglePro: () => void
 }
 
 function getSafeItem(key: string): string | null {
@@ -23,12 +22,11 @@ function getSafeItem(key: string): string | null {
 }
 
 const savedTheme = (getSafeItem('theme') as ThemeMode) || 'dark'
-const savedIsPro = getSafeItem('fernum_is_pro') === 'true'
 
 export const useSettingsStore = create<SettingsState>((set) => ({
   theme: savedTheme,
   excludedPaths: ['C:\\Windows\\WinSxS', 'C:\\$Recycle.Bin'],
-  isPro: savedIsPro,
+  isPro: false,
   setTheme: (theme) => {
     try {
       localStorage.setItem('theme', theme)
@@ -61,14 +59,5 @@ export const useSettingsStore = create<SettingsState>((set) => ({
       localStorage.setItem('fernum_is_pro', String(isPro))
     } catch {}
     set({ isPro })
-  },
-  togglePro: () => {
-    set((state) => {
-      const next = !state.isPro
-      try {
-        localStorage.setItem('fernum_is_pro', String(next))
-      } catch {}
-      return { isPro: next }
-    })
   },
 }))

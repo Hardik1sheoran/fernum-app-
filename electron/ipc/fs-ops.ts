@@ -3,6 +3,7 @@ import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import type { DriveInfo, FsOperationResult, BatchFsOperationResult, QuickFolderInfo } from '../../shared/types'
 import { isProtectedSystemPath } from '../../shared/pathSecurity'
 
@@ -130,7 +131,7 @@ Get-CimInstance -ClassName Win32_LogicalDisk | Select-Object DeviceID, VolumeNam
   })
 
   ipcMain.handle('fs:get-quick-folders', async (): Promise<QuickFolderInfo[]> => {
-    const userProfile = process.env.USERPROFILE || 'C:\\Users\\hardi'
+    const userProfile = process.env.USERPROFILE || os.homedir() || ''
     const folders: QuickFolderInfo[] = [
       {
         id: 'user-profile',

@@ -2,6 +2,7 @@ import type { Plugin, ViteDevServer } from 'vite'
 import fs from 'node:fs'
 import fsPromises from 'node:fs/promises'
 import path from 'node:path'
+import os from 'node:os'
 import { exec } from 'node:child_process'
 import { promisify } from 'node:util'
 import type {
@@ -191,7 +192,7 @@ Get-CimInstance -ClassName Win32_LogicalDisk | Select-Object DeviceID, VolumeNam
 
         // Get Quick Access / File Manager Folders
         if (pathname === '/api/quick-folders') {
-          const userProfile = process.env.USERPROFILE || 'C:\\Users\\hardi'
+          const userProfile = process.env.USERPROFILE || os.homedir() || ''
           const folders: QuickFolderInfo[] = [
             {
               id: 'user-profile',

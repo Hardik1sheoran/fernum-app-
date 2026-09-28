@@ -1,5 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import * as os from 'node:os'
 import * as crypto from 'node:crypto'
 import type {
   DuplicateFileItem,
@@ -66,7 +67,7 @@ async function computeFileHash(filePath: string, sampleBytes = 16384): Promise<s
 export async function findDuplicateFiles(
   options: DuplicateScanOptions = {}
 ): Promise<DuplicateScanResult> {
-  let rootDir = options.targetPath || process.env.USERPROFILE || 'C:\\Users\\hardi'
+  let rootDir = options.targetPath || process.env.USERPROFILE || os.homedir() || 'C:\\'
   if (/^[a-zA-Z]:$/.test(rootDir)) {
     rootDir = `${rootDir}\\`
   }

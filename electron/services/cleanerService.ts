@@ -1,5 +1,6 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
+import * as os from 'node:os'
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 import type {
@@ -117,7 +118,7 @@ export function getCategoryConfigs(): CategoryConfig[] {
       icon: 'Code2',
       safeToClean: true,
       getPaths: () => {
-        const userProfile = process.env.USERPROFILE || 'C:\\Users\\hardi'
+        const userProfile = process.env.USERPROFILE || os.homedir() || ''
         return [
           path.win32.join(localAppData, 'npm-cache'),
           path.win32.join(userProfile, '.pnpm-store'),

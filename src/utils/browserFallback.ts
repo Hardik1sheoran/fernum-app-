@@ -209,7 +209,7 @@ export function initBrowserFallback(): void {
       try {
         const res = await fetch(`https://fernum-license-api.onrender.com/api/license/${encodeURIComponent(id)}`)
         const data = await res.json()
-        return { success: true, licensed: Boolean(data.licensed), details: data }
+        return { success: true, licensed: Boolean(data.licensed) }
       } catch {
         return { success: false, licensed: false, offline: true, error: 'Offline fallback' }
       }

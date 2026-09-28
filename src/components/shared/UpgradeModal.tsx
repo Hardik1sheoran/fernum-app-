@@ -28,8 +28,6 @@ export const UpgradeModal: React.FC = () => {
     initDeviceId,
     buyLicense,
     refreshLicense,
-    activateLicense,
-    activateOnlineLicense,
     deactivateLicense,
     closeUpgradeModal,
   } = useLicenseStore()
@@ -53,22 +51,20 @@ export const UpgradeModal: React.FC = () => {
   // Listen for incoming deep links from Dodo Payments checkout redirect (e.g. fernum://license?key=...)
   useEffect(() => {
     if (window.electronAPI?.onDeepLinkLicense) {
-      const unsubscribe = window.electronAPI.onDeepLinkLicense((key: string) => {
-        if (key) {
-          void activateOnlineLicense(key).then((res) => {
-            setStatusMessage({ text: res.message, isError: !res.success })
-            if (res.success) {
-              setTimeout(() => {
-                closeUpgradeModal()
-                setStatusMessage(null)
-              }, 1500)
-            }
-          })
-        }
+      const unsubscribe = window.electronAPI.onDeepLinkLicense(() => {
+        void refreshLicense().then((res) => {
+          setStatusMessage({ text: res.message, isError: !res.licensed })
+          if (res.licensed) {
+            setTimeout(() => {
+              closeUpgradeModal()
+              setStatusMessage(null)
+            }, 1500)
+          }
+        })
       })
       return unsubscribe
     }
-  }, [activateOnlineLicense, closeUpgradeModal])
+  }, [refreshLicense, closeUpgradeModal])
 
   if (!isUpgradeModalOpen) return null
 
@@ -122,29 +118,20 @@ export const UpgradeModal: React.FC = () => {
   }
 
   const handleActivateManualKey = async () => {
-    if (!inputKey.trim()) {
-      setStatusMessage({ text: 'Please enter your license key.', isError: true })
-      return
-    }
-    const res = await activateOnlineLicense(inputKey)
-    if (res.success) {
-      setStatusMessage({ text: res.message, isError: false })
+    setStatusMessage(null)
+    const res = await refreshLicense()
+    if (res.licensed) {
+      setStatusMessage({ text: 'License verified! Lifetime Pro is active.', isError: false })
       setTimeout(() => {
         closeUpgradeModal()
         setStatusMessage(null)
       }, 1500)
     } else {
-      setStatusMessage({ text: res.message, isError: true })
+      setStatusMessage({
+        text: 'No active license found for this device on the server. If you completed checkout, please click "Refresh License" to sync.',
+        isError: true,
+      })
     }
-  }
-
-  const handleInstantUnlock = async () => {
-    const res = await activateLicense(`FERNUM-PRO-LIFETIME-${Date.now().toString(36).toUpperCase()}`)
-    setStatusMessage({ text: res.message, isError: false })
-    setTimeout(() => {
-      closeUpgradeModal()
-      setStatusMessage(null)
-    }, 1000)
   }
 
   const essentialsFeatures = [
@@ -424,15 +411,7 @@ export const UpgradeModal: React.FC = () => {
                         className="hover:text-blue-300 transition-colors flex items-center gap-1 cursor-pointer"
                       >
                         <KeyRound className="w-3.5 h-3.5 text-zinc-400" />
-                        <span>Already have a license key?</span>
-                      </button>
-
-                      <button
-                        onClick={handleInstantUnlock}
-                        className="text-[10px] text-zinc-500 hover:text-zinc-300 transition-colors cursor-pointer"
-                        title="Simulate instant Pro purchase for offline development"
-                      >
-                        (Dev Test Unlock)
+                        <span>Already purchased a license?</span>
                       </button>
                     </div>
                   ) : (

@@ -151,7 +151,7 @@ export const App: React.FC = () => {
         p += 25
         setScanProgress({
           status: 'scanning',
-          currentPath: `${drive.path}Users\\hardi\\AppData...`,
+          currentPath: `${drive.path}Users\\User\\AppData...`,
           scannedFiles: Math.round((p / 100) * 14200),
           scannedBytes: Math.round((p / 100) * (drive.usedBytes || 225 * 1024 ** 3)),
           percentage: p,
@@ -309,7 +309,7 @@ export const App: React.FC = () => {
       if (userFolder) targetPath = userFolder.path
     }
     if (!targetPath) {
-      targetPath = 'C:\\Users\\hardi'
+      targetPath = 'C:\\Users\\User'
     }
 
     const hostDrive = await getHostDrive(targetPath)
@@ -365,7 +365,7 @@ export const App: React.FC = () => {
         setDriveError(message)
       }
     } else {
-      const customPath = window.prompt('Enter folder path to analyze:', 'C:\\Users\\hardi\\Projects')
+      const customPath = window.prompt('Enter folder path to analyze:', 'C:\\')
       if (!customPath) return
       const folderName = customPath.split(/[\\/]/).filter(Boolean).pop() || customPath
       const customFolderDrive: DriveInfo = {
