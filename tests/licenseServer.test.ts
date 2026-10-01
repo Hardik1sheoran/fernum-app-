@@ -1,6 +1,6 @@
-import { describe, it, expect, beforeEach, afterAll, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll, beforeAll, vi } from 'vitest';
 import type { Server } from 'node:http';
-import app from '../server/index.js';
+import app, { getDodoEnvironment, activeDodoEnv } from '../server/index.js';
 import { licenseDb, InMemoryLicenseStore, setLicenseStore } from '../server/db.js';
 import { dodo } from '../dodo.js';
 
@@ -428,4 +428,67 @@ describe('Fernum License Database & Service (Postgres & In-Memory Store)', () =>
       expect(await licenseDb.isLicensed('malicious-string-not-uuid')).toBe(false);
     });
   });
+
+  describe('Dodo Environment Configuration (getDodoEnvironment & DODO_ENV)', () => {
+    it('defaults to live_mode when DODO_ENV is unset or undefined', () => {
+      expect(getDodoEnvironment(undefined)).toBe('live_mode');
+    });
+
+    it('defaults to live_mode when DODO_ENV is empty or whitespace', () => {
+      expect(getDodoEnvironment('')).toBe('live_mode');
+      expect(getDodoEnvironment('   ')).toBe('live_mode');
+    });
+
+    it('defaults to live_mode when DODO_ENV contains invalid strings', () => {
+      expect(getDodoEnvironment('sandbox')).toBe('live_mode');
+      expect(getDodoEnvironment('production')).toBe('live_mode');
+      expect(getDodoEnvironment('development')).toBe('live_mode');
+      expect(getDodoEnvironment('staging')).toBe('live_mode');
+      expect(getDodoEnvironment('false')).toBe('live_mode');
+    });
+
+    it('accepts and normalizes test_mode correctly', () => {
+      expect(getDodoEnvironment('test_mode')).toBe('test_mode');
+      expect(getDodoEnvironment('TEST_MODE')).toBe('test_mode');
+      expect(getDodoEnvironment(' test_mode ')).toBe('test_mode');
+    });
+
+    it('accepts and normalizes live_mode correctly', () => {
+      expect(getDodoEnvironment('live_mode')).toBe('live_mode');
+      expect(getDodoEnvironment('LIVE_MODE')).toBe('live_mode');
+      expect(getDodoEnvironment(' live_mode ')).toBe('live_mode');
+    });
+
+    it('exports active mode from both dodo.js and server/index.js adhering to allowed modes', () => {
+      expect(['live_mode', 'test_mode']).toContain(activeDodoEnv);
+    });
+
+    describe('reading from process.env.DODO_ENV', () => {
+      const originalEnv = process.env.DODO_ENV;
+
+      afterEach(() => {
+        if (originalEnv !== undefined) {
+          process.env.DODO_ENV = originalEnv;
+        } else {
+          delete process.env.DODO_ENV;
+        }
+      });
+
+      it('defaults to live_mode when no DODO_ENV set', () => {
+        delete process.env.DODO_ENV;
+        expect(getDodoEnvironment()).toBe('live_mode');
+      });
+
+      it('activates test mode when DODO_ENV=test_mode', () => {
+        process.env.DODO_ENV = 'test_mode';
+        expect(getDodoEnvironment()).toBe('test_mode');
+      });
+
+      it('falls back to live_mode when an invalid value is set', () => {
+        process.env.DODO_ENV = 'invalid_environment_value';
+        expect(getDodoEnvironment()).toBe('live_mode');
+      });
+    });
+  });
 });
+

@@ -1,8 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import 'dotenv/config';
-import { dodo } from '../dodo.js';
+import { dodo, getDodoEnvironment } from '../dodo.js';
 import { licenseDb } from './db.js';
+
+export { getDodoEnvironment };
+export const activeDodoEnv = getDodoEnvironment(process.env.DODO_ENV);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -355,6 +358,7 @@ if (process.env.NODE_ENV !== 'test') {
 
   app.listen(PORT, () => {
     console.log(`[Fernum License Server] Running on http://localhost:${PORT}`);
+    console.log(`[Dodo] Running in ${activeDodoEnv}`);
   });
 }
 
